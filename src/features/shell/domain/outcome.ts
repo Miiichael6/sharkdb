@@ -1,7 +1,7 @@
 // What running a shell script returns. BSON values travel as canonical Extended JSON.
 import type { Doc } from "../../explorer/domain/mongo";
 
-export type ScriptErrorKind = "script" | "timeout" | "cancelled" | "outOfMemory" | "conversion";
+export type ScriptErrorKind = "script" | "timeout" | "cancelled" | "outOfMemory" | "conversion" | "readOnly";
 
 export interface ScriptError {
   kind: ScriptErrorKind;
@@ -65,10 +65,15 @@ const ERROR_TITLE: Record<ScriptErrorKind, string> = {
   cancelled: "Detenido",
   outOfMemory: "Sin memoria",
   conversion: "Resultado no convertible",
+  readOnly: "Solo lectura",
 };
 
-/** How a script error reads under the results: `Error (línea 3, columna 5): …`. */
+/** What a write stopped by safe mode says, instead of the backend's message. */
+export const READ_ONLY_TEXT = "el script intenta escribir y esta conexión está en safe mode. Desactívalo con el candado de la barra para poder escribir.";
+
+/** How a script error reads under the results: `Error (línea 3, columna 5): …`, `Solo lectura (línea 3): …`. */
 export function scriptErrorText(e: ScriptError): string {
+  if (e.kind === "readOnly") return `${ERROR_TITLE.readOnly}${e.line ? ` (línea ${e.line})` : ""}: ${READ_ONLY_TEXT}`;
   const at = e.line ? ` (línea ${e.line}${e.column ? `, columna ${e.column}` : ""})` : "";
   return `${ERROR_TITLE[e.kind]}${at}: ${e.message}`;
 }

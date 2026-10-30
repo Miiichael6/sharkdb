@@ -39,7 +39,7 @@ function RunOutput({ sid, run, view }: Props) {
       {results.map((r, i) => (
         <ResultItem key={i} sid={sid} result={r} index={i} run={run} view={view} />
       ))}
-      {error && <div className="output-error">{scriptErrorText(error)}</div>}
+      {error && <div className={`output-error${error.kind === "readOnly" ? " read-only" : ""}`}>{scriptErrorText(error)}</div>}
       {!error && !results.length && <div className="muted small">El script no devolvió nada.</div>}
     </div>
   );

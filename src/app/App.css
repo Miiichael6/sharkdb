@@ -1364,6 +1364,25 @@ table.grid {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* No horizontal scrollbar: on a one-line script it hides the line. It still scrolls sideways
+   (Shift+wheel, touchpad, cursor). Styling one scrollbar makes WebView2 draw both by hand, so the
+   vertical one is drawn here too. */
+.query-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 0;
+}
+.query-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background-clip: padding-box;
+}
+.query-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}
+.query-editor .cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
+}
 .where-part svg {
   flex: none;
   width: 14px;
@@ -1421,6 +1440,11 @@ table.grid {
 }
 .output-print {
   margin: 0;
+/* Safe mode stopped a write: a notice in the safe mode color, not a failure. */
+.output-error.read-only {
+  color: var(--warn);
+  font-family: inherit;
+}
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;
