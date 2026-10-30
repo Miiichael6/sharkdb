@@ -22,7 +22,7 @@ Debajo del editor, los resultados se ven en tres modos intercambiables (árbol `
 - [x] Prueba real: colección con documentos anidados y arrays de 10k docs; cambiar de modo, paginar, copiar documento; el scroll se mantiene fluido
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test` y `npm run build` pasan
-- [ ] Commit: `feat(shell): visor de resultados en árbol, tabla y texto` (propuesto, pendiente del usuario)
+- [x] Commit: `feat(shell): visor de resultados en árbol, tabla y texto`
 - **Cierre de Fase 3**
 
 ## Criterios de aceptación
