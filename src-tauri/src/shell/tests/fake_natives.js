@@ -1,6 +1,6 @@
 // Servidor falso para los tests del prelude: guarda cada llamada en `__calls` y sirve
 // colecciones de `n` documentos `{ _id: i }`, donde `n` es la opción `limit` o
-// FAKE_COLLECTION_SIZE si no la hay.
+// FAKE_COLLECTION_SIZE si no la hay. No tiene sharding: `config.collections` está vacía.
 (() => {
   const FAKE_COLLECTION_SIZE = 120;
   const calls = [];
@@ -16,7 +16,7 @@
   return {
     find(db, coll, filter, options) {
       calls.push({ op: 'find', db, coll, filter, options });
-      const n = options.limit ?? FAKE_COLLECTION_SIZE;
+      const n = db === 'config' && coll === 'collections' ? 0 : options.limit ?? FAKE_COLLECTION_SIZE;
       return open(Array.from({ length: n }, (_, i) => ({ _id: i })));
     },
     aggregate(db, coll, pipeline, options) {

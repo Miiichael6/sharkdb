@@ -22,6 +22,8 @@ export interface MongoAdmin {
 
   createIndex(sid: string, db: string, coll: string, spec: IndexSpec): Promise<void>;
   dropIndex(sid: string, db: string, coll: string, name: string): Promise<void>;
+  /** Drops and rebuilds every index of the collection (`reIndex`; standalone servers only on recent versions). */
+  rebuildIndexes(sid: string, db: string, coll: string): Promise<void>;
 
   /** Runs a pipeline that writes its output (`$out`, `$merge`); its reply is discarded. */
   runPipeline(sid: string, db: string, coll: string, pipeline: Doc[]): Promise<void>;

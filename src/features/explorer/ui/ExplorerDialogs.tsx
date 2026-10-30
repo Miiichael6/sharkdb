@@ -1,4 +1,3 @@
-import { ConfirmDialog } from "../../../shared/ui/common";
 import type { CopyRequest } from "../domain/copySpec";
 import type { IndexSpec } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
@@ -15,12 +14,11 @@ interface Props {
   onSubmitIndex: (spec: IndexSpec) => Promise<void>;
   onSubmitUser: (spec: UserSpec) => Promise<void>;
   onCopy: (request: CopyRequest) => Promise<void>;
-  onConfirm: () => void;
 }
 
 /** Renders whichever dialog the explorer actions opened. */
 export function ExplorerDialogs(props: Props) {
-  const { dialog, databases, onClose, onSubmitIndex, onSubmitUser, onCopy, onConfirm } = props;
+  const { dialog, databases, onClose, onSubmitIndex, onSubmitUser, onCopy } = props;
   switch (dialog?.kind) {
     case "prompt":
       return (
@@ -50,16 +48,6 @@ export function ExplorerDialogs(props: Props) {
         />
       );
     }
-    case "confirm":
-      return (
-        <ConfirmDialog
-          title={dialog.title}
-          message={dialog.message}
-          confirmLabel={dialog.label}
-          onCancel={onClose}
-          onConfirm={onConfirm}
-        />
-      );
     default:
       return null;
   }

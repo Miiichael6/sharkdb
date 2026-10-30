@@ -1,7 +1,8 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
+import type { ConfirmRequest } from "../../../shared/domain/confirmation";
 import type { DocumentTarget } from "../../../shared/domain/documentTarget";
-import { ConfirmDialog } from "../../../shared/ui/common";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { DocumentActionsContext, type DocumentActions } from "../../../shared/ui/documentActions";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { useLog } from "../../../shared/ui/useLog";
@@ -12,8 +13,6 @@ import { DOCUMENT_EDITOR_VIEW, type DocumentEditorData, type DocumentEditorResul
 /** Text the insert editor starts with. */
 const NEW_DOCUMENT = "{\n  \n}";
 
-type Dialog = { kind: "confirm"; title: string; message: string; confirmLabel: string; run: () => Promise<void> };
-
 const namespace = (t: DocumentTarget) => `${t.db}.${t.coll}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -21,8 +20,6 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function DocumentActionsProvider({ children }: { children: ReactNode }) {
   const { documents } = useServices();
   const log = useLog();
-  const [dialog, setDialog] = useState<Dialog | null>(null);
-  const close = () => setDialog(null);
 
   const actions = useMemo<DocumentActions>(() => {
     /** The editor in its own window, which keeps this one disabled until it closes; null when nothing was saved. */
@@ -40,8 +37,9 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    /** Runs a confirmed deletion, logging how many documents it removed. */
-    const deletion = (target: DocumentTarget, remove: () => Promise<number>, onDone: () => void) => async () => {
+    /** Asks first, then deletes, logging how many documents it removed. */
+    const deletion = async (request: ConfirmRequest, target: DocumentTarget, remove: () => Promise<number>, onDone: () => void) => {
+      if (!(await confirmInWindow(request))) return;
       try {
         const n = await remove();
         log.info(`${plural(n, "documento eliminado", "documentos eliminados")} de ${namespace(target)}`);
@@ -65,39 +63,33 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
         onDone();
       },
       remove: (target, docs, onDone) =>
-        setDialog({
-          kind: "confirm",
-          title: docs.length === 1 ? "Eliminar documento" : "Eliminar documentos",
-          message: `¿Eliminar ${plural(docs.length, "documento", "documentos")} de ${namespace(target)}? No se puede deshacer.`,
-          confirmLabel: "Eliminar",
-          run: deletion(target, () => documents.deleteDocuments(target, docs), onDone),
-        }),
+        void deletion(
+          {
+            title: docs.length === 1 ? "Eliminar documento" : "Eliminar documentos",
+            message: `¿Eliminar ${plural(docs.length, "documento", "documentos")} de ${namespace(target)}? No se puede deshacer.`,
+            confirmLabel: "Eliminar",
+          },
+          target,
+          () => documents.deleteDocuments(target, docs),
+          onDone,
+        ),
       removeAll: (target, onDone) =>
-        setDialog({
-          kind: "confirm",
-          title: "Eliminar todos los documentos",
-          message: `¿Eliminar todos los documentos de ${namespace(target)}? La colección y sus índices se conservan. No se puede deshacer.`,
-          confirmLabel: "Eliminar todos",
-          run: deletion(target, () => documents.deleteAll(target), onDone),
-        }),
+        void deletion(
+          {
+            title: "Eliminar todos los documentos",
+            message: `¿Eliminar todos los documentos de ${namespace(target)}? La colección y sus índices se conservan. No se puede deshacer.`,
+            confirmLabel: "Eliminar todos",
+          },
+          target,
+          () => documents.deleteAll(target),
+          onDone,
+        ),
     };
   }, [documents, log]);
 
   return (
     <DocumentActionsContext.Provider value={actions}>
       {children}
-      {dialog && (
-        <ConfirmDialog
-          title={dialog.title}
-          message={dialog.message}
-          confirmLabel={dialog.confirmLabel}
-          onConfirm={() => {
-            close();
-            dialog.run();
-          }}
-          onCancel={close}
-        />
-      )}
     </DocumentActionsContext.Provider>
   );
 }

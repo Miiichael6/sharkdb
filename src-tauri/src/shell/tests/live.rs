@@ -195,3 +195,78 @@ async fn live_safe_mode_rejects_writes() {
     drop(shell);
     client.database(SAFE_DB).drop(None).await.unwrap();
 }
+
+const MENU_DB: &str = "robo3b_test_menu";
+
+/// Lo que abre el menú de una colección: las plantillas de actualizar/eliminar corren tal cual,
+/// el `$out` de "Duplicar colección" copia en la misma BD y la distribución de shards da un error
+/// claro en un servidor sin sharding.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_collection_menu_scripts() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        MENU_DB,
+        "db.dropDatabase(); db.x.insertMany([{ _id: 1, key: 'value' }, { _id: 2, key: 'value' }])",
+    )
+    .await;
+
+    // Plantillas de `src/features/shell/domain/menuScripts.ts`.
+    let update = r#"db.getCollection('x').update(
+    // query
+    {
+        "key" : "value"
+    },
+    // update
+    {
+        "$set" : { "key" : "value" }
+    },
+    // options
+    {
+        "multi" : false,  // update only one document
+        "upsert" : false  // insert a new document, if no existing document match the query
+    }
+);"#;
+    let remove = r#"db.getCollection('x').remove(
+    // query
+    {
+        "key" : "value"
+    },
+    // justOne
+    true
+);"#;
+    run_ok_in(&shell, MENU_DB, update).await;
+    run_ok_in(&shell, MENU_DB, remove).await;
+    assert_eq!(
+        value(&run_ok_in(&shell, MENU_DB, "db.x.count()").await),
+        Some(Bson::Double(1.0))
+    );
+
+    run_ok_in(
+        &shell,
+        MENU_DB,
+        "db.x.aggregate([{ $match: {} }, { $out: 'x_copy' }]).toArray()",
+    )
+    .await;
+    assert_eq!(
+        value(&run_ok_in(&shell, MENU_DB, "db.x_copy.count()").await),
+        Some(Bson::Double(1.0))
+    );
+
+    // Ver índices y Ver log.
+    run_ok_in(&shell, MENU_DB, "db.getCollection('x').getIndexes()").await;
+    run_ok_in(&shell, MENU_DB, "db.adminCommand({ getLog: 'global' })").await;
+
+    // Un mongod sin sharding responde igual, con `inShardedMode: false`.
+    run_ok_in(&shell, MENU_DB, "db.getCollection('x').getShardVersion()").await;
+    let outcome = shell
+        .run(MENU_DB.into(), "db.x.getShardDistribution()".into())
+        .await
+        .unwrap();
+    assert!(outcome.error.unwrap().message.contains("no está fragmentada"));
+
+    drop(shell);
+    client.database(MENU_DB).drop(None).await.unwrap();
+}

@@ -14,8 +14,10 @@ interface Options {
   title: string;
   width: number;
   height: number;
-  /** Lets the window be maximized; it can always be resized. */
+  /** Lets the window be maximized. */
   maximizable?: boolean;
+  /** Lets the window be resized (default). */
+  resizable?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface Options {
  * what it sent through `finishModalWindow`, or null when it was closed without an answer.
  */
 export async function openModalWindow<T>(view: string, data: unknown, options: Options): Promise<T | null> {
-  const { title, width, height, maximizable = false } = options;
+  const { title, width, height, maximizable = false, resizable = true } = options;
   const parent = getCurrentWindow();
   const scale = await parent.scaleFactor();
   const pos = (await parent.outerPosition()).toLogical(scale);
@@ -47,6 +49,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       parent,
       minimizable: false,
       maximizable,
+      resizable,
       skipTaskbar: true,
     });
     await new Promise<void>((resolve) => {

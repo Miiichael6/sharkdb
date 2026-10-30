@@ -16,6 +16,7 @@ import type { TreeNode } from "../features/explorer/domain/tree";
 import { Workspace } from "../features/explorer/ui/Workspace";
 import { ShellTabs } from "../features/shell/ui/ShellTabs";
 import { useScriptFileActions } from "../features/shell/ui/useScriptFileActions";
+import type { MenuScriptKind } from "../features/shell/domain/menuScripts";
 import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
 import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
@@ -100,9 +101,9 @@ function App() {
     }
   };
 
-  const shellTab = (node: TreeNode, run = false) => {
+  const shellTab = (node: TreeNode, run = false, script?: MenuScriptKind) => {
     const session = sessions.find((s) => s.conn.id === node.sid);
-    return tabForNode(node, session ? displayName(session.conn) : node.sid, run);
+    return tabForNode(node, session ? displayName(session.conn) : node.sid, run, script);
   };
   const tabFor = (selected: TreeNode | undefined) => () => (selected ? shellTab(selected) : null);
 
@@ -132,7 +133,7 @@ function App() {
           logsOpen={layout.logsOpen}
           onCloseLogs={layout.closeLogs}
           onDisconnect={disconnect}
-          onOpenShell={(node) => tabs.open(shellTab(node, true))}
+          onOpenShell={(node, script) => tabs.open(shellTab(node, true, script))}
           onShowDetails={tabs.showDetails}
           renderToolbar={(controls) => (
             <WorkspaceToolbar

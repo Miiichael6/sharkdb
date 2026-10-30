@@ -405,17 +405,6 @@ input[type="checkbox"] {
   display: block;
   margin: 4px auto 0;
 }
-.modal.confirm {
-  width: 380px;
-}
-.modal.confirm h3 {
-  margin: 0 0 8px;
-}
-.modal.confirm p {
-  margin: 0;
-  color: var(--muted);
-}
-
 .modal.picker {
   width: 640px;
 }
@@ -1812,6 +1801,22 @@ table.grid {
 }
 
 /* ---------- open database dialog (its own window) ---------- */
+
+.confirm-window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--surface);
+}
+.confirm-window p {
+  flex: 1;
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+}
 
 .db-dialog {
   display: flex;

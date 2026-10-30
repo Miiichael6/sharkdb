@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { ConfirmDialog } from "../../../shared/ui/common";
+import type { ReactNode } from "react";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { isDirty, type NewTab, type ShellTab as Tab } from "../domain/tabs";
 import { ShellTab } from "./ShellTab";
 import { TabBar } from "./TabBar";
@@ -18,11 +18,19 @@ interface Props {
 
 /** Main area: shell tabs next to the explorer's detail panel, with their keyboard shortcuts. */
 export function ShellTabs({ tabs, files, details, newTabTarget }: Props) {
-  const [closing, setClosing] = useState<Tab | null>(null);
   const active = tabs.active;
 
   // Tabs with unsaved changes to their file ask first.
-  const requestClose = (tab: Tab) => (isDirty(tab) ? setClosing(tab) : tabs.close(tab));
+  const requestClose = async (tab: Tab) => {
+    const close =
+      !isDirty(tab) ||
+      (await confirmInWindow({
+        title: "Cambios sin guardar",
+        message: `“${tab.title}” tiene cambios sin guardar. ¿Cerrar la pestaña igualmente?`,
+        confirmLabel: "Cerrar sin guardar",
+      }));
+    if (close) tabs.close(tab);
+  };
   const openFile = () => files.openFile(active ?? newTabTarget());
 
   useTabShortcuts({
@@ -61,19 +69,6 @@ export function ShellTabs({ tabs, files, details, newTabTarget }: Props) {
           />
         ))}
       </div>
-
-      {closing && (
-        <ConfirmDialog
-          title="Cambios sin guardar"
-          message={`“${closing.title}” tiene cambios sin guardar. ¿Cerrar la pestaña igualmente?`}
-          confirmLabel="Cerrar sin guardar"
-          onConfirm={() => {
-            tabs.close(closing);
-            setClosing(null);
-          }}
-          onCancel={() => setClosing(null)}
-        />
-      )}
     </div>
   );
 }

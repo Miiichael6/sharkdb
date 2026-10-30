@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TARGET_IS_SOURCE } from "../domain/copySpec";
+import { TARGET_EXISTS, TARGET_IS_SOURCE } from "../domain/copySpec";
 import type { Doc, IndexSpec } from "../domain/mongo";
 import { createExplorerService } from "./explorerService";
 import type { MongoAdmin } from "./ports";
@@ -19,6 +19,7 @@ function fakeAdmin(targetCount = 7) {
     },
     collStats: async (sid: string, db: string, coll: string) => (calls.push(["collStats", sid, db, coll]), { count: targetCount }),
     listIndexes: async () => INDEXES,
+    listCollections: async () => [{ name: "orders" }, { name: "orders_old" }],
     createIndex: async (sid: string, db: string, coll: string, spec: IndexSpec) => {
       calls.push(["createIndex", sid, db, coll, spec.name]);
     },
@@ -58,5 +59,29 @@ describe("explorerService.copyCollection", () => {
       TARGET_IS_SOURCE,
     );
     expect(calls).toEqual([]);
+  });
+});
+
+describe("explorerService.duplicateCollection", () => {
+  it("copies into the same database with the indexes", async () => {
+    const { admin, calls } = fakeAdmin();
+    const copied = await createExplorerService(admin).duplicateCollection(SOURCE, " orders_copy ");
+    expect(copied).toBe(7);
+    expect(calls).toEqual([
+      ["runPipeline", "s1", "shop", "orders", [{ $match: {} }, { $out: "orders_copy" }]],
+      ["collStats", "s1", "shop", "orders_copy"],
+      ["createIndex", "s1", "shop", "orders_copy", "email_1"],
+    ]);
+  });
+
+  it("never replaces an existing collection", async () => {
+    const { admin, calls } = fakeAdmin();
+    await expect(createExplorerService(admin).duplicateCollection(SOURCE, "orders_old")).rejects.toBe(TARGET_EXISTS);
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects duplicating onto itself", async () => {
+    const { admin } = fakeAdmin();
+    await expect(createExplorerService(admin).duplicateCollection(SOURCE, "orders")).rejects.toBe(TARGET_IS_SOURCE);
   });
 });

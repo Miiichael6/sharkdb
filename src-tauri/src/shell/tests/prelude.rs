@@ -139,3 +139,23 @@ fn cursors_left_open_by_the_script_are_closed_unless_returned() {
     run_ok(&mut session, "var c = db.x.find(); c.next(); 1");
     assert!(bridge.retained.borrow().is_empty());
 }
+
+#[test]
+fn get_shard_version_asks_admin_for_the_namespace() {
+    let (mut session, _) = session();
+    run_ok(&mut session, "db.getCollection('x').getShardVersion()");
+    let call = first_call(&mut session);
+    assert_eq!(call.get_str("db"), Ok("admin"));
+    assert_eq!(call.get_document("command"), Ok(&doc! { "getShardVersion": "test.x" }));
+}
+
+#[test]
+fn get_shard_distribution_fails_on_an_unsharded_collection() {
+    let (mut session, _) = session();
+    let outcome = session.run(DB, "db.getCollection('x').getShardDistribution()");
+    let error = outcome.error.expect("se esperaba un error");
+    assert!(
+        error.message.contains("test.x no está fragmentada"),
+        "{error:?}"
+    );
+}

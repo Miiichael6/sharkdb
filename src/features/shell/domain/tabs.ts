@@ -1,5 +1,6 @@
 // Shell tabs, like Robo 3T's: each one is a script editor bound to a server and a database.
 // Pure state transitions; the UI keeps a `TabsState` and swaps it for the returned one.
+import { collectionScript } from "./menuScripts";
 
 export interface ShellTab {
   id: string;
@@ -33,7 +34,7 @@ export const EMPTY_TABS: TabsState = { tabs: [], activeId: null };
 export const DEFAULT_SHELL_DB = "test";
 
 /** Query a tab opened on a collection starts with, as in Robo 3T. */
-export const defaultQuery = (coll: string) => `db.getCollection('${coll.replace(/'/g, "\\'")}').find({})`;
+export const defaultQuery = (coll: string) => collectionScript("viewDocuments", coll).code;
 
 export const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 

@@ -34,10 +34,14 @@ describe("copySpec", () => {
   });
 
   it("copies on the same server with $out to the target database", () => {
-    expect(copyPipeline({ db: "archive", coll: "old" })).toEqual([
+    expect(copyPipeline(request({ db: "archive", coll: "old" }))).toEqual([
       { $match: {} },
       { $out: { db: "archive", coll: "old" } },
     ]);
+  });
+
+  it("uses the plain $out name within the same database (any MongoDB version)", () => {
+    expect(copyPipeline(request({ db: "shop", coll: "orders_copy" }))[1]).toEqual({ $out: "orders_copy" });
   });
 
   it("recreates every index but _id_, without server-managed fields", () => {

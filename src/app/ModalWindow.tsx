@@ -6,6 +6,9 @@ import {
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
 import { OpenDatabaseDialog, type DatabaseChoice } from "../features/workspace/ui/OpenDatabaseDialog";
+import type { ConfirmRequest } from "../shared/domain/confirmation";
+import { CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
+import { ConfirmWindow } from "../shared/ui/ConfirmWindow";
 import { finishModalWindow, receiveModalData } from "../shared/ui/modalWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
@@ -19,6 +22,8 @@ export function ModalWindow({ view }: { view: string }) {
   if (data === undefined) return null;
 
   switch (view) {
+    case CONFIRM_VIEW:
+      return <ConfirmWindow request={data as ConfirmRequest} onDone={done} />;
     case OPEN_DATABASE_VIEW:
       return <OpenDatabaseDialog databases={data as DatabaseChoice[]} onDone={done} />;
     case DOCUMENT_EDITOR_VIEW:

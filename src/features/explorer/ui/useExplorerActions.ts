@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
+import type { ConfirmRequest } from "../../../shared/domain/confirmation";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { useDocumentActions } from "../../../shared/ui/documentActions";
-import type { CopyRequest } from "../domain/copySpec";
+import { duplicateName, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
 import { childKey, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
@@ -22,8 +24,7 @@ export type ExplorerDialog =
     }
   | { kind: "index"; node: TreeNode; initial?: IndexSpec }
   | { kind: "user"; node: TreeNode; initial?: UserEntry }
-  | { kind: "copy"; node: TreeNode }
-  | { kind: "confirm"; title: string; message: string; label: string; run: () => Promise<void> };
+  | { kind: "copy"; node: TreeNode };
 
 const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbStats", "collStats"];
 
@@ -75,32 +76,28 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
 
   const editIndex = (n: TreeNode, initial?: IndexSpec) => setDialog({ kind: "index", node: n, initial });
 
+  /** Asks in its own window and, if confirmed, runs the action, reporting its failure. */
+  const confirmThen = async (request: ConfirmRequest, run: () => Promise<void>) => {
+    if (await confirmInWindow(request)) await run().catch(fail);
+  };
+
   const dropIndex = (n: TreeNode, ix: IndexSpec) =>
-    setDialog({
-      kind: "confirm",
-      title: "Eliminar índice",
-      message: `¿Eliminar el índice “${ix.name}” de ${n.coll}?`,
-      label: "Eliminar",
-      run: async () => {
+    void confirmThen(
+      { title: "Eliminar índice", message: `¿Eliminar el índice “${ix.name}” de ${n.coll}?`, confirmLabel: "Eliminar" },
+      async () => {
         await explorer.dropIndex(n.sid, n.db!, n.coll!, ix.name);
         refreshKey(indexesFolderKey(n));
         notify(`Índice “${ix.name}” eliminado`);
       },
-    });
+    );
 
-  /** Confirm dialog whose action removes `n` and leaves its parent selected and refreshed. */
+  /** Confirmation whose action removes `n` and leaves its parent selected and refreshed. */
   const confirmRemoval = (n: TreeNode, title: string, message: string, refresh: string | null, run: () => Promise<void>, doneText: string) =>
-    setDialog({
-      kind: "confirm",
-      title,
-      message,
-      label: "Eliminar",
-      run: async () => {
-        await run();
-        tree.select(parentKey(n.key));
-        refreshKey(refresh);
-        notify(doneText);
-      },
+    void confirmThen({ title, message, confirmLabel: "Eliminar" }, async () => {
+      await run();
+      tree.select(parentKey(n.key));
+      refreshKey(refresh);
+      notify(doneText);
     });
 
   const submitIndex = async (spec: IndexSpec) => {
@@ -132,13 +129,6 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     refreshAll();
     const { db, coll } = request.target;
     notify(`“${request.source.coll}” copiada a ${db.trim()}.${coll.trim()} (${copied.toLocaleString()} documentos)`);
-  };
-
-  const confirm = () => {
-    if (dialog?.kind !== "confirm") return;
-    const { run } = dialog;
-    setDialog(null);
-    run().catch(fail);
   };
 
   const onAction = (action: Action, n: TreeNode) => {
@@ -193,18 +183,19 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
         break;
       }
       case "dropDatabase":
-        setDialog({
-          kind: "confirm",
-          title: "Eliminar base de datos",
-          message: `¿Eliminar “${n.db}” y TODAS sus colecciones? No se puede deshacer.`,
-          label: "Eliminar base de datos",
-          run: async () => {
+        void confirmThen(
+          {
+            title: "Eliminar base de datos",
+            message: `¿Eliminar “${n.db}” y TODAS sus colecciones? No se puede deshacer.`,
+            confirmLabel: "Eliminar base de datos",
+          },
+          async () => {
             await explorer.dropDatabase(n.sid, n.db!);
             tree.select(`server:${n.sid}`);
             refreshKey(`server:${n.sid}`);
             notify(`Base de datos “${n.db}” eliminada`);
           },
-        });
+        );
         break;
       case "renameCollection":
         setDialog({
@@ -245,6 +236,20 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
       case "editIndex":
         editIndex(n, n.data);
         break;
+      case "rebuildIndexes":
+        void confirmThen(
+          {
+            title: "Reconstruir índices",
+            message: `¿Reconstruir todos los índices de ${n.db}.${n.coll}? La colección queda bloqueada mientras dura.`,
+            confirmLabel: "Reconstruir",
+          },
+          async () => {
+            await explorer.rebuildIndexes(n.sid, n.db!, n.coll!);
+            refreshKey(indexesFolderKey(n));
+            notify(`Índices de “${n.coll}” reconstruidos`);
+          },
+        );
+        break;
       case "dropIndex":
         dropIndex(n, n.data);
         break;
@@ -256,6 +261,21 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
         break;
       case "copyCollection":
         setDialog({ kind: "copy", node: n });
+        break;
+      case "duplicateCollection":
+        setDialog({
+          kind: "prompt",
+          title: `Duplicar ${n.db}.${n.coll}`,
+          fields: [{ name: "name", label: "Nombre de la copia", initial: duplicateName(n.coll!) }],
+          note: "Se copian los documentos y los índices en la misma base de datos.",
+          confirmLabel: "Duplicar",
+          submit: async ({ name }) => {
+            const copied = await explorer.duplicateCollection({ sid: n.sid, db: n.db!, coll: n.coll! }, name);
+            setDialog(null);
+            refreshKey(collectionsFolderKey(n));
+            notify(`“${n.coll}” duplicada como “${name.trim()}” (${copied.toLocaleString()} documentos)`);
+          },
+        });
         break;
       case "dropUser":
         confirmRemoval(
@@ -290,7 +310,6 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     submitIndex,
     submitUser,
     submitCopy,
-    confirm,
     refreshAll,
   };
 }

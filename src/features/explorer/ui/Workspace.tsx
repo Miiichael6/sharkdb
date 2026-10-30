@@ -9,6 +9,7 @@ import { displayName } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { Session } from "../../connections/domain/session";
+import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
 import { databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
 import { blockedInSafeMode } from "../domain/writeActions";
 import { useTree } from "./useTree";
@@ -37,8 +38,8 @@ interface Props {
   logsOpen: boolean;
   onCloseLogs: () => void;
   onDisconnect: (sid: string) => void;
-  /** "Abrir shell" on a node (or double click on a collection). */
-  onOpenShell: (node: TreeNode) => void;
+  /** "Abrir shell" on a node (or double click on a collection), or a menu entry that opens one with `script`. */
+  onOpenShell: (node: TreeNode, script?: MenuScriptKind) => void;
   /** The detail panel was asked for (a panel action in the tree). */
   onShowDetails: () => void;
   /** Main area around the detail panel (the shell tabs); `selected` is the tree's selection. */
@@ -85,6 +86,7 @@ export function Workspace(props: Props) {
     // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.
     if (isReadOnly(n.sid) && blockedInSafeMode(action)) fail(SAFE_MODE_ERROR);
     else if (action === "openShell") onOpenShell(n);
+    else if (isMenuScript(action)) onOpenShell(n, action);
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
     else actions.onAction(action, n);
   };
@@ -132,7 +134,6 @@ export function Workspace(props: Props) {
         onSubmitIndex={actions.submitIndex}
         onSubmitUser={actions.submitUser}
         onCopy={actions.submitCopy}
-        onConfirm={actions.confirm}
       />
     </div>
   );
