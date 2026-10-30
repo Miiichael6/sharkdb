@@ -1,22 +1,44 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use mongodb::Client;
 use mongodb::bson::{Bson, Document, doc};
 use mongodb::error::{Error, ErrorKind};
-use mongodb::options::{ClientOptions, ListDatabasesOptions};
+use mongodb::options::{ClientOptions, ListDatabasesOptions, ServerAddress};
 use serde::Serialize;
 use serde_json::Value;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::shell::ShellSessions;
+use crate::ssh_tunnel::{SshConfig, SshTunnel, TunnelTarget};
+use crate::store;
 use tokio::sync::Mutex;
 
+/// Used when the URI doesn't set connectTimeoutMS / serverSelectionTimeoutMS.
 const TIMEOUT: Duration = Duration::from_secs(6);
+const DEFAULT_MONGO_PORT: u16 = 27017;
+const TUNNEL_HOST: &str = "127.0.0.1";
+const KNOWN_HOSTS_FILE: &str = "known_hosts";
+
+/// A client plus the SSH tunnel it goes through, if any: both live and die together.
+struct OpenClient {
+    client: Client,
+    tunnel: Option<SshTunnel>,
+}
+
+impl OpenClient {
+    async fn shutdown(self) {
+        self.client.shutdown().await;
+        if let Some(tunnel) = self.tunnel {
+            tunnel.close().await;
+        }
+    }
+}
 
 /// Open clients, keyed by saved-connection id.
 #[derive(Default)]
-pub struct Sessions(Mutex<HashMap<String, Client>>);
+pub struct Sessions(Mutex<HashMap<String, OpenClient>>);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,12 +76,48 @@ pub(crate) fn describe(e: Error) -> String {
     }
 }
 
-async fn open(uri: &str) -> Result<Client, String> {
+/// The single server an SSH tunnel can lead to; a list of hosts (or an SRV record that
+/// resolves to several) can't go through one local port.
+fn tunnel_target(opts: &ClientOptions) -> Result<TunnelTarget, String> {
+    match opts.hosts.as_slice() {
+        [ServerAddress::Tcp { host, port }] => Ok(TunnelTarget {
+            host: host.clone(),
+            port: port.unwrap_or(DEFAULT_MONGO_PORT),
+        }),
+        _ => Err("Con túnel SSH la conexión debe apuntar a un único servidor".into()),
+    }
+}
+
+/// Points the driver at the local end of the tunnel. Direct connection stops it from
+/// discovering replica-set members by names only the bastion can reach.
+fn route_through_tunnel(opts: &mut ClientOptions, local_port: u16) {
+    opts.hosts = vec![ServerAddress::Tcp {
+        host: TUNNEL_HOST.into(),
+        port: Some(local_port),
+    }];
+    opts.direct_connection = Some(true);
+}
+
+fn known_hosts_path(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(store::config_dir(app)?.join(KNOWN_HOSTS_FILE))
+}
+
+async fn open(uri: &str, ssh: Option<SshConfig>, known_hosts: PathBuf) -> Result<OpenClient, String> {
     let mut opts = ClientOptions::parse(uri).await.map_err(describe)?;
     opts.app_name = Some("robo3b".into());
-    opts.server_selection_timeout = Some(TIMEOUT);
-    opts.connect_timeout = Some(TIMEOUT);
-    Client::with_options(opts).map_err(describe)
+    opts.server_selection_timeout.get_or_insert(TIMEOUT);
+    opts.connect_timeout.get_or_insert(TIMEOUT);
+
+    let tunnel = match ssh {
+        Some(config) => {
+            let tunnel = SshTunnel::open(&config, tunnel_target(&opts)?, known_hosts).await?;
+            route_through_tunnel(&mut opts, tunnel.local_port());
+            Some(tunnel)
+        }
+        None => None,
+    };
+    let client = Client::with_options(opts).map_err(describe)?;
+    Ok(OpenClient { client, tunnel })
 }
 
 async fn server_info(client: &Client) -> Result<ServerInfo, String> {
@@ -92,22 +150,30 @@ async fn server_info(client: &Client) -> Result<ServerInfo, String> {
 }
 
 #[tauri::command]
-pub async fn test_connection(uri: String) -> Result<ServerInfo, String> {
-    let client = open(&uri).await?;
-    let info = server_info(&client).await;
-    client.shutdown().await;
+pub async fn test_connection(app: AppHandle, uri: String, ssh: Option<SshConfig>) -> Result<ServerInfo, String> {
+    let open = open(&uri, ssh, known_hosts_path(&app)?).await?;
+    let info = server_info(&open.client).await;
+    open.shutdown().await;
     info
 }
 
 #[tauri::command]
 pub async fn connect(
+    app: AppHandle,
     sessions: State<'_, Sessions>,
     shells: State<'_, ShellSessions>,
     id: String,
     uri: String,
+    ssh: Option<SshConfig>,
 ) -> Result<ServerInfo, String> {
-    let client = open(&uri).await?;
-    let info = server_info(&client).await?;
+    let client = open(&uri, ssh, known_hosts_path(&app)?).await?;
+    let info = match server_info(&client.client).await {
+        Ok(info) => info,
+        Err(e) => {
+            client.shutdown().await;
+            return Err(e);
+        }
+    };
     // El shell abierto usa el cliente anterior: se suelta antes de cerrarlo.
     shells.close(&id);
     if let Some(old) = sessions.0.lock().await.insert(id, client) {
@@ -136,7 +202,7 @@ pub(crate) async fn session(sessions: &Sessions, id: &str) -> Result<Client, Str
         .lock()
         .await
         .get(id)
-        .cloned()
+        .map(|open| open.client.clone())
         .ok_or_else(|| "La conexión no está abierta".to_string())
 }
 
@@ -191,6 +257,57 @@ mod tests {
         let index_keys: Vec<&String> = index.get_document("key").unwrap().keys().collect();
         assert_eq!(index_keys, ["b", "a"]);
         assert!(matches!(command.get("since"), Some(Bson::DateTime(_))));
+    }
+
+    async fn options(uri: &str) -> ClientOptions {
+        ClientOptions::parse(uri).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn tunnel_target_is_the_single_host_with_its_default_port() {
+        let target = tunnel_target(&options("mongodb://db.internal/?replicaSet=rs0").await).unwrap();
+        assert_eq!(target, TunnelTarget { host: "db.internal".into(), port: DEFAULT_MONGO_PORT });
+        assert!(tunnel_target(&options("mongodb://a:1,b:2/").await).is_err());
+    }
+
+    #[tokio::test]
+    async fn routing_through_the_tunnel_keeps_the_other_options() {
+        let mut opts = options("mongodb://db.internal:27018/?replicaSet=rs0&tls=true").await;
+        route_through_tunnel(&mut opts, 40123);
+        assert_eq!(opts.hosts, [ServerAddress::Tcp { host: TUNNEL_HOST.into(), port: Some(40123) }]);
+        assert_eq!(opts.direct_connection, Some(true));
+        assert_eq!(opts.repl_set_name.as_deref(), Some("rs0"));
+        assert!(opts.tls.is_some());
+    }
+
+    /// Real servers for the manual check of task 07; each test runs only when its variable is set:
+    /// ROBO3B_TLS_URI (e.g. a mongod with a self-signed certificate) and ROBO3B_SSH_URI plus
+    /// ROBO3B_SSH (the tunnel settings as the frontend sends them, in JSON).
+    async fn open_and_list(uri: &str, ssh: Option<SshConfig>) -> OpenClient {
+        let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
+        let open = open(uri, ssh, known_hosts).await.unwrap();
+        let info = server_info(&open.client).await.unwrap();
+        assert!(!info.databases.is_empty());
+        open
+    }
+
+    #[tokio::test]
+    #[ignore = "needs ROBO3B_TLS_URI"]
+    async fn connects_with_tls_certificates() {
+        let uri = std::env::var("ROBO3B_TLS_URI").unwrap();
+        open_and_list(&uri, None).await.shutdown().await;
+    }
+
+    #[tokio::test]
+    #[ignore = "needs ROBO3B_SSH_URI and ROBO3B_SSH"]
+    async fn connects_through_an_ssh_tunnel_and_closes_it() {
+        let uri = std::env::var("ROBO3B_SSH_URI").unwrap();
+        let ssh: SshConfig = serde_json::from_str(&std::env::var("ROBO3B_SSH").unwrap()).unwrap();
+        let open = open_and_list(&uri, Some(ssh)).await;
+        let local_port = open.tunnel.as_ref().unwrap().local_port();
+        open.shutdown().await;
+        // Once closed, nothing listens on the tunnel's local port any more.
+        assert!(tokio::net::TcpStream::connect((TUNNEL_HOST, local_port)).await.is_err());
     }
 
     #[test]

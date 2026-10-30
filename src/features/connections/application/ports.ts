@@ -1,15 +1,21 @@
 import type { MongoConnection } from "../domain/connection";
 import type { ServerInfo } from "../domain/session";
+import type { SshTunnelConfig } from "../domain/ssh";
 
-/** Where saved connections are persisted. */
+/** Where saved connections are persisted (secrets included, wherever the adapter keeps them). */
 export interface ConnectionStore {
   load(): Promise<MongoConnection[]>;
   save(connections: MongoConnection[]): Promise<void>;
 }
 
-/** Opens and closes server sessions, keyed by connection id. */
+/** Opens and closes server sessions, keyed by connection id; `ssh` routes them through a tunnel. */
 export interface SessionGateway {
-  test(uri: string): Promise<ServerInfo>;
-  open(id: string, uri: string): Promise<ServerInfo>;
+  test(uri: string, ssh: SshTunnelConfig | null): Promise<ServerInfo>;
+  open(id: string, uri: string, ssh: SshTunnelConfig | null): Promise<ServerInfo>;
   close(id: string): Promise<void>;
+}
+
+/** Lets the user choose a local file (certificates, private keys). Null when cancelled. */
+export interface FilePicker {
+  pick(title: string): Promise<string | null>;
 }

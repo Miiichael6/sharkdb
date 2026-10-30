@@ -2,6 +2,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
+import { tauriFilePicker } from "../features/connections/infrastructure/tauriFilePicker";
 import { tauriSessionGateway } from "../features/connections/infrastructure/tauriSessionGateway";
 import { createDocumentService, type DocumentService } from "../features/documents/application/documentService";
 import { createCommandDocumentStore } from "../features/documents/infrastructure/commandDocumentStore";
@@ -30,7 +31,7 @@ export interface Services {
 
 export function createServices(): Services {
   return {
-    connections: createConnectionService(tauriConnectionStore, tauriSessionGateway),
+    connections: createConnectionService(tauriConnectionStore, tauriSessionGateway, tauriFilePicker),
     explorer: createExplorerService(createCommandMongoAdmin(tauriCommandRunner)),
     shell: createShellService(tauriShellGateway),
     history: createHistoryService(tauriHistoryStore),
