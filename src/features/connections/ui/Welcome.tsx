@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { displayName, hostLabel, type MongoConnection } from "../domain/connection";
 import { Avatar, ConfirmDialog, Logo, Spinner } from "../../../shared/ui/common";
+import { MenuList } from "../../../shared/ui/MenuList";
 import { TagBadge } from "./TagBadge";
 
 interface Props {
@@ -166,7 +167,7 @@ export function Welcome(props: Props) {
       </section>
 
       {menu && (
-        <ul className="context-menu" style={{ left: menu.x, top: menu.y }}>
+        <MenuList x={menu.x} y={menu.y}>
           <li onClick={() => onConnect(menu.conn)}>Conectar</li>
           <li onClick={() => onEdit(menu.conn)}>Editar</li>
           <li onClick={() => onDuplicate(menu.conn)}>Duplicar</li>
@@ -174,7 +175,7 @@ export function Welcome(props: Props) {
           <li className="danger" onClick={() => setToDelete(menu.conn)}>
             Eliminar
           </li>
-        </ul>
+        </MenuList>
       )}
 
       {toDelete && (

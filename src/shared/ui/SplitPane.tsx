@@ -7,15 +7,24 @@ interface Props {
   minWidth?: number;
   maxWidth?: number;
   sideClassName?: string;
+  /** Hides the side panel (and its splitter); the main area takes the whole width. */
+  sideHidden?: boolean;
 }
 
+/** The main area keeps at least this width however far the splitter is dragged. */
+const MIN_MAIN_WIDTH = 360;
+
 /** Side panel + main area with a draggable vertical splitter between them. */
-export function SplitPane({ side, children, initialWidth = 320, minWidth = 200, maxWidth = 640, sideClassName = "" }: Props) {
+export function SplitPane({ side, children, initialWidth = 320, minWidth = 200, maxWidth = 640, sideClassName = "", sideHidden = false }: Props) {
   const [width, setWidth] = useState(initialWidth);
   const dragging = useRef(false);
 
   useEffect(() => {
-    const move = (e: MouseEvent) => dragging.current && setWidth(Math.min(Math.max(e.clientX, minWidth), maxWidth));
+    const move = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const max = Math.min(maxWidth, window.innerWidth - MIN_MAIN_WIDTH);
+      setWidth(Math.max(Math.min(e.clientX, max), minWidth));
+    };
     const up = () => (dragging.current = false);
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
@@ -27,10 +36,14 @@ export function SplitPane({ side, children, initialWidth = 320, minWidth = 200, 
 
   return (
     <div className="split-pane">
-      <nav className={`split-side ${sideClassName}`} style={{ width }}>
-        {side}
-      </nav>
-      <div className="splitter" onMouseDown={() => (dragging.current = true)} />
+      {!sideHidden && (
+        <>
+          <nav className={`split-side ${sideClassName}`} style={{ width }}>
+            {side}
+          </nav>
+          <div className="splitter" onMouseDown={() => (dragging.current = true)} />
+        </>
+      )}
       <main className="split-main">{children}</main>
     </div>
   );

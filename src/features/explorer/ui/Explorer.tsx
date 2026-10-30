@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Spinner } from "../../../shared/ui/common";
+import { MenuList } from "../../../shared/ui/MenuList";
 import { FOLDER_KINDS, isLeaf, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
 import type { Tree } from "./useTree";
 
 export type Action =
   | "openShell"
+  | "openMongosh"
   | "refresh"
   | "createDatabase"
   | "serverStatus"
@@ -34,6 +36,7 @@ function menuFor(n: TreeNode): MenuItem[] {
     case "server":
       return [
         { label: "Abrir shell", action: "openShell" },
+        { label: "Abrir en mongosh", action: "openMongosh" },
         { label: "Refrescar", action: "refresh" },
         { label: "Crear base de datos…", action: "createDatabase" },
         "sep",
@@ -48,6 +51,7 @@ function menuFor(n: TreeNode): MenuItem[] {
     case "database":
       return [
         { label: "Abrir shell", action: "openShell" },
+        { label: "Abrir en mongosh", action: "openMongosh" },
         { label: "Refrescar", action: "refresh" },
         { label: "Estadísticas", action: "dbStats" },
         "sep",
@@ -199,7 +203,9 @@ export function Explorer({ tree, onAction }: Props) {
             </svg>
           </span>
           <NodeIcon kind={n.kind} view={n.data?.type === "view"} open={open} />
-          <span className="tree-label">{n.label}</span>
+          <span className="tree-label" title={n.label}>
+            {n.label}
+          </span>
           {count !== null && <span className="tree-count">({count})</span>}
           {n.kind === "index" && <span className="tree-detail">{JSON.stringify(n.data.key)}</span>}
           {n.kind === "collection" && n.data?.type === "view" && <span className="tree-detail">vista</span>}
@@ -224,7 +230,7 @@ export function Explorer({ tree, onAction }: Props) {
       </ul>
 
       {menu && (
-        <ul className="context-menu" style={{ left: menu.x, top: menu.y }}>
+        <MenuList x={menu.x} y={menu.y}>
           {menuFor(menu.node).map((item, i) =>
             item === "sep" ? (
               <li key={i} className="sep" />
@@ -238,7 +244,7 @@ export function Explorer({ tree, onAction }: Props) {
               </li>
             ),
           )}
-        </ul>
+        </MenuList>
       )}
     </div>
   );

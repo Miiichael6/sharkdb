@@ -4,10 +4,12 @@ import {
   closeSessionTabs,
   closeTab,
   defaultQuery,
+  dropSlot,
   duplicateTab,
   EMPTY_TABS,
   isDirty,
   markSaved,
+  moveTab,
   openTab,
   renameTab,
   updateTab,
@@ -30,6 +32,14 @@ describe("tabs", () => {
     expect(ids(s)).toEqual(["a", "x", "b", "c"]);
     expect(s.activeId).toBe("x");
     expect(s.tabs[1]).toMatchObject({ title: "test", code: "", filePath: null });
+    expect(openTab(EMPTY_TABS, "y", { ...on("shop"), coll: "orders" }).tabs[0]).toMatchObject({ title: "orders", coll: "orders" });
+  });
+
+  it("runs on open only when asked, and never in a duplicate", () => {
+    expect(openTab(EMPTY_TABS, "a", on("t")).tabs[0].runOnOpen).toBe(false);
+    const s = openTab(EMPTY_TABS, "a", { ...on("t"), coll: "c", code: "q", runOnOpen: true });
+    expect(s.tabs[0].runOnOpen).toBe(true);
+    expect(duplicateTab(s, "a", "copy").tabs.find((t) => t.id === "copy")?.runOnOpen).toBe(false);
   });
 
   it("builds the default query for a collection, escaping quotes", () => {
@@ -73,6 +83,21 @@ describe("tabs", () => {
     s = markSaved(s, "a", "D:\\otra\\nuevo.js", "2");
     expect(s.tabs[0]).toMatchObject({ title: "nuevo.js", filePath: "D:\\otra\\nuevo.js" });
     expect(isDirty(s.tabs[0])).toBe(false);
+  });
+
+  it("moves a tab to another position, keeping the active one", () => {
+    expect(ids(moveTab(three("b"), "a", 2))).toEqual(["b", "c", "a"]);
+    expect(ids(moveTab(three("b"), "c", 0))).toEqual(["c", "a", "b"]);
+    expect(ids(moveTab(three("b"), "a", 99))).toEqual(["b", "c", "a"]);
+    expect(moveTab(three("b"), "a", 2).activeId).toBe("b");
+  });
+
+  it("drops a dragged tab on the slot under its centre", () => {
+    expect(dropSlot(0, 100, 3)).toBe(0);
+    expect(dropSlot(49, 100, 3)).toBe(0);
+    expect(dropSlot(51, 100, 3)).toBe(1);
+    expect(dropSlot(-80, 100, 3)).toBe(0);
+    expect(dropSlot(500, 100, 3)).toBe(2);
   });
 
   it("ignores unknown ids", () => {

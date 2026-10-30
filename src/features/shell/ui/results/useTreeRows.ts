@@ -1,6 +1,6 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import type { DateZone } from "../../domain/bsonFormat";
-import { initialExpanded, rowId, toggleExpanded, visibleTreeRows } from "../../domain/resultView";
+import { rowId, toggleExpanded, visibleTreeRows } from "../../domain/resultView";
 
 interface TreeState {
   docs: unknown[];
@@ -8,12 +8,12 @@ interface TreeState {
   selected: number;
 }
 
-const fresh = (docs: unknown[]): TreeState => ({ docs, expanded: initialExpanded(docs), selected: 0 });
+const fresh = (docs: unknown[]): TreeState => ({ docs, expanded: new Set(), selected: 0 });
 
 /** Visible rows of the result tree, which ones are open and the selected one, with arrow-key moves. */
 export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone) {
   const [state, setState] = useState(() => fresh(docs));
-  // A new page starts over, with its first document open.
+  // A new page starts over, every document closed.
   const current = state.docs === docs ? state : fresh(docs);
   if (current !== state) setState(current);
 

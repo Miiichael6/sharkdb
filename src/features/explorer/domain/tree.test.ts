@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childKey, childNode, isWithin, parentKey, serverNode, withSystemFolder } from "./tree";
+import { childKey, childNode, databaseNodes, isWithin, parentKey, serverNode, withSystemFolder } from "./tree";
 
 describe("childKey / parentKey", () => {
   it("round-trips through several levels", () => {
@@ -34,5 +34,15 @@ describe("withSystemFolder", () => {
     );
     expect(nodes.map((n) => n.label)).toEqual(["System", "orders"]);
     expect(nodes[0].data.children.map((n: { label: string }) => n.label)).toEqual(["system.views"]);
+  });
+});
+
+describe("databaseNodes", () => {
+  it("lists user databases first, then the ones in the System folder", () => {
+    const server = serverNode("s1", "local");
+    const db = (parent: typeof server, name: string) => childNode(parent, "database", name, { db: name });
+    const kids = withSystemFolder(server, "systemDbs", ["admin", "shop", "local", "crm"], (d) => ["admin", "local"].includes(d), db);
+    expect(databaseNodes(kids).map((n) => n.label)).toEqual(["shop", "crm", "admin", "local"]);
+    expect(databaseNodes([])).toEqual([]);
   });
 });

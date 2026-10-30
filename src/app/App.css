@@ -310,6 +310,7 @@ input[type="checkbox"] {
   margin: 0;
   padding: 4px;
   min-width: 160px;
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -317,12 +318,32 @@ input[type="checkbox"] {
   z-index: 20;
 }
 .context-menu li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 5px 10px;
   border-radius: 4px;
+  outline: none;
 }
-.context-menu li:hover {
+.context-menu li:hover,
+.context-menu li:focus {
   background: var(--accent);
   color: #fff;
+}
+.menu-check {
+  width: 12px;
+}
+.menu-label {
+  flex: 1;
+}
+.menu-hint {
+  margin-left: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.context-menu li:hover .menu-hint,
+.context-menu li:focus .menu-hint {
+  color: inherit;
 }
 .context-menu li.danger {
   color: var(--danger);
@@ -363,6 +384,14 @@ input[type="checkbox"] {
   gap: 8px;
   align-items: center;
   margin-top: 14px;
+}
+.modal.about {
+  width: 320px;
+  text-align: center;
+}
+.modal.about svg {
+  display: block;
+  margin: 4px auto 0;
 }
 .modal.confirm {
   width: 380px;
@@ -594,13 +623,83 @@ input[type="checkbox"] {
   flex-direction: column;
   height: 100%;
 }
-.ws-header {
+.ws-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid #111;
   background: var(--bg-side);
+}
+.tb-group {
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.tb-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--muted);
+}
+/* The ends of a capsule need room for the curve. */
+.tb-btn:first-child {
+  padding-left: 4px;
+}
+.tb-btn:last-child {
+  padding-right: 4px;
+}
+.tb-btn:first-child,
+.tb-btn:last-child {
+  width: 36px;
+}
+.tb-btn:only-child {
+  width: 40px;
+}
+.tb-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.tb-btn.pressed {
+  background: var(--select);
+  color: var(--text);
+}
+.tb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tb-btn:disabled {
+  opacity: 0.4;
+}
+.status-pill {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.status-pill.empty {
+  background: var(--surface);
+  color: var(--muted);
+}
+.status-sep {
+  opacity: 0.6;
+}
+.status-location {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .split-pane {
   flex: 1;
@@ -624,7 +723,9 @@ input[type="checkbox"] {
 .split-main {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  /* Each view scrolls its own content; the main area never scrolls sideways. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .ws-sidebar {
   background: var(--bg-side);
@@ -634,7 +735,10 @@ input[type="checkbox"] {
 
 .explorer {
   flex: 1;
-  overflow: auto;
+  min-width: 0;
+  /* Rows shrink with the sidebar (labels cut with "…") instead of scrolling sideways. */
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 4px 0;
   outline: none;
 }
@@ -697,13 +801,16 @@ input[type="checkbox"] {
   color: #c9c9c9;
 }
 .tree-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tree-count {
+  flex: none;
   color: var(--muted);
 }
 .tree-detail {
+  min-width: 0;
   color: var(--muted);
   font-size: 11px;
   overflow: hidden;
@@ -926,60 +1033,141 @@ table.grid {
 }
 .tab-bar {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  padding: 4px 6px 0;
+  align-items: center;
+  height: 38px;
+  padding: 0 8px;
   background: var(--bg-side);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
   flex: none;
 }
-.tab-bar .tab {
+/* Segmented control: equal-width tabs on a rounded track (as in file-manager). */
+.tab-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
   height: 28px;
-  padding: 0 8px 0 12px;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  background: transparent;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--surface);
+}
+.tab-track .tab {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  /* Room for the × on the right, so the title stays centred. */
+  padding: 0 26px;
+  border-radius: 999px;
   color: var(--muted);
+  font-size: 12px;
   white-space: nowrap;
   cursor: default;
+  user-select: none;
+  touch-action: none;
+  transition:
+    background-color 0.1s ease-out,
+    color 0.1s ease-out,
+    transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.tab-bar button.tab {
-  padding-right: 12px;
+/* Separators between tabs, hidden next to the active or hovered one. */
+.tab-track .tab + .tab::before {
+  content: "";
+  position: absolute;
+  left: -0.5px;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: var(--border-strong);
 }
-.tab-bar .tab:hover {
+.tab-track .tab.active::before,
+.tab-track .tab.active + .tab::before,
+.tab-track .tab:hover::before,
+.tab-track .tab:hover + .tab::before,
+.tab-track .tab.dragging::before,
+.tab-track .tab.dragging + .tab::before {
+  opacity: 0;
+}
+.tab-track .tab:hover:not(.active) {
+  background: var(--surface-2);
+}
+.tab-track .tab.active {
   color: var(--text);
+  font-weight: 500;
 }
-.tab-bar .tab.active {
-  background: var(--bg);
-  border-color: var(--border);
+/* The active tab's highlight: one element that slides between tabs (placed by useActivePill). */
+.tab-pill {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 24px;
+  border-radius: 999px;
+  background: #4a5266;
+  box-shadow:
+    0 0 0 0.5px rgb(255 255 255 / 0.08),
+    0 1px 2px rgb(0 0 0 / 0.4);
+  pointer-events: none;
+}
+.tab-pill.ready {
+  transition:
+    transform 0.28s cubic-bezier(0.32, 1.25, 0.5, 1),
+    width 0.28s cubic-bezier(0.32, 1.25, 0.5, 1);
+}
+.tab-pill.hidden {
+  opacity: 0;
+  transition: none;
+}
+/* A dragged tab rides above the others with its own fill. */
+.tab-track .tab.dragging {
+  z-index: 3;
+  background: #4a5266;
   color: var(--text);
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.5);
 }
 .tab-title {
-  max-width: 220px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tab-rename {
-  width: 140px;
+  width: 100%;
   height: 20px;
-  padding: 0 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  text-align: center;
 }
 .tab-close {
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   line-height: 1;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.1s ease-out;
+}
+.tab-track .tab:hover .tab-close,
+.tab-track .tab.active .tab-close {
+  opacity: 1;
+}
+.tab-track .tab.dragging .tab-close {
+  opacity: 0;
 }
 .tab-close:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: rgb(255 255 255 / 0.12);
   color: var(--text);
 }
 .shell-body {
@@ -1005,20 +1193,64 @@ table.grid {
   padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
+.shell-action {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  justify-content: center;
+}
+.shell-head-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--border-strong);
+}
 .shell-where {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .query-editor {
-  flex: 0 0 38%;
-  min-height: 80px;
-  border-bottom: 1px solid #111;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+}
+.stack-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.stack-top {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.stack-bottom {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.stack-splitter {
+  flex: none;
+  height: 5px;
+  cursor: row-resize;
+  background: #111;
+  touch-action: none;
+  outline: none;
+}
+.stack-splitter:hover,
+.stack-splitter:focus-visible {
+  background: var(--accent);
 }
 .script-output {
   flex: 1;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -1045,7 +1277,8 @@ table.grid {
   margin: 0;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 12px;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- results ---------- */
@@ -1058,6 +1291,7 @@ table.grid {
 }
 .results-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
@@ -1080,6 +1314,7 @@ table.grid {
 }
 .result-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 3px 8px;
@@ -1170,6 +1405,24 @@ table.grid {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.tree-key-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Columns shrink with the panel (keeping their proportions) instead of scrolling sideways. */
+.fit-columns {
+  overflow-x: hidden;
+}
+.fit-columns .virtual-body,
+.fit-columns .grid-header,
+.fit-columns .grid-row {
+  min-width: 0;
+}
+.fit-columns .grid-cell {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .twisty {
   flex: none;

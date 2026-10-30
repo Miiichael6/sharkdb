@@ -17,6 +17,8 @@ import { createCommandSchemaSource } from "../features/shell/infrastructure/comm
 import { tauriHistoryStore } from "../features/shell/infrastructure/tauriHistoryStore";
 import { tauriScriptFiles } from "../features/shell/infrastructure/tauriScriptFiles";
 import { tauriShellGateway } from "../features/shell/infrastructure/tauriShellGateway";
+import { createTerminalService, type TerminalService } from "../features/workspace/application/terminalService";
+import { tauriTerminalGateway } from "../features/workspace/infrastructure/tauriTerminalGateway";
 import { tauriCommandRunner } from "../shared/infrastructure/commandRunner";
 
 export interface Services {
@@ -27,6 +29,7 @@ export interface Services {
   schema: SchemaService;
   scriptFiles: ScriptFileService;
   documents: DocumentService;
+  terminal: TerminalService;
 }
 
 export function createServices(): Services {
@@ -38,6 +41,7 @@ export function createServices(): Services {
     schema: createSchemaService(createCommandSchemaSource(tauriCommandRunner)),
     scriptFiles: createScriptFileService(tauriScriptFiles),
     documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner)),
+    terminal: createTerminalService(tauriTerminalGateway),
   };
 }
 

@@ -64,7 +64,9 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu }: Props) {
           <span className={`type-icon bson-${row.type}`} aria-hidden>
             {TYPE_ICON[row.type]}
           </span>
-          {row.key}
+          <span className="tree-key-text" title={row.key}>
+            {row.key}
+          </span>
         </div>
         <div className={`grid-cell bson-${row.type}`} role="gridcell" style={{ width: widthOf("value") }} title={row.value}>
           {row.value}
@@ -78,7 +80,7 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu }: Props) {
 
   return (
     <VirtualList
-      className="result-grid"
+      className="result-grid fit-columns"
       role="treegrid"
       ariaLabel="Resultado en árbol"
       count={tree.rows.length}

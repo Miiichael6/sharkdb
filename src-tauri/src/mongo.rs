@@ -25,6 +25,8 @@ const KNOWN_HOSTS_FILE: &str = "known_hosts";
 struct OpenClient {
     client: Client,
     tunnel: Option<SshTunnel>,
+    /// The URI it was opened with, for external tools (mongosh).
+    uri: String,
 }
 
 impl OpenClient {
@@ -117,7 +119,7 @@ async fn open(uri: &str, ssh: Option<SshConfig>, known_hosts: PathBuf) -> Result
         None => None,
     };
     let client = Client::with_options(opts).map_err(describe)?;
-    Ok(OpenClient { client, tunnel })
+    Ok(OpenClient { client, tunnel, uri: uri.to_string() })
 }
 
 async fn server_info(client: &Client) -> Result<ServerInfo, String> {
@@ -203,6 +205,17 @@ pub(crate) async fn session(sessions: &Sessions, id: &str) -> Result<Client, Str
         .await
         .get(id)
         .map(|open| open.client.clone())
+        .ok_or_else(|| "La conexión no está abierta".to_string())
+}
+
+/// URI an open session was opened with, and the local port of its SSH tunnel if it has one.
+pub(crate) async fn session_uri(sessions: &Sessions, id: &str) -> Result<(String, Option<u16>), String> {
+    sessions
+        .0
+        .lock()
+        .await
+        .get(id)
+        .map(|open| (open.uri.clone(), open.tunnel.as_ref().map(SshTunnel::local_port)))
         .ok_or_else(|| "La conexión no está abierta".to_string())
 }
 

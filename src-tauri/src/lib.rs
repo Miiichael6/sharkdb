@@ -4,6 +4,7 @@ mod secrets;
 mod shell;
 mod ssh_tunnel;
 mod store;
+mod terminal;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,6 +30,7 @@ pub fn run() {
             shell::commands::cancel_script,
             shell::commands::close_shell,
             shell::commands::eval_document,
+            terminal::open_mongosh,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

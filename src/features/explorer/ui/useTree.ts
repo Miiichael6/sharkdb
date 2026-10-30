@@ -2,7 +2,7 @@
 // hook knows nothing about MongoDB.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../../shared/errors";
-import { isLeaf, isWithin, type TreeNode } from "../domain/tree";
+import { isLeaf, isWithin, parentKey, type TreeNode } from "../domain/tree";
 
 export type ChildLoader = (n: TreeNode) => Promise<TreeNode[]>;
 
@@ -22,6 +22,10 @@ export interface Tree {
   collapse: (n: TreeNode) => void;
   /** Drops cached children of `n` (and below) and reloads them if `n` is expanded. */
   refresh: (n: TreeNode) => void;
+  /** Reloads every expanded node in place, so nothing collapses; closed ones reload when opened. */
+  refreshAll: () => void;
+  /** Opens `n`'s ancestors and `n` itself, and selects it. */
+  reveal: (n: TreeNode) => void;
 }
 
 export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
@@ -97,6 +101,28 @@ export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
     [expanded, load],
   );
 
+  const refreshAll = useCallback(() => {
+    const open = [...children.keys()].filter((k) => expanded.has(k));
+    setChildren((m) => new Map([...m].filter(([k]) => expanded.has(k))));
+    open.forEach((k) => {
+      const n = registry.current.get(k);
+      if (n) load(n);
+    });
+  }, [children, expanded, load]);
+
+  const reveal = useCallback(
+    (n: TreeNode) => {
+      registry.current.set(n.key, n);
+      for (let k = parentKey(n.key); k; k = parentKey(k)) {
+        const ancestor = registry.current.get(k);
+        if (ancestor) expand(ancestor);
+      }
+      expand(n);
+      setSelected(n.key);
+    },
+    [expand],
+  );
+
   // Robo 3T opens a server's database list as soon as it connects.
   const rootKeys = roots.map((r) => r.key).join("|");
   useEffect(() => {
@@ -132,5 +158,7 @@ export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
     expand,
     collapse,
     refresh,
+    refreshAll,
+    reveal,
   };
 }
