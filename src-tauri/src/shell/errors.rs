@@ -1,7 +1,9 @@
 //! Traduce lo que lanza un script (un `Error` o cualquier valor de `throw`) a `ScriptError`.
 
+use mongodb::bson::Bson;
 use rquickjs::{Coerced, Ctx, FromJs, Value};
 
+use super::convert::js_to_bson;
 use super::outcome::{ScriptError, ScriptErrorKind};
 
 /// Nombre de fichero con el que QuickJS cita las posiciones (`script:línea:columna`).
@@ -33,6 +35,12 @@ pub fn describe_thrown<'js>(
         error.column = Some(column);
     }
     error
+}
+
+/// Convierte un valor del script a BSON; si no se puede, el error es de tipo `Conversion`.
+pub fn to_bson_reported<'js>(ctx: &Ctx<'js>, value: &Value<'js>) -> Result<Bson, ScriptError> {
+    js_to_bson(ctx, value)
+        .map_err(|_| describe_thrown(ctx, ctx.catch(), ScriptErrorKind::Conversion))
 }
 
 /// Primera posición `script:línea:columna` de una traza de QuickJS.

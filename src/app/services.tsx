@@ -6,16 +6,20 @@ import { tauriSessionGateway } from "../features/connections/infrastructure/taur
 import { createExplorerService, type ExplorerService } from "../features/explorer/application/explorerService";
 import { createCommandMongoAdmin } from "../features/explorer/infrastructure/commandMongoAdmin";
 import { tauriCommandRunner } from "../features/explorer/infrastructure/tauriCommandRunner";
+import { createShellService, type ShellService } from "../features/shell/application/shellService";
+import { tauriShellGateway } from "../features/shell/infrastructure/tauriShellGateway";
 
 export interface Services {
   connections: ConnectionService;
   explorer: ExplorerService;
+  shell: ShellService;
 }
 
 export function createServices(): Services {
   return {
     connections: createConnectionService(tauriConnectionStore, tauriSessionGateway),
     explorer: createExplorerService(createCommandMongoAdmin(tauriCommandRunner)),
+    shell: createShellService(tauriShellGateway),
   };
 }
 

@@ -4,7 +4,7 @@ use mongodb::bson::{
     Binary, Bson, DateTime, Decimal128, JavaScriptCodeWithScope, Regex, Timestamp, doc,
 };
 
-use super::engine;
+use super::{engine, run, value};
 use crate::shell::convert::{bson_to_js, js_to_bson};
 
 fn all_types() -> Vec<Bson> {
@@ -53,9 +53,9 @@ fn all_types() -> Vec<Bson> {
 
 /// Evalúa `code` y convierte el resultado a BSON.
 fn eval_to_bson(code: &str) -> Bson {
-    let outcome = engine().run(code);
+    let outcome = run(&mut engine(), code);
     assert_eq!(outcome.error, None, "script: {code}");
-    outcome.value.expect("valor")
+    value(&outcome).expect("valor")
 }
 
 #[test]
@@ -137,14 +137,14 @@ fn invalid_constructor_arguments_throw() {
         "UUID('123')",
         "BinData(300, '')",
     ] {
-        let outcome = engine().run(code);
+        let outcome = run(&mut engine(), code);
         assert!(outcome.error.is_some(), "debería fallar: {code}");
     }
 }
 
 #[test]
 fn circular_objects_are_rejected_not_overflowed() {
-    let outcome = engine().run("var a = {}; a.self = a; a");
+    let outcome = run(&mut engine(), "var a = {}; a.self = a; a");
     let error = outcome.error.expect("error de conversión");
     assert!(error.message.contains("anidado"), "{}", error.message);
 }

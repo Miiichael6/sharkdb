@@ -4,20 +4,27 @@
 //! - `engine`: fachada sobre QuickJS; instala los `ShellModule` y produce el `ScriptOutcome`.
 //! - `bson_types`, `output`: módulos instalables (constructores BSON, `print`/`printjson`).
 //! - `convert`: JS ↔ BSON sin pérdida de tipos.
+//! - `session`: motor + API `db` (`prelude`) sobre un `MongoBridge` (`native` en producción).
+//! - `syntax`: reescritura de `use x` / `show dbs` a llamadas JS.
+//! - `commands`: comandos Tauri (`execute_script`, `next_batch`, `close_cursor`, `cancel_script`).
 
+mod bridge;
 mod bson_types;
+pub mod commands;
 mod convert;
 mod engine;
 mod errors;
 mod module;
+mod native;
 mod outcome;
 mod output;
+mod prelude;
 mod runtime;
+mod session;
+mod syntax;
 mod watchdog;
 
 #[cfg(test)]
 mod tests;
 
-pub use engine::EngineLimits;
-pub use outcome::ScriptOutcome;
-pub use runtime::ShellRuntime;
+pub use commands::ShellSessions;

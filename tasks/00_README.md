@@ -70,7 +70,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 |---|---|---|---|---|
 | 01 | [Base de tests y orden del Workspace](done/01_base_tests_y_workspace.md) | 1 Base | – | ✅ Terminada |
 | 02 | [Motor JavaScript embebido y tipos BSON](done/02_parser_shell.md) | 2 Motor | 01 | ✅ Terminada |
-| 03 | [API de shell (db, colecciones, cursores) y ejecución](pending/03_ejecucion_cursores.md) | 2 Motor | 02 | ⬜ Pendiente |
+| 03 | [API de shell (db, colecciones, cursores) y ejecución](done/03_ejecucion_cursores.md) | 2 Motor | 02 | ✅ Terminada |
 | 04 | [Pestañas de shell con editor y autocompletado](pending/04_pestanas_shell_editor.md) | 3 Shell | 03 | ⬜ Pendiente |
 | 05 | [Visor de resultados: árbol, tabla y texto](pending/05_visor_resultados.md) | 3 Shell | 04 | ⛔ Bloqueada (D2) |
 | 06 | [CRUD de documentos](pending/06_crud_documentos.md) | 4 Datos | 05 | ⬜ Pendiente |

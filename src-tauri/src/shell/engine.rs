@@ -2,18 +2,15 @@
 //! Las variables globales sobreviven entre ejecuciones, como en una pestaña de Robo 3T.
 //! No es `Send`: vive siempre en el hilo de `runtime.rs`.
 
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use mongodb::bson::Bson;
 use rquickjs::context::EvalOptions;
 use rquickjs::{Context, Ctx, Runtime, Value};
 
 use super::bson_types::BsonTypes;
-use super::convert::js_to_bson;
 use super::errors::{SCRIPT_NAME, describe_thrown};
-use super::module::ShellModule;
+use super::module::{RunHooks, ShellModule};
 use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutcome};
 use super::output::Output;
 use super::watchdog::{Interruption, Watchdog};
@@ -47,43 +44,61 @@ pub struct Engine {
     output: Output,
     limits: EngineLimits,
     watchdog: Watchdog,
+    /// Módulos además de los tipos BSON y `print`; se guardan para reinstalarlos al reiniciar.
+    extra_modules: Vec<Rc<dyn ShellModule>>,
 }
 
 impl Engine {
-    /// `cancel` es la bandera que otro hilo pone a `true` para cortar el script en curso.
-    pub fn new(limits: EngineLimits, cancel: Arc<AtomicBool>) -> rquickjs::Result<Self> {
+    /// El `watchdog` corta el script en curso por cancelación (desde otro hilo) o tiempo.
+    pub fn new(
+        limits: EngineLimits,
+        watchdog: Watchdog,
+        extra_modules: Vec<Rc<dyn ShellModule>>,
+    ) -> rquickjs::Result<Self> {
         let runtime = Runtime::new()?;
         runtime.set_memory_limit(limits.memory_bytes);
-        let watchdog = Watchdog::new(cancel);
         runtime.set_interrupt_handler(Some(watchdog.interrupt_handler()));
 
         let context = Context::full(&runtime)?;
         let output = Output::default();
-        let modules: [&dyn ShellModule; 2] = [&BsonTypes, &output];
-        context.with(|ctx| modules.iter().try_for_each(|module| module.install(&ctx)))?;
+        context.with(|ctx| {
+            let built_in: [&dyn ShellModule; 2] = [&BsonTypes, &output];
+            built_in
+                .into_iter()
+                .chain(extra_modules.iter().map(|module| module.as_ref()))
+                .try_for_each(|module| module.install(&ctx))
+        })?;
         Ok(Self {
             context,
             runtime,
             output,
             limits,
             watchdog,
+            extra_modules,
         })
     }
 
-    pub fn run(&mut self, code: &str) -> ScriptOutcome {
+    pub fn run(&mut self, code: &str, hooks: &dyn RunHooks) -> ScriptOutcome {
         let started = Instant::now();
         self.watchdog.arm(self.limits.timeout);
-        let (value, error) = self.context.with(|ctx| match eval(&ctx, code) {
-            Ok(value) => convert_result(&ctx, value),
-            Err(_) => (
-                None,
-                Some(describe_thrown(&ctx, ctx.catch(), ScriptErrorKind::Script)),
-            ),
-        });
+        let (result, error) =
+            self.context.with(
+                |ctx| match hooks.before_run(&ctx).and_then(|()| eval(&ctx, code)) {
+                    Ok(value) => match hooks.final_result(&ctx, value) {
+                        Ok(result) => (result, None),
+                        Err(error) => (None, Some(error)),
+                    },
+                    Err(_) => (
+                        None,
+                        Some(describe_thrown(&ctx, ctx.catch(), ScriptErrorKind::Script)),
+                    ),
+                },
+            );
         self.watchdog.disarm();
+        let mut results = self.output.take();
+        results.extend(result);
         let outcome = ScriptOutcome {
-            output: self.output.take(),
-            value,
+            results,
             error: error.map(|e| self.classify(e)),
             elapsed_ms: started.elapsed().as_millis() as u64,
         };
@@ -101,7 +116,8 @@ impl Engine {
     /// podría compilar otro script. Las funciones JS mantienen vivo su contexto, así que no basta
     /// con cambiar de contexto: se rehace el runtime entero.
     fn restart(&mut self) {
-        if let Ok(fresh) = Engine::new(self.limits, self.watchdog.cancel_flag()) {
+        let modules = self.extra_modules.clone();
+        if let Ok(fresh) = Engine::new(self.limits, self.watchdog.clone(), modules) {
             *self = fresh;
         }
     }
@@ -154,21 +170,4 @@ fn eval<'js>(ctx: &Ctx<'js>, code: &str) -> rquickjs::Result<Value<'js>> {
     options.backtrace_barrier = true;
     options.filename = Some(SCRIPT_NAME.into());
     ctx.eval_with_options(code, options)
-}
-
-fn convert_result<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> (Option<Bson>, Option<ScriptError>) {
-    if value.is_undefined() {
-        return (None, None);
-    }
-    match js_to_bson(ctx, &value) {
-        Ok(bson) => (Some(bson), None),
-        Err(_) => (
-            None,
-            Some(describe_thrown(
-                ctx,
-                ctx.catch(),
-                ScriptErrorKind::Conversion,
-            )),
-        ),
-    }
 }

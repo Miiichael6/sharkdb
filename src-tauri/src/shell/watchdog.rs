@@ -1,5 +1,6 @@
 //! Vigila el script en curso: QuickJS consulta al watchdog periódicamente y, si hay que cortar
 //! (cancelación desde otro hilo o tiempo agotado), recuerda el motivo para el mensaje de error.
+//! Las esperas nativas al servidor no pasan por QuickJS: se cortan con `interrupted()`.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -8,6 +9,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use rquickjs::runtime::InterruptHandler;
+
+/// Cada cuánto mira una espera nativa si hay que cortar.
+const POLL_INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Interruption {
@@ -32,10 +36,6 @@ impl Watchdog {
         }
     }
 
-    pub fn cancel_flag(&self) -> Arc<AtomicBool> {
-        self.cancel.clone()
-    }
-
     /// Empieza a vigilar un script nuevo con el tiempo máximo indicado.
     pub fn arm(&self, timeout: Duration) {
         self.cancel.store(false, Ordering::SeqCst);
@@ -55,6 +55,18 @@ impl Watchdog {
     pub fn interrupt_handler(&self) -> InterruptHandler {
         let watchdog = self.clone();
         Box::new(move || watchdog.check())
+    }
+
+    /// Se completa cuando hay que cortar; para usar en `select!` frente a una espera al servidor.
+    pub async fn interrupted(&self) -> Interruption {
+        loop {
+            if self.check()
+                && let Some(reason) = self.fired()
+            {
+                return reason;
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
     }
 
     fn check(&self) -> bool {
