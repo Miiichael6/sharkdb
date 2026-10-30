@@ -1,0 +1,66 @@
+import { creatableSpec } from "../domain/indexSpec";
+import { SYSTEM_DATABASES, type CollectionEntry, type DatabaseEntry, type IndexSpec } from "../domain/mongo";
+import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
+import type { MongoAdmin } from "./ports";
+
+export type ExplorerService = ReturnType<typeof createExplorerService>;
+
+export function createExplorerService(admin: MongoAdmin) {
+  const database = (parent: TreeNode, d: DatabaseEntry) =>
+    childNode(parent, "database", d.name, { db: d.name, data: d });
+  const collection = (parent: TreeNode, c: CollectionEntry) =>
+    childNode(parent, "collection", c.name, { coll: c.name, data: c });
+
+  /** Children of a tree node, fetched the first time it is expanded. */
+  async function loadChildren(n: TreeNode): Promise<TreeNode[]> {
+    switch (n.kind) {
+      case "server": {
+        const dbs = await admin.listDatabases(n.sid);
+        return withSystemFolder(n, "systemDbs", dbs, (d) => SYSTEM_DATABASES.includes(d.name), database);
+      }
+      case "systemDbs":
+      case "systemCollections":
+        return n.data.children;
+      case "database":
+        return [
+          childNode(n, "collections", "Collections"),
+          childNode(n, "functions", "Functions"),
+          childNode(n, "users", "Users"),
+        ];
+      case "collections": {
+        const colls = await admin.listCollections(n.sid, n.db!);
+        return withSystemFolder(n, "systemCollections", colls, (c) => c.name.startsWith("system."), collection);
+      }
+      case "collection":
+        return [childNode(n, "indexes", "Indexes")];
+      case "indexes":
+        return (await admin.listIndexes(n.sid, n.db!, n.coll!)).map((ix) =>
+          childNode(n, "index", ix.name, { data: ix }),
+        );
+      case "users":
+        return (await admin.listUsers(n.sid, n.db!)).map((u) => childNode(n, "user", u.user, { data: u }));
+      case "functions":
+        return (await admin.listFunctions(n.sid, n.db!)).map((f) =>
+          childNode(n, "function", String(f._id), { data: f }),
+        );
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * MongoDB can't modify an index in place, so (like Robo 3T) edit = drop + create. If the new
+   * index fails to build, the original one is restored.
+   */
+  async function replaceIndex(sid: string, db: string, coll: string, old: IndexSpec, next: IndexSpec) {
+    await admin.dropIndex(sid, db, coll, old.name);
+    try {
+      await admin.createIndex(sid, db, coll, next);
+    } catch (e) {
+      await admin.createIndex(sid, db, coll, creatableSpec(old)).catch(() => {});
+      throw e;
+    }
+  }
+
+  return { ...admin, loadChildren, replaceIndex };
+}
