@@ -6,7 +6,7 @@ import { summarizeValue, type DateZone } from "../../domain/bsonFormat";
 import { bsonValue } from "../../domain/bsonValue";
 import { lookup, tableColumns } from "../../domain/resultView";
 import { ROW_HEIGHT } from "./layout";
-import type { CopyTarget } from "./useCopyMenu";
+import type { ResultTarget } from "./useResultMenu";
 
 const NUMBER_COLUMN = { id: "#", label: "#" };
 const NUMBER_WIDTH = 56;
@@ -17,7 +17,7 @@ interface Props {
   docs: unknown[];
   firstNumber: number;
   zone: DateZone;
-  onContextMenu: (e: MouseEvent, target: CopyTarget) => void;
+  onContextMenu: (e: MouseEvent, target: ResultTarget) => void;
 }
 
 /** One row per document and one column per field (embedded documents spread as `a.b`). */

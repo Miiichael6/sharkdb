@@ -121,12 +121,14 @@ function App() {
             <WorkspaceToolbar
               controls={controls}
               sessions={sessions}
+              connections={connections}
               tabs={tabs}
               files={files}
               layout={layout}
               newTabTarget={tabFor(controls.selected)}
               onNewConnection={() => setDialog({ kind: "picker" })}
               onShowConnections={() => setShowWelcome(true)}
+              onConnect={connect}
             />
           )}
           renderMain={(details, selected) => (

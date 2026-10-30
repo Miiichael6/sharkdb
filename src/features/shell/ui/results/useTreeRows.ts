@@ -1,6 +1,13 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import type { DateZone } from "../../domain/bsonFormat";
-import { rowId, toggleExpanded, visibleTreeRows } from "../../domain/resultView";
+import {
+  collapseRecursively,
+  expandRecursively,
+  rowId,
+  toggleExpanded,
+  visibleTreeRows,
+  type TreeRow,
+} from "../../domain/resultView";
 
 interface TreeState {
   docs: unknown[];
@@ -24,6 +31,10 @@ export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone
 
   const select = (selected: number) => setState((s) => ({ ...s, selected: Math.max(0, Math.min(rows.length - 1, selected)) }));
   const toggle = (id: string) => setState((s) => ({ ...s, expanded: toggleExpanded(s.expanded, id) }));
+  const expandAll = (row: TreeRow) =>
+    setState((s) => ({ ...s, expanded: expandRecursively(s.expanded, row.raw, row.docIndex, row.path) }));
+  const collapseAll = (row: TreeRow) =>
+    setState((s) => ({ ...s, expanded: collapseRecursively(s.expanded, row.docIndex, row.path) }));
 
   const onKeyDown = (e: KeyboardEvent) => {
     const row = rows[current.selected];
@@ -44,5 +55,5 @@ export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone
     action();
   };
 
-  return { rows, selected: current.selected, select, toggle, onKeyDown };
+  return { rows, selected: current.selected, select, toggle, expandAll, collapseAll, onKeyDown };
 }

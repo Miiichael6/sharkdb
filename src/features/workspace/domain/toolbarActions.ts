@@ -1,4 +1,4 @@
-// Workspace toolbar actions: the single source for the toolbar, its shortcuts and (later) the
+// Workspace toolbar actions: the single source for the toolbar, its shortcuts and the
 // quick-open palette. Pure data plus the shortcut matching, no React.
 
 export type ToolbarActionId =
@@ -7,6 +7,9 @@ export type ToolbarActionId =
   | "connections"
   | "databases"
   | "openMongosh"
+  | "openConnection"
+  | "openDatabase"
+  | "quickActions"
   | "refresh"
   | "logs";
 
@@ -37,6 +40,17 @@ export const TOOLBAR_ACTIONS: Record<ToolbarActionId, ToolbarAction> = {
   connections: { id: "connections", label: "Conexiones", shortcuts: [] },
   databases: { id: "databases", label: "Bases de datos", shortcuts: [] },
   openMongosh: { id: "openMongosh", label: "Abrir mongosh", shortcuts: [] },
+  openConnection: {
+    id: "openConnection",
+    label: "Abrir conexión",
+    shortcuts: [{ key: "k", ctrl: true, shift: true, inEditor: true }],
+  },
+  openDatabase: { id: "openDatabase", label: "Abrir base de datos", shortcuts: [{ key: "k", ctrl: true, inEditor: true }] },
+  quickActions: {
+    id: "quickActions",
+    label: "Acciones rápidas de base de datos",
+    shortcuts: [{ key: ".", ctrl: true, inEditor: true }],
+  },
   refresh: {
     id: "refresh",
     label: "Refrescar el workspace",
@@ -50,6 +64,7 @@ export const TOOLBAR_LAYOUT: { left: ToolbarActionId[][]; right: ToolbarActionId
   left: [
     ["toggleSidebar", "menu", "connections"],
     ["databases", "openMongosh"],
+    ["openConnection", "openDatabase", "quickActions"],
   ],
   right: [["refresh"], ["logs"]],
 };

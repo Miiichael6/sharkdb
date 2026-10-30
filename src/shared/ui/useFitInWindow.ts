@@ -2,27 +2,29 @@ import { useLayoutEffect, type RefObject } from "react";
 
 /** Gap kept between a floating element and the window edges. */
 const EDGE = 8;
-/** Below this much room under the anchor the element moves up instead of scrolling. */
-const MIN_ROOM = 200;
 
 /**
- * Places a fixed element at (x, y) but inside the window: it scrolls when taller than the room
- * below the anchor, and only moves up when that room is too short to be useful.
- * The element needs `overflow-y: auto` for the scrolling part.
+ * Places a fixed element at (x, y), scrolling it only as a last resort: it opens downwards when
+ * it fits below the anchor, upwards (ending at the anchor) when it fits above, otherwise it moves
+ * just enough to stay whole inside the window, and when taller than the window it fills it and
+ * scrolls. The element needs `overflow-y: auto` for that last case.
  */
 export function useFitInWindow(ref: RefObject<HTMLElement | null>, x: number, y: number) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const below = window.innerHeight - y - EDGE;
-    let top = y;
-    let maxHeight = below;
-    if (el.scrollHeight > below && below < MIN_ROOM) {
-      top = Math.max(EDGE, window.innerHeight - el.scrollHeight - EDGE);
-      maxHeight = window.innerHeight - top - EDGE;
-    }
+    el.style.maxHeight = "";
+    const room = window.innerHeight - 2 * EDGE;
+    if (el.offsetHeight > room) el.style.maxHeight = `${room}px`;
+    const height = el.offsetHeight;
+    const fitsBelow = y + height <= window.innerHeight - EDGE;
+    const fitsAbove = y - height >= EDGE;
+    const top = fitsBelow
+      ? y
+      : fitsAbove
+        ? y - height
+        : Math.max(EDGE, window.innerHeight - height - EDGE);
     el.style.top = `${top}px`;
-    el.style.maxHeight = `${maxHeight}px`;
     el.style.left = `${Math.max(EDGE, Math.min(x, window.innerWidth - el.offsetWidth - EDGE))}px`;
   }, [ref, x, y]);
 }

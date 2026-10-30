@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useFitInWindow } from "./useFitInWindow";
 
 export interface ContextMenuItem {
@@ -9,6 +9,10 @@ export interface ContextMenuItem {
   hint?: string;
   /** Marks the current choice in a menu used as a picker. */
   checked?: boolean;
+  icon?: ReactNode;
+  /** Draws a separator line above this item. */
+  separatorBefore?: boolean;
+  danger?: boolean;
 }
 
 interface Props {
@@ -39,8 +43,10 @@ export function ContextMenu({ x, y, items, onClose, label }: Props) {
   }, [onClose]);
 
   useFitInWindow(listRef, x, y);
+  // One item with an icon keeps a column for icons, so every label lines up.
+  const withIcons = items.some((item) => item.icon);
 
-  const enabledItems = () => [...(listRef.current?.querySelectorAll<HTMLLIElement>("li:not(.disabled)") ?? [])];
+  const enabledItems = () => [...(listRef.current?.querySelectorAll<HTMLLIElement>('li[role^="menuitem"]:not(.disabled)') ?? [])];
 
   useEffect(() => {
     const all = enabledItems();
@@ -75,20 +81,23 @@ export function ContextMenu({ x, y, items, onClose, label }: Props) {
 
   return (
     <ul className="context-menu" role="menu" aria-label={label} style={{ left: x, top: y }} ref={listRef} onKeyDown={onKeyDown}>
-      {items.map((item) => (
-        <li
-          key={item.label}
-          role={item.checked === undefined ? "menuitem" : "menuitemradio"}
-          aria-checked={item.checked}
-          aria-disabled={item.disabled}
-          tabIndex={-1}
-          className={item.disabled ? "disabled" : ""}
-          onClick={() => !item.disabled && item.onSelect()}
-        >
-          {item.checked !== undefined && <span className="menu-check">{item.checked ? "✓" : ""}</span>}
-          <span className="menu-label">{item.label}</span>
-          {item.hint && <span className="menu-hint">{item.hint}</span>}
-        </li>
+      {items.map((item, i) => (
+        <Fragment key={item.label}>
+          {item.separatorBefore && i > 0 && <li className="sep" role="separator" />}
+          <li
+            role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+            aria-checked={item.checked}
+            aria-disabled={item.disabled}
+            tabIndex={-1}
+            className={[item.disabled && "disabled", item.danger && "danger"].filter(Boolean).join(" ")}
+            onClick={() => !item.disabled && item.onSelect()}
+          >
+            {item.checked !== undefined && <span className="menu-check">{item.checked ? "✓" : ""}</span>}
+            {withIcons && <span className="menu-icon">{item.icon}</span>}
+            <span className="menu-label">{item.label}</span>
+            {item.hint && <span className="menu-hint">{item.hint}</span>}
+          </li>
+        </Fragment>
       ))}
     </ul>
   );

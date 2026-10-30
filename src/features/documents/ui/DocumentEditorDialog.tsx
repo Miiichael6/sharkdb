@@ -1,16 +1,20 @@
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { CodeEditor } from "../../../shared/ui/CodeEditor";
-import { Modal, Spinner } from "../../../shared/ui/common";
+import { Spinner } from "../../../shared/ui/common";
 import type { Doc } from "../../explorer/domain/mongo";
 import type { ScriptError } from "../../shell/domain/outcome";
 
 export type EditorMode = "view" | "edit" | "insert";
 
-const TITLES: Record<EditorMode, string> = { view: "Ver documento", edit: "Editar documento", insert: "Insertar documento" };
+export const EDITOR_TITLES: Record<EditorMode, string> = {
+  view: "Ver documento",
+  edit: "Editar documento",
+  insert: "Insertar documento",
+};
 const SAVE_LABELS: Record<Exclude<EditorMode, "view">, string> = { edit: "Guardar", insert: "Insertar" };
 const VALID = "Documento válido";
 
@@ -25,16 +29,17 @@ function diagnosticOf(view: EditorView, error: ScriptError): Diagnostic {
 
 const describe = (error: ScriptError) => (error.line ? `Línea ${error.line}: ${error.message}` : error.message);
 
-/** Robo 3T's document editor: shell syntax (`ObjectId(…)`, `ISODate(…)`…), validated before it is saved. */
+/**
+ * Robo 3T's document editor, the content of its own window: shell syntax (`ObjectId(…)`, `ISODate(…)`…),
+ * validated before it is saved. Escape closes it.
+ */
 export function DocumentEditorDialog({
   mode,
-  namespace,
   initial,
   onSave,
   onClose,
 }: {
   mode: EditorMode;
-  namespace: string;
   initial: string;
   onSave: (doc: Doc) => Promise<void>;
   onClose: () => void;
@@ -44,6 +49,12 @@ export function DocumentEditorDialog({
   const [status, setStatus] = useState<Status>(null);
   const [busy, setBusy] = useState(false);
   const view = useRef<EditorView | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   /** The document the text describes, or null after marking why it isn't one. */
   async function validate(): Promise<Doc | null> {
@@ -76,10 +87,7 @@ export function DocumentEditorDialog({
     });
 
   return (
-    <Modal onClose={onClose} className="dialog document-dialog">
-      <h3>
-        {TITLES[mode]} <span className="muted">· {namespace}</span>
-      </h3>
+    <div className="document-window">
       <CodeEditor
         className="document-editor"
         value={text}
@@ -105,6 +113,6 @@ export function DocumentEditorDialog({
           </button>
         )}
       </div>
-    </Modal>
+    </div>
   );
 }

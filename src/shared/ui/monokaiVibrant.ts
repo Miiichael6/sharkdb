@@ -48,7 +48,7 @@ const theme = EditorView.theme(
   { dark: true },
 );
 
-const highlight = HighlightStyle.define([
+export const monokaiHighlight = HighlightStyle.define([
   { tag: t.comment, color: color.comment, fontStyle: "italic" },
   { tag: t.string, color: color.string },
   { tag: t.special(t.string), color: color.template },
@@ -67,4 +67,4 @@ const highlight = HighlightStyle.define([
   { tag: t.invalid, color: color.keyword, textDecoration: "underline" },
 ]);
 
-export const monokaiVibrant = [theme, syntaxHighlighting(highlight)];
+export const monokaiVibrant = [theme, syntaxHighlighting(monokaiHighlight)];

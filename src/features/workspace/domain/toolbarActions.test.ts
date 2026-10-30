@@ -18,6 +18,9 @@ describe("toolbarActions", () => {
     expect(actionForKey(press("b"), false)).toBeNull();
     expect(actionForKey(press("r", { ctrlKey: true, shiftKey: true }), false)).toBeNull();
     expect(actionForKey(press("r", { ctrlKey: true, altKey: true }), false)).toBeNull();
+    expect(actionForKey(press("k", { ctrlKey: true }), true)).toBe("openDatabase");
+    expect(actionForKey(press("K", { ctrlKey: true, shiftKey: true }), true)).toBe("openConnection");
+    expect(actionForKey(press(".", { ctrlKey: true }), true)).toBe("quickActions");
   });
 
   it("leaves F5 to the script editor but not Ctrl+R or Ctrl+B", () => {

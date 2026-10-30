@@ -39,6 +39,25 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
           <path d="m4.5 6 2 2-2 2M8.5 10.5h3" />
         </svg>
       );
+    case "openConnection":
+      return (
+        <svg {...props} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6.5 9.5 9.5 6.5M7 4.5l1.5-1.5a2.5 2.5 0 0 1 3.5 3.5L10.5 8M9 11.5 7.5 13A2.5 2.5 0 0 1 4 9.5L5.5 8" />
+        </svg>
+      );
+    case "openDatabase":
+      return (
+        <svg {...props} strokeLinecap="round">
+          <circle cx="7" cy="7" r="4.5" />
+          <path d="m10.5 10.5 3.5 3.5" />
+        </svg>
+      );
+    case "quickActions":
+      return (
+        <svg {...props} strokeLinejoin="round">
+          <path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z" />
+        </svg>
+      );
     case "refresh":
       return (
         <svg {...props} strokeLinecap="round" strokeLinejoin="round">

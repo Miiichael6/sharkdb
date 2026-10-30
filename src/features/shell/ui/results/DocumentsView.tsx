@@ -1,10 +1,10 @@
-import { ContextMenu, type ContextMenuItem } from "../../../../shared/ui/ContextMenu";
+import { ContextMenu } from "../../../../shared/ui/ContextMenu";
 import type { DateZone } from "../../domain/bsonFormat";
 import type { ViewMode } from "../../domain/resultView";
 import { TableView } from "./TableView";
 import { TextView } from "./TextView";
 import { TreeView } from "./TreeView";
-import { useCopyMenu, type CopyTarget } from "./useCopyMenu";
+import { useResultMenu, type DocumentEntries, type ResultTarget } from "./useResultMenu";
 
 interface Props {
   docs: unknown[];
@@ -12,12 +12,12 @@ interface Props {
   mode: ViewMode;
   zone: DateZone;
   /** Entries added to the copy menu for the clicked document. */
-  documentMenu?: (target: CopyTarget) => ContextMenuItem[];
+  documentMenu?: (target: ResultTarget) => DocumentEntries;
 }
 
-/** A page of documents in the chosen view, with the copy (and document) menu on right click. */
+/** A page of documents in the chosen view, with the result menu on right click. */
 export function DocumentsView({ docs, firstNumber, mode, zone, documentMenu }: Props) {
-  const copyMenu = useCopyMenu(zone, documentMenu);
+  const copyMenu = useResultMenu(zone, documentMenu);
   const props = { docs, firstNumber, zone };
 
   return (
