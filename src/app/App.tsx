@@ -14,10 +14,13 @@ import { Welcome } from "../features/connections/ui/Welcome";
 import type { TreeNode } from "../features/explorer/domain/tree";
 import { Workspace } from "../features/explorer/ui/Workspace";
 import { ShellTabs } from "../features/shell/ui/ShellTabs";
+import { useScriptFileActions } from "../features/shell/ui/useScriptFileActions";
 import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
+import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
 import { useServices } from "./services";
+import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
 
 type Dialog =
@@ -35,6 +38,8 @@ function App() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const tabs = useShellTabs();
+  const files = useScriptFileActions(tabs);
+  const layout = usePanelLayout();
   const log = useLog();
 
   useEffect(() => {
@@ -78,10 +83,11 @@ function App() {
     });
   };
 
-  const shellTab = (node: TreeNode) => {
+  const shellTab = (node: TreeNode, run = false) => {
     const session = sessions.find((s) => s.conn.id === node.sid);
-    return tabForNode(node, session ? displayName(session.conn) : node.sid);
+    return tabForNode(node, session ? displayName(session.conn) : node.sid, run);
   };
+  const tabFor = (selected: TreeNode | undefined) => () => (selected ? shellTab(selected) : null);
 
   return (
     <>
@@ -105,12 +111,26 @@ function App() {
       ) : (
         <Workspace
           sessions={sessions}
+          sidebarHidden={layout.sidebarHidden}
+          logsOpen={layout.logsOpen}
+          onCloseLogs={layout.closeLogs}
           onDisconnect={disconnect}
-          onShowConnections={() => setShowWelcome(true)}
-          onOpenShell={(node) => tabs.open(shellTab(node))}
+          onOpenShell={(node) => tabs.open(shellTab(node, true))}
           onShowDetails={tabs.showDetails}
+          renderToolbar={(controls) => (
+            <WorkspaceToolbar
+              controls={controls}
+              sessions={sessions}
+              tabs={tabs}
+              files={files}
+              layout={layout}
+              newTabTarget={tabFor(controls.selected)}
+              onNewConnection={() => setDialog({ kind: "picker" })}
+              onShowConnections={() => setShowWelcome(true)}
+            />
+          )}
           renderMain={(details, selected) => (
-            <ShellTabs tabs={tabs} details={details} newTabTarget={() => (selected ? shellTab(selected) : null)} />
+            <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
           )}
         />
       )}

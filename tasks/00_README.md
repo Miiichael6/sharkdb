@@ -82,7 +82,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 08 | [Preferencias y empaquetado](pending/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ⛔ Bloqueada (D4) |
 | 09 | [Administración: usuarios y copia de colecciones](pending/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ⬜ Pendiente |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |
-| 11 | [Barra de herramientas del workspace](pending/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | ⬜ Pendiente |
+| 11 | [Barra de herramientas del workspace](in_progress/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | 🔄 En progreso |
 | 12 | [Apertura rápida y acciones rápidas de BD](pending/12_apertura_rapida_y_acciones.md) | 8 Barra de herramientas | 11 | ⬜ Pendiente |
 | 13 | [Safe mode y centro de notificaciones](pending/13_safe_mode_notificaciones.md) | 8 Barra de herramientas | 06, 11 | ⬜ Pendiente |
 | 14 | [Backup y restore de base de datos](pending/14_backup_restore.md) | 9 Operaciones de BD | 12, 13 | ⬜ Pendiente |

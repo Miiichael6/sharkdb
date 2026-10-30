@@ -61,8 +61,10 @@ export const childNode = (parent: TreeNode, kind: NodeKind, label: string, extra
   ...extra,
 });
 
+export const serverKey = (sid: string) => `server:${sid}`;
+
 export const serverNode = (sid: string, label: string): TreeNode => ({
-  key: `server:${sid}`,
+  key: serverKey(sid),
   kind: "server",
   label,
   sid,
@@ -87,4 +89,11 @@ export function withSystemFolder<T>(
   const folder = childNode(parent, folderKind, "System");
   folder.data = { children: system.map((i) => toNode(folder, i)) };
   return [folder, ...user];
+}
+
+/** Database nodes among a server's children: the user ones first, then those in the System folder. */
+export function databaseNodes(serverChildren: TreeNode[]): TreeNode[] {
+  const user = serverChildren.filter((n) => n.kind === "database");
+  const system = serverChildren.filter((n) => n.kind === "systemDbs").flatMap((n) => n.data.children as TreeNode[]);
+  return [...user, ...system];
 }

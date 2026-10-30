@@ -72,9 +72,6 @@ export function visibleTreeRows(docs: unknown[], firstNumber: number, expanded: 
   return rows;
 }
 
-/** Robo 3T opens a result with its first document expanded. */
-export const initialExpanded = (docs: unknown[]): Set<string> => new Set(docs.length ? [rowId(0, [])] : []);
-
 export function toggleExpanded(expanded: ReadonlySet<string>, id: string): Set<string> {
   const next = new Set(expanded);
   if (!next.delete(id)) next.add(id);

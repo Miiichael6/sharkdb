@@ -8,6 +8,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
+  // npm sets it when the dev server or the build runs through `npm run`.
+  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev") },
   test: {
     include: ["src/**/*.test.ts"],
   },

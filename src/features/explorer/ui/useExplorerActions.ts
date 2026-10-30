@@ -240,5 +240,11 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     }
   };
 
-  return { dialog, closeDialog, version, onAction, editIndex, dropIndex, submitIndex, confirm };
+  /** Refresh workspace: the whole tree plus the detail panel. */
+  const refreshAll = () => {
+    tree.refreshAll();
+    setVersion((v) => v + 1);
+  };
+
+  return { dialog, closeDialog, version, onAction, editIndex, dropIndex, submitIndex, confirm, refreshAll };
 }

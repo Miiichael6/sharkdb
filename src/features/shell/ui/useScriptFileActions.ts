@@ -4,18 +4,22 @@ import { useLog } from "../../../shared/ui/useLog";
 import { fileName, type NewTab, type ShellTab } from "../domain/tabs";
 import type { ShellTabs } from "./useShellTabs";
 
+export type ScriptFileActions = ReturnType<typeof useScriptFileActions>;
+
 /** Ctrl+O / Ctrl+S: `.js` scripts opened into new tabs and saved from a tab. */
 export function useScriptFileActions(tabs: ShellTabs) {
   const { scriptFiles } = useServices();
   const log = useLog();
 
-  /** Opens a script in a new tab on `target`'s server and database. */
+  /** Opens a script in a new tab on `target`'s server and database (nothing without a target). */
   const openFile = useCallback(
-    async (target: Omit<NewTab, "code" | "filePath" | "title">) => {
+    async (target: NewTab | null | undefined) => {
+      if (!target) return;
+      const { sid, serverLabel, db } = target;
       try {
         const file = await scriptFiles.open();
         if (!file) return;
-        tabs.open({ ...target, title: fileName(file.path), code: file.content, filePath: file.path });
+        tabs.open({ sid, serverLabel, db, title: fileName(file.path), code: file.content, filePath: file.path });
         log.info(`Script abierto: ${file.path}`);
       } catch (e) {
         log.error("No se pudo abrir el script", e);

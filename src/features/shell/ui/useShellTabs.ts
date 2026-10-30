@@ -10,6 +10,7 @@ import {
   duplicateTab,
   EMPTY_TABS,
   markSaved,
+  moveTab,
   openTab,
   renameTab,
   updateTab,
@@ -19,17 +20,20 @@ import {
 
 export type ShellTabs = ReturnType<typeof useShellTabs>;
 
-/** New tab for a tree node: on its database (or the default one), with the default query on a collection. */
-export function tabForNode(node: TreeNode, serverLabel: string): NewTab {
+/**
+ * New tab for a tree node: on its database (or the default one). On a collection it starts with the
+ * default query and, when `run`, runs it right away (opening a collection from the explorer).
+ */
+export function tabForNode(node: TreeNode, serverLabel: string, run = false): NewTab {
   const db = node.db ?? DEFAULT_SHELL_DB;
   if (node.kind === "collection" && node.coll) {
-    return { sid: node.sid, serverLabel, db, title: node.coll, code: defaultQuery(node.coll) };
+    return { sid: node.sid, serverLabel, db, coll: node.coll, code: defaultQuery(node.coll), runOnOpen: run };
   }
   return { sid: node.sid, serverLabel, db };
 }
 
 /**
- * Open shell tabs plus the pinned "Detalles" tab (the explorer's detail panel), which is shown
+ * Open shell tabs plus the explorer's detail panel, which is shown (without a tab of its own)
  * while `detailsShown` or when there are no shell tabs.
  */
 export function useShellTabs() {
@@ -61,6 +65,7 @@ export function useShellTabs() {
   const closeSession = useCallback((sid: string) => setState((s) => closeSessionTabs(s, sid)), []);
 
   const duplicate = useCallback((id: string) => setState((s) => duplicateTab(s, id, crypto.randomUUID())), []);
+  const move = useCallback((id: string, to: number) => setState((s) => moveTab(s, id, to)), []);
   const rename = useCallback((id: string, title: string) => setState((s) => renameTab(s, id, title)), []);
   const setCode = useCallback((id: string, code: string) => setState((s) => updateTab(s, id, { code })), []);
   const saved = useCallback(
@@ -79,6 +84,7 @@ export function useShellTabs() {
     showDetails,
     closeSession,
     duplicate,
+    move,
     rename,
     setCode,
     saved,

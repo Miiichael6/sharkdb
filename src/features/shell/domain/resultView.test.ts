@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   documentKey,
   documentsOf,
-  initialExpanded,
   lookup,
   rowId,
   tableColumns,
@@ -24,8 +23,8 @@ describe("documentKey", () => {
 });
 
 describe("visibleTreeRows", () => {
-  it("shows the first document expanded on load", () => {
-    const rows = visibleTreeRows(docs, 1, initialExpanded(docs), "utc");
+  it("shows an expanded document's fields under it", () => {
+    const rows = visibleTreeRows(docs, 1, new Set([rowId(0, [])]), "utc");
     expect(rows.map((r) => [r.depth, r.key, r.value, r.typeLabel])).toEqual([
       [0, '(1) ObjectId("5f1d7a3c9b1e8a0012345678")', "{ 4 fields }", "Object"],
       [1, "_id", 'ObjectId("5f1d7a3c9b1e8a0012345678")', "ObjectId"],
@@ -44,7 +43,7 @@ describe("visibleTreeRows", () => {
   });
 
   it("opens nested rows with their path", () => {
-    const expanded = toggleExpanded(initialExpanded(docs), rowId(0, ["geo"]));
+    const expanded = toggleExpanded(new Set([rowId(0, [])]), rowId(0, ["geo"]));
     const lat = visibleTreeRows(docs, 1, expanded, "utc").find((r) => r.key === "lat")!;
     expect(lat).toMatchObject({ depth: 2, path: ["geo", "lat"], value: "-12.0", typeLabel: "Double", expandable: false });
   });
