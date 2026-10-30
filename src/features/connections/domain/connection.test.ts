@@ -72,6 +72,13 @@ describe("fieldsFromUri", () => {
     });
   });
 
+  it("round-trips the advanced options without repeating them in the free-form field", () => {
+    const c = conn({ replicaSet: "rs0", readPreference: "nearest", tls: true, options: "w=majority" });
+    const back = fieldsFromUri(conn(), buildUri(c))!;
+    expect(back).toMatchObject({ replicaSet: "rs0", readPreference: "nearest", tls: true, options: "w=majority" });
+    expect(buildUri(back)).toBe(buildUri(c));
+  });
+
   it("refuses replica-set host lists and invalid URIs", () => {
     expect(fieldsFromUri(conn(), "mongodb://h1,h2/db")).toBeNull();
     expect(fieldsFromUri(conn(), "nope")).toBeNull();

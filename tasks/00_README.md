@@ -61,7 +61,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 
 - [x] **D1** ¿Cómo se ejecuta el shell? → **Motor JS embebido (QuickJS vía `rquickjs`) en el backend Rust**, con API `db`/colección/cursor propia; scripts JS completos como Robo 3T (2026-10-30) → afecta 02, 03
 - [x] **D2** ¿Qué formato de documento se muestra en la vista texto? → **Estilo shell** como Robo 3T: `ObjectId("…")`, `ISODate("…")`, `NumberLong(…)`; al editar se acepta sintaxis de shell (2026-10-30) → afecta 05
-- [ ] **D3** ¿Se soportan túneles SSH (contraseña y clave privada) en la conexión? → afecta 07
+- [x] **D3** ¿Túneles SSH? → **Sí, con contraseña o clave privada (con passphrase opcional)**, como Robo 3T (2026-10-30) → afecta 07
 - [ ] **D4** ¿Plataformas y formato de instalador? (p. ej. solo Windows NSIS/MSI, o también macOS/Linux) → afecta 08
 - [x] **D5** Safe mode → **interruptor de solo lectura**: activo, ninguna escritura llega a la BD (scripts del shell ni acciones manuales: árbol, CRUD, restore, sync); solo lecturas (2026-10-30) → afecta 13
 - [x] **D6** Backup/restore → **nativo en Rust con formato compatible con `mongodump`** (`<colección>.bson` + `<colección>.metadata.json`): sin dependencias que instalar, usa la misma conexión de la app (SSH/TLS de 07), progreso y cancelación propios, restaurable también con `mongorestore` (2026-10-30) → afecta 14
@@ -78,7 +78,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 04 | [Pestañas de shell con editor y autocompletado](done/04_pestanas_shell_editor.md) | 3 Shell | 03 | ✅ Terminada |
 | 05 | [Visor de resultados: árbol, tabla y texto](done/05_visor_resultados.md) | 3 Shell | 04 | ✅ Terminada |
 | 06 | [CRUD de documentos](done/06_crud_documentos.md) | 4 Datos | 05 | ✅ Terminada (criterios 2–3 pendientes de prueba manual en la UI) |
-| 07 | [Conexión avanzada: SSH, TLS y réplicas](pending/07_conexion_avanzada.md) | 5 Conexión | 01 | ⛔ Bloqueada (D3) |
+| 07 | [Conexión avanzada: SSH, TLS y réplicas](done/07_conexion_avanzada.md) | 5 Conexión | 01 | ✅ Terminada |
 | 08 | [Preferencias y empaquetado](pending/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ⛔ Bloqueada (D4) |
 | 09 | [Administración: usuarios y copia de colecciones](pending/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ⬜ Pendiente |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |

@@ -1,7 +1,17 @@
+import {
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  DEFAULT_READ_PREFERENCE,
+  advancedParams,
+  newTlsFiles,
+  takeAdvancedParams,
+  type AdvancedOptions,
+} from "./advancedOptions";
+import { newSshSettings, type SshSettings } from "./ssh";
+
 export type Tag = "local" | "development" | "testing" | "staging" | "production";
 export type ConnectMode = "fields" | "uri";
 
-export interface MongoConnection {
+export interface MongoConnection extends AdvancedOptions {
   id: string;
   name: string;
   driver: "mongodb";
@@ -16,9 +26,10 @@ export interface MongoConnection {
   password: string;
   authDb: string;
   database: string;
-  tls: boolean;
   /** Extra query string, e.g. `retryWrites=true&w=majority`. */
   options: string;
+  /** Tunnel used in both modes (fields and URI). */
+  ssh: SshSettings;
 }
 
 export const TAGS: Tag[] = ["local", "development", "testing", "staging", "production"];
@@ -53,7 +64,12 @@ export function newConnection(): MongoConnection {
     authDb: "admin",
     database: "",
     tls: false,
+    tlsFiles: newTlsFiles(),
+    replicaSet: "",
+    readPreference: DEFAULT_READ_PREFERENCE,
+    connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
     options: "",
+    ssh: newSshSettings(),
   };
 }
 
@@ -85,7 +101,7 @@ export function buildUri(c: MongoConnection, maskPassword = false): string {
 
   const params: string[] = [];
   if (user && c.authDb.trim()) params.push(`authSource=${enc(c.authDb.trim())}`);
-  if (c.tls) params.push("tls=true");
+  params.push(...advancedParams(c));
   const extra = c.options.trim().replace(/^\?/, "");
   if (extra) params.push(extra);
 
@@ -142,8 +158,8 @@ export function fieldsFromUri(c: MongoConnection, uri: string): MongoConnection 
   const [host, port] = p.srv ? [p.hosts, ""] : p.hosts.split(":");
   const params = new URLSearchParams(p.params);
   const authDb = params.get("authSource") ?? (p.username ? "admin" : c.authDb);
-  const tls = ["tls", "ssl"].some((k) => params.get(k) === "true");
-  ["authSource", "tls", "ssl"].forEach((k) => params.delete(k));
+  params.delete("authSource");
+  const advanced = takeAdvancedParams(params, c);
 
   return {
     ...c,
@@ -155,7 +171,7 @@ export function fieldsFromUri(c: MongoConnection, uri: string): MongoConnection 
     password: p.password,
     authDb,
     database: p.database,
-    tls,
+    ...advanced,
     options: params.toString(),
   };
 }

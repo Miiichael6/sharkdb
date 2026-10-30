@@ -439,6 +439,39 @@ input[type="checkbox"] {
 .form-body {
   padding: 14px 20px 0;
 }
+.conn-form-tabs {
+  padding: 0 20px;
+  margin-bottom: 0;
+}
+.conn-form-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+/* Same height for every tab so the dialog doesn't jump when switching. */
+.conn-tab-body {
+  min-height: 300px;
+}
+.plain-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.plain-fieldset:disabled {
+  opacity: 0.55;
+}
+.form-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
 /* Keep the action buttons visible when the form is taller than the window. */
 .form-body .modal-footer {
   position: sticky;

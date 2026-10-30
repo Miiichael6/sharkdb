@@ -1,6 +1,8 @@
 mod files;
 mod mongo;
+mod secrets;
 mod shell;
+mod ssh_tunnel;
 mod store;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
