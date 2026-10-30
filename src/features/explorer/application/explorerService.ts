@@ -1,12 +1,12 @@
-import { copyPipeline, indexesToCopy, isSameServer, validateCopy, type CopyProgress, type CopyRequest } from "../domain/copySpec";
+import { copyPipeline, indexesToCopy, validateCopy, type CopyRequest } from "../domain/copySpec";
 import { creatableSpec } from "../domain/indexSpec";
 import { SYSTEM_DATABASES, type CollectionEntry, type DatabaseEntry, type IndexSpec } from "../domain/mongo";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
-import type { CollectionCopier, MongoAdmin } from "./ports";
+import type { MongoAdmin } from "./ports";
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
 
-export function createExplorerService(admin: MongoAdmin, copier: CollectionCopier) {
+export function createExplorerService(admin: MongoAdmin) {
   const database = (parent: TreeNode, d: DatabaseEntry) =>
     childNode(parent, "database", d.name, { db: d.name, data: d });
   const collection = (parent: TreeNode, c: CollectionEntry) =>
@@ -64,23 +64,17 @@ export function createExplorerService(admin: MongoAdmin, copier: CollectionCopie
   }
 
   /**
-   * Copies a collection, replacing the target: on the same server the server does it (`$out`),
-   * between connections the documents travel in batches. Indexes are recreated afterwards if asked.
-   * Resolves with the documents in the target.
+   * Copies a collection to another database of the same server, replacing the target: the server
+   * does it (`$out`). Indexes are recreated afterwards if asked. Resolves with the documents in the target.
    */
-  async function copyCollection(request: CopyRequest, onProgress: (p: CopyProgress) => void): Promise<number> {
-    const valid = validateCopy(request);
-    const { source, target, copyIndexes } = valid;
-    let copied: number;
-    if (isSameServer(valid)) {
-      await admin.runPipeline(source.sid, source.db, source.coll, copyPipeline(target));
-      copied = (await admin.collStats(target.sid, target.db, target.coll)).count ?? 0;
-    } else {
-      copied = await copier.copy(source, target, onProgress);
-    }
+  async function copyCollection(request: CopyRequest): Promise<number> {
+    const { source, target, copyIndexes } = validateCopy(request);
+    const { sid } = source;
+    await admin.runPipeline(sid, source.db, source.coll, copyPipeline(target));
+    const copied = (await admin.collStats(sid, target.db, target.coll)).count ?? 0;
     if (copyIndexes) {
-      for (const ix of indexesToCopy(await admin.listIndexes(source.sid, source.db, source.coll))) {
-        await admin.createIndex(target.sid, target.db, target.coll, ix);
+      for (const ix of indexesToCopy(await admin.listIndexes(sid, source.db, source.coll))) {
+        await admin.createIndex(sid, target.db, target.coll, ix);
       }
     }
     return copied;

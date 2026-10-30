@@ -7,8 +7,6 @@ import {
   TARGET_IS_SOURCE,
   copyPipeline,
   indexesToCopy,
-  isSameServer,
-  progressPercent,
   validateCopy,
   type CopyRequest,
 } from "./copySpec";
@@ -16,16 +14,13 @@ import {
 const SOURCE = { sid: "s1", db: "shop", coll: "orders" };
 const request = (target: Partial<CopyRequest["target"]>): CopyRequest => ({
   source: SOURCE,
-  target: { ...SOURCE, ...target },
+  target: { db: SOURCE.db, coll: SOURCE.coll, ...target },
   copyIndexes: true,
 });
 
 describe("copySpec", () => {
-  it("trims the destination and tells same-server copies apart", () => {
-    const r = validateCopy(request({ db: " archive ", coll: " orders " }));
-    expect(r.target).toEqual({ sid: "s1", db: "archive", coll: "orders" });
-    expect(isSameServer(r)).toBe(true);
-    expect(isSameServer(request({ sid: "s2" }))).toBe(false);
+  it("trims the destination", () => {
+    expect(validateCopy(request({ db: " archive ", coll: " orders " })).target).toEqual({ db: "archive", coll: "orders" });
   });
 
   it("rejects empty, invalid or identical destinations", () => {
@@ -36,12 +31,10 @@ describe("copySpec", () => {
     expect(() => validateCopy(request({ db: "x", coll: "a$b" }))).toThrow(INVALID_COLL_NAME);
     expect(() => validateCopy(request({ db: "x", coll: "system.js" }))).toThrow(INVALID_COLL_NAME);
     expect(() => validateCopy(request({}))).toThrow(TARGET_IS_SOURCE);
-    // Same names on another connection are a valid destination.
-    expect(validateCopy(request({ sid: "s2" })).target.sid).toBe("s2");
   });
 
   it("copies on the same server with $out to the target database", () => {
-    expect(copyPipeline({ sid: "s1", db: "archive", coll: "old" })).toEqual([
+    expect(copyPipeline({ db: "archive", coll: "old" })).toEqual([
       { $match: {} },
       { $out: { db: "archive", coll: "old" } },
     ]);
@@ -53,11 +46,5 @@ describe("copySpec", () => {
       { v: 2, name: "email_1", key: { email: 1 }, unique: true, ns: "shop.orders" },
     ];
     expect(indexesToCopy(indexes)).toEqual([{ name: "email_1", key: { email: 1 }, unique: true }]);
-  });
-
-  it("reports progress as a whole percentage", () => {
-    expect(progressPercent({ copied: 0, total: 0 })).toBe(100);
-    expect(progressPercent({ copied: 1, total: 3 })).toBe(33);
-    expect(progressPercent({ copied: 60, total: 50 })).toBe(100);
   });
 });

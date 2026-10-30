@@ -1,8 +1,8 @@
 import { ConfirmDialog } from "../../../shared/ui/common";
-import type { CopyProgress, CopyRequest } from "../domain/copySpec";
+import type { CopyRequest } from "../domain/copySpec";
 import type { IndexSpec } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
-import { CopyCollectionDialog, type CopyDestination } from "./CopyCollectionDialog";
+import { CopyCollectionDialog } from "./CopyCollectionDialog";
 import { IndexDialog, PromptDialog } from "./dialogs";
 import { UserDialog } from "./UserDialog";
 import type { ExplorerDialog } from "./useExplorerActions";
@@ -10,17 +10,17 @@ import type { ExplorerDialog } from "./useExplorerActions";
 interface Props {
   dialog: ExplorerDialog;
   onClose: () => void;
-  /** Open connections a collection can be copied to. */
-  destinations: CopyDestination[];
+  /** Databases of a server session loaded in the tree, offered as copy destinations. */
+  databases: (sid: string) => string[];
   onSubmitIndex: (spec: IndexSpec) => Promise<void>;
   onSubmitUser: (spec: UserSpec) => Promise<void>;
-  onCopy: (request: CopyRequest, onProgress: (p: CopyProgress) => void) => Promise<void>;
+  onCopy: (request: CopyRequest) => Promise<void>;
   onConfirm: () => void;
 }
 
 /** Renders whichever dialog the explorer actions opened. */
 export function ExplorerDialogs(props: Props) {
-  const { dialog, destinations, onClose, onSubmitIndex, onSubmitUser, onCopy, onConfirm } = props;
+  const { dialog, databases, onClose, onSubmitIndex, onSubmitUser, onCopy, onConfirm } = props;
   switch (dialog?.kind) {
     case "prompt":
       return (
@@ -44,7 +44,7 @@ export function ExplorerDialogs(props: Props) {
       return (
         <CopyCollectionDialog
           source={{ sid, db: db!, coll: coll! }}
-          destinations={destinations}
+          databases={databases(sid)}
           onClose={onClose}
           onCopy={onCopy}
         />

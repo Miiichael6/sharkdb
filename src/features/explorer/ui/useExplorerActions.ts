@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
 import { useDocumentActions } from "../../../shared/ui/documentActions";
-import type { CopyProgress, CopyRequest } from "../domain/copySpec";
+import type { CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
 import { childKey, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
@@ -125,10 +125,10 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     notify(`Usuario “${spec.user}” ${initial ? "actualizado" : "creado"}`);
   };
 
-  const submitCopy = async (request: CopyRequest, onProgress: (p: CopyProgress) => void) => {
-    const copied = await explorer.copyCollection(request, onProgress);
+  const submitCopy = async (request: CopyRequest) => {
+    const copied = await explorer.copyCollection(request);
     setDialog(null);
-    // The target may be a new database or a collection on another server: reload what is open.
+    // The target may be a new database: reload what is open.
     refreshAll();
     const { db, coll } = request.target;
     notify(`“${request.source.coll}” copiada a ${db.trim()}.${coll.trim()} (${copied.toLocaleString()} documentos)`);

@@ -10,7 +10,7 @@ Restaurar una base de datos completa o colecciones sueltas de un entorno a otro 
 
 ### Paso 1: Plan de sincronización
 - [ ] `src/features/sync/domain/syncPlan.ts`: dado origen (conexión, BD, colecciones elegidas o todas) y destino, valida (destino ≠ origen, destino no protegido ni con safe mode activo) y calcula el plan por colección: crear / reemplazar (con conteo actual → conteo nuevo) e índices a recrear + tests (R30, D7)
-- [ ] Comando Rust `describe_database(sid, db)` (colecciones, conteos, índices, opciones) para construir el plan; la aplicación reutiliza el restore de 14 desde un stream origen→destino (sin pasar por disco) o la copia por lotes de `src-tauri/src/copy.rs` (09). El backend vuelve a comprobar que el destino no está protegido (R30)
+- [ ] Comando Rust `describe_database(sid, db)` (colecciones, conteos, índices, opciones) para construir el plan; la aplicación reutiliza el restore de 14 desde un stream origen→destino (sin pasar por disco). El backend vuelve a comprobar que el destino no está protegido (R30)
 
 ### Paso 2: UI
 - [ ] `src/features/sync/ui/SyncDialog.tsx`: selector de origen y destino con su píldora de entorno (color de la etiqueta, como en 11), modo "BD completa" o "colecciones" con casillas; las conexiones protegidas no aparecen como destino. Antes de aplicar, resumen destacado "Se va a MODIFICAR: <entorno> · <conexión> : <BD>" con la lista de colecciones que se reemplazan, y confirmación escribiendo el nombre de la BD destino (R30, D7)

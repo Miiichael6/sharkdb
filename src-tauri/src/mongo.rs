@@ -229,9 +229,9 @@ pub(crate) async fn session_with_safe_mode(
         .ok_or_else(|| NOT_OPEN.to_string())
 }
 
-/// Client of a session for an operation that always writes (copy, restore, sync); fails with
+/// Client of a session for an operation that always writes (mongosh, restore, sync); fails with
 /// "Safe mode activo" while the session is read-only. Any new writing command goes through here
-/// (copy, backup/restore and sync too).
+/// (backup/restore and sync too).
 pub(crate) async fn writable_session(sessions: &Sessions, id: &str) -> Result<Client, String> {
     let (client, safe_mode) = session_with_safe_mode(sessions, id).await?;
     safe_mode.ensure_writable()?;
