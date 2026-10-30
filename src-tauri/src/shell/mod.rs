@@ -6,13 +6,15 @@
 //! - `convert`: JS ↔ BSON sin pérdida de tipos.
 //! - `session`: motor + API `db` (`prelude`) sobre un `MongoBridge` (`native` en producción).
 //! - `syntax`: reescritura de `use x` / `show dbs` a llamadas JS.
+//! - `document_eval`: texto del editor de documentos → documento BSON, con un motor sin `db`.
 //! - `commands`: comandos Tauri (`execute_script`, `next_batch`, `close_cursor`, `cancel_script`,
-//!   `close_shell`).
+//!   `close_shell`, `eval_document`).
 
 mod bridge;
 mod bson_types;
 pub mod commands;
 mod convert;
+mod document_eval;
 mod engine;
 mod errors;
 mod module;

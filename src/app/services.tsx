@@ -3,6 +3,9 @@ import { createContext, useContext, type ReactNode } from "react";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
 import { tauriSessionGateway } from "../features/connections/infrastructure/tauriSessionGateway";
+import { createDocumentService, type DocumentService } from "../features/documents/application/documentService";
+import { createCommandDocumentStore } from "../features/documents/infrastructure/commandDocumentStore";
+import { tauriDocumentParser } from "../features/documents/infrastructure/tauriDocumentParser";
 import { createExplorerService, type ExplorerService } from "../features/explorer/application/explorerService";
 import { createCommandMongoAdmin } from "../features/explorer/infrastructure/commandMongoAdmin";
 import { createHistoryService, type HistoryService } from "../features/shell/application/historyService";
@@ -22,6 +25,7 @@ export interface Services {
   history: HistoryService;
   schema: SchemaService;
   scriptFiles: ScriptFileService;
+  documents: DocumentService;
 }
 
 export function createServices(): Services {
@@ -32,6 +36,7 @@ export function createServices(): Services {
     history: createHistoryService(tauriHistoryStore),
     schema: createSchemaService(createCommandSchemaSource(tauriCommandRunner)),
     scriptFiles: createScriptFileService(tauriScriptFiles),
+    documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner)),
   };
 }
 

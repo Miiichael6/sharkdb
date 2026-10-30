@@ -5,6 +5,12 @@ import { bsonValue, childrenOf, UUID_SUBTYPE, type BsonValue } from "./bsonValue
 /** Whether dates are shown in UTC or in the computer's time zone. */
 export type DateZone = "utc" | "local";
 
+/** How literals are written: `exactInts` marks Int32 as `NumberInt(…)` so evaluating the text keeps the type. */
+interface Style {
+  zone: DateZone;
+  exactInts: boolean;
+}
+
 const INDENT = "    ";
 const MAX_SAFE_LONG = Number.MAX_SAFE_INTEGER;
 
@@ -45,14 +51,14 @@ const numberLong = (value: string) =>
 type Scalar = Exclude<BsonValue, { type: "object" | "array" }>;
 
 /** Shell literal of a scalar; containers are written by `formatValue`. */
-function scalarLiteral(v: Scalar, zone: DateZone): string {
+function scalarLiteral(v: Scalar, { zone, exactInts }: Style): string {
   switch (v.type) {
     case "objectId":
       return `ObjectId("${v.hex}")`;
     case "date":
       return `ISODate("${isoDate(v.ms, zone)}")`;
     case "int32":
-      return String(v.value);
+      return exactInts ? `NumberInt(${v.value})` : String(v.value);
     case "int64":
       return numberLong(v.value);
     case "double":
@@ -77,7 +83,7 @@ function scalarLiteral(v: Scalar, zone: DateZone): string {
     case "timestamp":
       return `Timestamp(${v.t}, ${v.i})`;
     case "code":
-      return v.scope ? `Code(${JSON.stringify(v.code)}, ${formatValue(v.scope, zone)})` : `Code(${JSON.stringify(v.code)})`;
+      return v.scope ? `Code(${JSON.stringify(v.code)}, ${writeValue(v.scope, { zone, exactInts })})` : `Code(${JSON.stringify(v.code)})`;
     case "symbol":
       return JSON.stringify(v.value);
     case "dbPointer":
@@ -85,20 +91,25 @@ function scalarLiteral(v: Scalar, zone: DateZone): string {
   }
 }
 
-/** Any value as shell text; documents and arrays span several indented lines. */
-export function formatValue(raw: unknown, zone: DateZone, indent = ""): string {
+function writeValue(raw: unknown, style: Style, indent = ""): string {
   const v = bsonValue(raw);
-  if (v.type !== "object" && v.type !== "array") return scalarLiteral(v, zone);
+  if (v.type !== "object" && v.type !== "array") return scalarLiteral(v, style);
   const [open, close] = v.type === "object" ? ["{", "}"] : ["[", "]"];
   const children = childrenOf(v);
   if (!children.length) return `${open}${close}`;
   const inner = indent + INDENT;
   const lines = children.map(([key, child]) => {
-    const text = formatValue(child, zone, inner);
+    const text = writeValue(child, style, inner);
     return v.type === "object" ? `${inner}${JSON.stringify(key)} : ${text}` : `${inner}${text}`;
   });
   return `${open}\n${lines.join(",\n")}\n${indent}${close}`;
 }
+
+/** Any value as shell text; documents and arrays span several indented lines. */
+export const formatValue = (raw: unknown, zone: DateZone) => writeValue(raw, { zone, exactInts: false });
+
+/** A document as text to edit: evaluated back by the shell, it gives the same BSON types (dates in UTC). */
+export const formatEditable = (raw: unknown) => writeValue(raw, { zone: "utc", exactInts: true });
 
 /** The documents of a result as Robo 3T's text view: each one headed by its number. */
 export function formatDocuments(docs: unknown[], firstNumber: number, zone: DateZone): string {
@@ -120,6 +131,6 @@ export function summarizeValue(raw: unknown, zone: DateZone): string {
     case "date":
       return isoDate(v.ms, zone).replace("T", " ");
     default:
-      return scalarLiteral(v, zone);
+      return scalarLiteral(v, { zone, exactInts: false });
   }
 }

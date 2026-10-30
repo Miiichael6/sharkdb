@@ -77,7 +77,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 03 | [API de shell (db, colecciones, cursores) y ejecución](done/03_ejecucion_cursores.md) | 2 Motor | 02 | ✅ Terminada |
 | 04 | [Pestañas de shell con editor y autocompletado](done/04_pestanas_shell_editor.md) | 3 Shell | 03 | ✅ Terminada |
 | 05 | [Visor de resultados: árbol, tabla y texto](done/05_visor_resultados.md) | 3 Shell | 04 | ✅ Terminada |
-| 06 | [CRUD de documentos](pending/06_crud_documentos.md) | 4 Datos | 05 | ⬜ Pendiente |
+| 06 | [CRUD de documentos](done/06_crud_documentos.md) | 4 Datos | 05 | ✅ Terminada (criterios 2–3 pendientes de prueba manual en la UI) |
 | 07 | [Conexión avanzada: SSH, TLS y réplicas](pending/07_conexion_avanzada.md) | 5 Conexión | 01 | ⛔ Bloqueada (D3) |
 | 08 | [Preferencias y empaquetado](pending/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ⛔ Bloqueada (D4) |
 | 09 | [Administración: usuarios y copia de colecciones](pending/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ⬜ Pendiente |

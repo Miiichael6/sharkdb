@@ -65,6 +65,15 @@ describe("shellService", () => {
     expect(calls).toEqual([`next ${SHELL.tab} ${CURSOR_ID} 50`, `next ${SHELL.tab} ${CURSOR_ID} 50`]);
   });
 
+  it("shows a saved document in place and drops a deleted one", async () => {
+    const pager = createShellService(fakeGateway().gateway).pager(SHELL, firstBatch);
+    const [first, second] = (await pager.page(0, 2)).documents;
+    pager.replace(first, { _id: 0, edited: true });
+    pager.replace(second, null);
+    pager.replace({ _id: 1 }, { _id: 99 });
+    expect((await pager.page(0, 2)).documents).toEqual([{ _id: 0, edited: true }, { _id: 2 }]);
+  });
+
   it("closes an open cursor once, and never an exhausted one", async () => {
     const { gateway, calls } = fakeGateway();
     const shell = createShellService(gateway);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
+import { useDocumentActions } from "../../../shared/ui/documentActions";
 import type { IndexSpec } from "../domain/mongo";
 import { childKey, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
 import type { PanelMode } from "./DetailPanel";
@@ -34,6 +35,7 @@ interface Options {
 /** Turns a context-menu action on a tree node into a dialog, a service call or a panel change. */
 export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail }: Options) {
   const { explorer } = useServices();
+  const documents = useDocumentActions();
   const [dialog, setDialog] = useState<ExplorerDialog>(null);
   // Bumped after every change so the detail panel reloads what it shows.
   const [version, setVersion] = useState(0);
@@ -200,6 +202,12 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
         );
         break;
       }
+      case "insertDocument":
+        documents.insert({ sid: n.sid, db: n.db!, coll: n.coll! }, () => refreshKey(null));
+        break;
+      case "removeAllDocuments":
+        documents.removeAll({ sid: n.sid, db: n.db!, coll: n.coll! }, () => refreshKey(null));
+        break;
       case "addIndex":
         editIndex(n);
         break;

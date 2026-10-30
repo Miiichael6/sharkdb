@@ -142,14 +142,14 @@ pub(crate) async fn session(sessions: &Sessions, id: &str) -> Result<Client, Str
 
 /// Parses a command written as extended JSON. Key order matters (the first key is the command
 /// name, index keys are ordered), which is why serde_json has `preserve_order` on.
-fn command_from_json(command: Value) -> Result<Document, String> {
+pub(crate) fn command_from_json(command: Value) -> Result<Document, String> {
     match Bson::try_from(command).map_err(|e| e.to_string())? {
         Bson::Document(command) => Ok(command),
         _ => Err("El comando debe ser un objeto JSON".into()),
     }
 }
 
-fn reply_to_json(reply: Document) -> Value {
+pub(crate) fn reply_to_json(reply: Document) -> Value {
     Bson::Document(reply).into_relaxed_extjson()
 }
 

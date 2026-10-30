@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doubleText, formatDocuments, formatValue, isoDate, summarizeValue } from "./bsonFormat";
+import { doubleText, formatDocuments, formatEditable, formatValue, isoDate, summarizeValue } from "./bsonFormat";
 
 const oid = { $oid: "5f1d7a3c9b1e8a0012345678" };
 const date = { $date: { $numberLong: String(Date.UTC(2024, 0, 2, 10, 30)) } };
@@ -37,6 +37,14 @@ describe("formatValue", () => {
         '    "empty" : {}',
         "}",
       ].join("\n"),
+    );
+  });
+});
+
+describe("formatEditable", () => {
+  it("marks Int32 values so editing keeps their type, and writes dates in UTC", () => {
+    expect(formatEditable({ n: { $numberInt: "7" }, d: { $numberDouble: "7.0" }, at: date })).toBe(
+      '{\n    "n" : NumberInt(7),\n    "d" : 7.0,\n    "at" : ISODate("2024-01-02T10:30:00.000Z")\n}',
     );
   });
 });

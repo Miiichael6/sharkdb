@@ -26,6 +26,7 @@ pub fn run() {
             shell::commands::close_cursor,
             shell::commands::cancel_script,
             shell::commands::close_shell,
+            shell::commands::eval_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

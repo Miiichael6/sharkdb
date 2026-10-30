@@ -23,6 +23,17 @@ export function createCursorPager(gateway: ShellGateway, shell: ShellRef, cursor
     return pageOf(buffer, skip, limit, exhausted);
   }
 
+  /**
+   * Shows `next` where `doc` (one of the documents read) was, once it was saved on the server;
+   * null drops it after it was deleted. The next `page` reflects the change.
+   */
+  function replace(doc: Doc, next: Doc | null) {
+    const at = buffer.indexOf(doc);
+    if (at < 0) return;
+    if (next) buffer[at] = next;
+    else buffer.splice(at, 1);
+  }
+
   /** Frees the server cursor; call it when the result is discarded. */
   async function close() {
     if (exhausted) return;
@@ -30,5 +41,5 @@ export function createCursorPager(gateway: ShellGateway, shell: ShellRef, cursor
     await gateway.closeCursor(shell, cursor.cursorId!);
   }
 
-  return { ns: cursor.ns, page, close };
+  return { ns: cursor.ns, page, replace, close };
 }
