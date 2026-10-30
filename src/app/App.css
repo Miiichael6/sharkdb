@@ -569,14 +569,13 @@ input[type="checkbox"] {
   border-bottom: 1px solid #111;
   background: var(--bg-side);
 }
-.ws-body {
+.split-pane {
   flex: 1;
   display: flex;
   min-height: 0;
 }
-.ws-sidebar {
+.split-side {
   flex: none;
-  background: var(--bg-side);
   display: flex;
   min-width: 0;
 }
@@ -589,10 +588,13 @@ input[type="checkbox"] {
 .splitter:hover {
   background: var(--accent);
 }
-.ws-main {
+.split-main {
   flex: 1;
   min-width: 0;
   overflow: auto;
+}
+.ws-sidebar {
+  background: var(--bg-side);
 }
 
 /* ---------- explorer tree ---------- */
