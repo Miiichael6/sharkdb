@@ -25,6 +25,8 @@ serde_json = { version = "1", features = ["preserve_order"] }
 tokio = { version = "1.54.1", features = ["full"] }
 mongodb = "2.8"
 futures = "0.3.34"
+rquickjs = "0.14.0"
+base64 = "0.22"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
