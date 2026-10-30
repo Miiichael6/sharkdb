@@ -3,17 +3,16 @@ import { useServices } from "../../../app/services";
 import type { DocumentTarget } from "../../../shared/domain/documentTarget";
 import { ConfirmDialog } from "../../../shared/ui/common";
 import { DocumentActionsContext, type DocumentActions } from "../../../shared/ui/documentActions";
+import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { useLog } from "../../../shared/ui/useLog";
-import type { Doc } from "../../explorer/domain/mongo";
 import { formatEditable } from "../../shell/domain/bsonFormat";
-import { DocumentEditorDialog, type EditorMode } from "./DocumentEditorDialog";
+import { EDITOR_TITLES } from "./DocumentEditorDialog";
+import { DOCUMENT_EDITOR_VIEW, type DocumentEditorData, type DocumentEditorResult } from "./DocumentEditorWindow";
 
 /** Text the insert editor starts with. */
 const NEW_DOCUMENT = "{\n  \n}";
 
-type Dialog =
-  | { kind: "editor"; mode: EditorMode; target: DocumentTarget; initial: string; save: (doc: Doc) => Promise<void> }
-  | { kind: "confirm"; title: string; message: string; confirmLabel: string; run: () => Promise<void> };
+type Dialog = { kind: "confirm"; title: string; message: string; confirmLabel: string; run: () => Promise<void> };
 
 const namespace = (t: DocumentTarget) => `${t.db}.${t.coll}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -26,6 +25,21 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
   const close = () => setDialog(null);
 
   const actions = useMemo<DocumentActions>(() => {
+    /** The editor in its own window, which keeps this one disabled until it closes; null when nothing was saved. */
+    const openEditor = async (data: DocumentEditorData) => {
+      try {
+        return await openModalWindow<DocumentEditorResult>(DOCUMENT_EDITOR_VIEW, data, {
+          title: `${EDITOR_TITLES[data.mode]} · ${namespace(data.target)}`,
+          width: 760,
+          height: 600,
+          maximizable: true,
+        });
+      } catch (e) {
+        log.error("No se pudo abrir el editor de documentos", e);
+        return null;
+      }
+    };
+
     /** Runs a confirmed deletion, logging how many documents it removed. */
     const deletion = (target: DocumentTarget, remove: () => Promise<number>, onDone: () => void) => async () => {
       try {
@@ -38,32 +52,18 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
     };
 
     return {
-      view: (target, doc) =>
-        setDialog({ kind: "editor", mode: "view", target, initial: formatEditable(doc), save: async () => {} }),
-      edit: (target, doc, onDone) =>
-        setDialog({
-          kind: "editor",
-          mode: "edit",
-          target,
-          initial: formatEditable(doc),
-          save: async (edited) => {
-            const saved = await documents.replaceDocument(target, doc, edited);
-            log.info(`Documento actualizado en ${namespace(target)}`);
-            onDone(saved);
-          },
-        }),
-      insert: (target, onDone) =>
-        setDialog({
-          kind: "editor",
-          mode: "insert",
-          target,
-          initial: NEW_DOCUMENT,
-          save: async (doc) => {
-            await documents.insertDocument(target, doc);
-            log.info(`Documento insertado en ${namespace(target)}`);
-            onDone();
-          },
-        }),
+      view: (target, doc) => void openEditor({ mode: "view", target, initial: formatEditable(doc) }),
+      edit: async (target, doc, onDone) => {
+        const result = await openEditor({ mode: "edit", target, initial: formatEditable(doc), original: doc });
+        if (!result?.saved) return;
+        log.info(`Documento actualizado en ${namespace(target)}`);
+        onDone(result.saved);
+      },
+      insert: async (target, onDone) => {
+        if (!(await openEditor({ mode: "insert", target, initial: NEW_DOCUMENT }))) return;
+        log.info(`Documento insertado en ${namespace(target)}`);
+        onDone();
+      },
       remove: (target, docs, onDone) =>
         setDialog({
           kind: "confirm",
@@ -86,19 +86,7 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
   return (
     <DocumentActionsContext.Provider value={actions}>
       {children}
-      {dialog?.kind === "editor" && (
-        <DocumentEditorDialog
-          mode={dialog.mode}
-          namespace={namespace(dialog.target)}
-          initial={dialog.initial}
-          onSave={async (doc) => {
-            await dialog.save(doc);
-            close();
-          }}
-          onClose={close}
-        />
-      )}
-      {dialog?.kind === "confirm" && (
+      {dialog && (
         <ConfirmDialog
           title={dialog.title}
           message={dialog.message}

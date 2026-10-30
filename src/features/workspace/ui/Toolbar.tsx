@@ -2,14 +2,13 @@ import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { ContextMenu, type ContextMenuItem } from "../../../shared/ui/ContextMenu";
 import type { StatusContext } from "../domain/statusLabel";
 import { TOOLBAR_ACTIONS, TOOLBAR_LAYOUT, type ToolbarActionId } from "../domain/toolbarActions";
-import { DatabaseSwitcher, type DatabaseChoice } from "./DatabaseSwitcher";
 import { StatusPill } from "./StatusPill";
 import { ToolbarButton } from "./ToolbarButton";
 import type { ToolbarHandlers } from "./useToolbarShortcuts";
 
 /** Actions that open a popup anchored to their button instead of running a handler. */
-type PopupId = Extract<ToolbarActionId, "menu" | "databases">;
-const isPopup = (id: ToolbarActionId): id is PopupId => id === "menu" || id === "databases";
+type PopupId = Extract<ToolbarActionId, "menu">;
+const isPopup = (id: ToolbarActionId): id is PopupId => id === "menu";
 
 const POPUP_GAP_PX = 4;
 
@@ -18,13 +17,11 @@ interface Props {
   pressed: Partial<Record<ToolbarActionId, boolean>>;
   disabled: Partial<Record<ToolbarActionId, boolean>>;
   menuItems: ContextMenuItem[];
-  databases: DatabaseChoice[];
-  onPickDatabase: (key: string) => void;
   status: StatusContext | null;
 }
 
 /** Workspace toolbar in the style of TablePlus: button groups around the status pill. */
-export function Toolbar({ handlers, pressed, disabled, menuItems, databases, onPickDatabase, status }: Props) {
+export function Toolbar({ handlers, pressed, disabled, menuItems, status }: Props) {
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
 
@@ -69,18 +66,6 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, databases, onP
 
       {popup?.id === "menu" && (
         <ContextMenu x={popup.x} y={popup.y} items={menuItems} onClose={closePopup} label={TOOLBAR_ACTIONS.menu.label} />
-      )}
-      {popup?.id === "databases" && (
-        <DatabaseSwitcher
-          x={popup.x}
-          y={popup.y}
-          databases={databases}
-          onPick={(key) => {
-            closePopup();
-            onPickDatabase(key);
-          }}
-          onClose={closePopup}
-        />
       )}
     </div>
   );

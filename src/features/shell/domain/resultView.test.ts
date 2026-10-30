@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   cellText,
+  collapseRecursively,
   documentKey,
   documentsOf,
+  expandRecursively,
   lookup,
   rowId,
   tableColumns,
@@ -104,5 +106,22 @@ describe("cellText", () => {
     expect(cellText(row("name"), "value", docs[0], "utc")).toBe("Lima");
     expect(cellText(row("_id"), "value", docs[0], "utc")).toBe('ObjectId("5f1d7a3c9b1e8a0012345678")');
     expect(cellText(row("tags"), "value", docs[0], "utc")).toContain('"a"');
+  });
+});
+
+describe("expand / collapse recursively", () => {
+  const doc = { a: { b: { c: 1 }, empty: {} }, list: [{ x: 1 }], n: 1 };
+
+  it("opens every non-empty container below the row", () => {
+    const open = expandRecursively(new Set(), doc, 0, []);
+    expect([...open].sort()).toEqual(
+      [rowId(0, []), rowId(0, ["a"]), rowId(0, ["a", "b"]), rowId(0, ["list"]), rowId(0, ["list", "0"])].sort(),
+    );
+    expect(expandRecursively(new Set(), doc.a, 0, ["a"]).has(rowId(0, []))).toBe(false);
+  });
+
+  it("closes the row and its descendants only", () => {
+    const open = new Set([rowId(0, []), rowId(0, ["a"]), rowId(0, ["a", "b"]), rowId(1, ["a"])]);
+    expect([...collapseRecursively(open, 0, ["a"])]).toEqual([rowId(0, []), rowId(1, ["a"])]);
   });
 });

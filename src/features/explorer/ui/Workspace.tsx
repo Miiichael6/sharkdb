@@ -24,6 +24,8 @@ export interface WorkspaceControls {
   /** Selects `node` in the tree, opening it and its ancestors. */
   reveal: (node: TreeNode) => void;
   openMongosh: (sid: string, db?: string) => void;
+  /** Runs a context-menu action on `node`, exactly as the tree does. */
+  runAction: (action: Action, node: TreeNode) => void;
 }
 
 interface Props {
@@ -88,6 +90,7 @@ export function Workspace(props: Props) {
     databases: (sid) => databaseNodes(tree.children.get(serverKey(sid)) ?? []),
     reveal: tree.reveal,
     openMongosh,
+    runAction: onAction,
   };
   const mode: PanelMode = panel && panel.key === selected?.key ? panel.mode : "default";
 

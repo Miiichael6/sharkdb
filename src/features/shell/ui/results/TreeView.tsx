@@ -7,7 +7,7 @@ import type { DateZone } from "../../domain/bsonFormat";
 import { cellText, type TreeColumn, type TreeRow } from "../../domain/resultView";
 import { ROW_HEIGHT } from "./layout";
 import { TypeIcon } from "./TypeIcon";
-import type { CopyTarget } from "./useCopyMenu";
+import type { ResultTarget } from "./useResultMenu";
 import { useTreeRows } from "./useTreeRows";
 
 const INDENT_PX = 16;
@@ -28,7 +28,7 @@ interface Props {
   /** Number of the first document (skip + 1). */
   firstNumber: number;
   zone: DateZone;
-  onContextMenu: (e: MouseEvent, target: CopyTarget) => void;
+  onContextMenu: (e: MouseEvent, target: ResultTarget) => void;
 }
 
 /**
@@ -81,7 +81,12 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu }: Props) {
         onDoubleClick={() => row.expandable && tree.toggle(row.id)}
         onContextMenu={(e) => {
           tree.select(index);
-          onContextMenu(e, { doc: docs[row.docIndex], path: row.path, value: row.raw });
+          onContextMenu(e, {
+            doc: docs[row.docIndex],
+            path: row.path,
+            value: row.raw,
+            tree: { expandable: row.expandable, expand: () => tree.expandAll(row), collapse: () => tree.collapseAll(row) },
+          });
         }}
       >
         <div

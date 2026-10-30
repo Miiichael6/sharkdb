@@ -1,6 +1,7 @@
 import type { DocumentTarget } from "../../../shared/domain/documentTarget";
 import type { Doc } from "../../explorer/domain/mongo";
 import { DOCUMENT_GONE, idFilter, idsFilter, keepId } from "../domain/documentEdit";
+import { markIntegers } from "../domain/markIntegers";
 import type { DocumentParser, DocumentStore } from "./ports";
 
 /** Every document of the collection. */
@@ -10,7 +11,8 @@ export type DocumentService = ReturnType<typeof createDocumentService>;
 
 export function createDocumentService(parser: DocumentParser, store: DocumentStore) {
   return {
-    parse: (text: string) => parser.evaluate(text),
+    /** Evaluates an edited document; its plain integers stay Int32 (see `markIntegers`). */
+    parse: (text: string) => parser.evaluate(markIntegers(text)),
     insertDocument: async (target: DocumentTarget, doc: Doc) => {
       await store.insert(target, doc);
     },

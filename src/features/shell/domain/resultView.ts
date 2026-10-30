@@ -1,6 +1,6 @@
 // How a result's documents are laid out in the tree and table views.
 import { formatValue, summarizeValue, type DateZone } from "./bsonFormat";
-import { BSON_TYPE_LABEL, bsonValue, childrenOf, isContainer, type BsonType } from "./bsonValue";
+import { BSON_TYPE_LABEL, bsonValue, childrenOf, isContainer, type BsonType, type BsonValue } from "./bsonValue";
 
 export type ViewMode = "tree" | "table" | "text";
 
@@ -43,11 +43,14 @@ export function documentKey(doc: unknown, number: number, zone: DateZone): strin
   return id ? `(${number}) ${summarizeValue(id[1], zone)}` : `(${number})`;
 }
 
+/** What an expanded row shows below it; empty when the row can't be expanded. */
+const expandableChildren = (value: BsonValue) => (isContainer(value) ? childrenOf(value) : []);
+
 function pushRows(rows: TreeRow[], raw: unknown, docIndex: number, path: KeyPath, key: string, expanded: ReadonlySet<string>, zone: DateZone) {
   const value = bsonValue(raw);
-  const children = childrenOf(value);
+  const children = expandableChildren(value);
   const id = rowId(docIndex, path);
-  const expandable = isContainer(value) && children.length > 0;
+  const expandable = children.length > 0;
   const isOpen = expandable && expanded.has(id);
   rows.push({
     id,
@@ -90,6 +93,26 @@ export function toggleExpanded(expanded: ReadonlySet<string>, id: string): Set<s
   const next = new Set(expanded);
   if (!next.delete(id)) next.add(id);
   return next;
+}
+
+function addExpandable(ids: Set<string>, raw: unknown, docIndex: number, path: KeyPath) {
+  const children = expandableChildren(bsonValue(raw));
+  if (!children.length) return;
+  ids.add(rowId(docIndex, path));
+  children.forEach(([k, child]) => addExpandable(ids, child, docIndex, [...path, k]));
+}
+
+/** Opens the row at `path` (holding `raw`) and every container below it. */
+export function expandRecursively(expanded: ReadonlySet<string>, raw: unknown, docIndex: number, path: KeyPath): Set<string> {
+  const next = new Set(expanded);
+  addExpandable(next, raw, docIndex, path);
+  return next;
+}
+
+/** Closes the row at `path` and every row below it, so reopening it shows one level again. */
+export function collapseRecursively(expanded: ReadonlySet<string>, docIndex: number, path: KeyPath): Set<string> {
+  const id = rowId(docIndex, path);
+  return new Set([...expanded].filter((x) => x !== id && !x.startsWith(id + PATH_SEPARATOR)));
 }
 
 /** The value at `path` inside `doc`, or null if some key along the way is missing. */

@@ -56,5 +56,6 @@ describe("documentService", () => {
     await service.insertDocument(TARGET, { n: 1 });
     expect(calls).toEqual([["insert", { n: 1 }]]);
     expect(await service.parse("{}")).toEqual({ document: { text: "{}" }, error: null });
+    expect(await service.parse("{ a: 1 }")).toEqual({ document: { text: "{ a: NumberInt(1) }" }, error: null });
   });
 });
