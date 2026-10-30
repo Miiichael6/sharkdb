@@ -80,7 +80,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 06 | [CRUD de documentos](done/06_crud_documentos.md) | 4 Datos | 05 | ✅ Terminada (criterios 2–3 pendientes de prueba manual en la UI) |
 | 07 | [Conexión avanzada: SSH, TLS y réplicas](done/07_conexion_avanzada.md) | 5 Conexión | 01 | ✅ Terminada |
 | 08 | [Preferencias y empaquetado](pending/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ⛔ Bloqueada (D4) |
-| 09 | [Administración: usuarios y copia de colecciones](pending/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ⬜ Pendiente |
+| 09 | [Administración: usuarios y copia de colecciones](done/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |
 | 11 | [Barra de herramientas del workspace](done/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | ✅ Terminada |
 | 12 | [Apertura rápida y acciones rápidas de BD](done/12_apertura_rapida_y_acciones.md) | 8 Barra de herramientas | 11 | ✅ Terminada (prueba manual pendiente en la UI) |

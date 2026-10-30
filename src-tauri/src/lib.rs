@@ -1,3 +1,4 @@
+mod copy;
 mod files;
 mod mongo;
 mod safe_mode;
@@ -26,6 +27,7 @@ pub fn run() {
             mongo::disconnect,
             mongo::run_command,
             mongo::set_safe_mode,
+            copy::copy_collection,
             shell::commands::execute_script,
             shell::commands::next_batch,
             shell::commands::close_cursor,

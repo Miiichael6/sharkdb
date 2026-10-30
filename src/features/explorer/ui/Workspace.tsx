@@ -99,6 +99,11 @@ export function Workspace(props: Props) {
     runAction: onAction,
   };
   const readOnlySelected = !!selected && isReadOnly(selected.sid);
+  const destinations = roots.map((r) => ({
+    sid: r.sid,
+    label: r.label,
+    databases: databaseNodes(tree.children.get(r.key) ?? []).map((d) => d.label),
+  }));
   const mode: PanelMode = panel && panel.key === selected?.key ? panel.mode : "default";
 
   const details = selected && (
@@ -127,8 +132,11 @@ export function Workspace(props: Props) {
 
       <ExplorerDialogs
         dialog={actions.dialog}
+        destinations={destinations}
         onClose={actions.closeDialog}
         onSubmitIndex={actions.submitIndex}
+        onSubmitUser={actions.submitUser}
+        onCopy={actions.submitCopy}
         onConfirm={actions.confirm}
       />
     </div>

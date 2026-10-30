@@ -1,26 +1,10 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../shared/errors";
 import { Modal, Spinner } from "../../../shared/ui/common";
 import { defaultIndexName, parseJsonObject } from "../domain/indexSpec";
 import type { IndexSpec } from "../domain/mongo";
-
-/** Shows the error inside the dialog instead of closing it, so the user can fix the input. */
-function useSubmit(onSubmit: () => Promise<void>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const submit = async (e?: FormEvent) => {
-    e?.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await onSubmit();
-    } catch (err) {
-      setError(errorMessage(err));
-      setBusy(false);
-    }
-  };
-  return { busy, error, setError, submit };
-}
+import { Field } from "./Field";
+import { useSubmit } from "./useSubmit";
 
 export interface PromptField {
   name: string;
@@ -234,15 +218,6 @@ export function IndexDialog({
         </div>
       </form>
     </Modal>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="stack">
-      <span className="muted">{label}</span>
-      {children}
-    </label>
   );
 }
 

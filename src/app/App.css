@@ -1081,6 +1081,38 @@ table.grid {
 .modal.index-dialog {
   width: 540px;
 }
+.modal.user-dialog {
+  width: 500px;
+}
+.role-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px 10px;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.role-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.role-row input {
+  flex: 1;
+  min-width: 0;
+}
+.copy-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+.copy-progress progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
 .document-window {
   display: flex;
   flex-direction: column;

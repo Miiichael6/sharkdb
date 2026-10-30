@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Worktrees temporales de los workflows de Claude Code
+.claude/worktrees/

@@ -3,6 +3,7 @@
 import { firstBatch, type CommandRunner } from "../../../shared/infrastructure/commandRunner";
 import type { MongoAdmin } from "../application/ports";
 import type { CollectionEntry, DatabaseEntry, Doc, FunctionEntry, IndexSpec, UserEntry } from "../domain/mongo";
+import { createUserCommand, updateUserCommand } from "../domain/userSpec";
 
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name);
 
@@ -52,6 +53,10 @@ export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {
     createIndex: (sid, db, coll, spec) => exec(sid, db, { createIndexes: coll, indexes: [spec] }),
     dropIndex: (sid, db, coll, name) => exec(sid, db, { dropIndexes: coll, index: name }),
 
+    runPipeline: (sid, db, coll, pipeline) => exec(sid, db, { aggregate: coll, pipeline, cursor: {} }),
+
+    createUser: (sid, db, spec) => exec(sid, db, createUserCommand(spec)),
+    updateUser: (sid, db, spec) => exec(sid, db, updateUserCommand(spec)),
     dropUser: (sid, db, user) => exec(sid, db, { dropUser: user }),
     removeFunction: (sid, db, name) =>
       exec(sid, db, { delete: "system.js", deletes: [{ q: { _id: name }, limit: 1 }] }),

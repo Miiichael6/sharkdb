@@ -1,11 +1,12 @@
+import { copyPipeline, indexesToCopy, isSameServer, validateCopy, type CopyProgress, type CopyRequest } from "../domain/copySpec";
 import { creatableSpec } from "../domain/indexSpec";
 import { SYSTEM_DATABASES, type CollectionEntry, type DatabaseEntry, type IndexSpec } from "../domain/mongo";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
-import type { MongoAdmin } from "./ports";
+import type { CollectionCopier, MongoAdmin } from "./ports";
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
 
-export function createExplorerService(admin: MongoAdmin) {
+export function createExplorerService(admin: MongoAdmin, copier: CollectionCopier) {
   const database = (parent: TreeNode, d: DatabaseEntry) =>
     childNode(parent, "database", d.name, { db: d.name, data: d });
   const collection = (parent: TreeNode, c: CollectionEntry) =>
@@ -62,5 +63,28 @@ export function createExplorerService(admin: MongoAdmin) {
     }
   }
 
-  return { ...admin, loadChildren, replaceIndex };
+  /**
+   * Copies a collection, replacing the target: on the same server the server does it (`$out`),
+   * between connections the documents travel in batches. Indexes are recreated afterwards if asked.
+   * Resolves with the documents in the target.
+   */
+  async function copyCollection(request: CopyRequest, onProgress: (p: CopyProgress) => void): Promise<number> {
+    const valid = validateCopy(request);
+    const { source, target, copyIndexes } = valid;
+    let copied: number;
+    if (isSameServer(valid)) {
+      await admin.runPipeline(source.sid, source.db, source.coll, copyPipeline(target));
+      copied = (await admin.collStats(target.sid, target.db, target.coll)).count ?? 0;
+    } else {
+      copied = await copier.copy(source, target, onProgress);
+    }
+    if (copyIndexes) {
+      for (const ix of indexesToCopy(await admin.listIndexes(source.sid, source.db, source.coll))) {
+        await admin.createIndex(target.sid, target.db, target.coll, ix);
+      }
+    }
+    return copied;
+  }
+
+  return { ...admin, loadChildren, replaceIndex, copyCollection };
 }

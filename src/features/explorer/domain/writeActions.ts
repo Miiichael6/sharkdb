@@ -13,6 +13,8 @@ export const ACTION_COMMANDS: Record<string, string> = {
   removeAllDocuments: "delete",
   renameCollection: "renameCollection",
   dropCollection: "drop",
+  addUser: "createUser",
+  editUser: "updateUser",
   dropUser: "dropUser",
   removeFunction: "delete",
 };
