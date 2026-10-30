@@ -1,6 +1,7 @@
 //! Puente real con el servidor: las funciones `native.*` que usa `prelude.js`, sobre el driver.
 //! Se ejecutan en el hilo del script; cada espera al servidor se hace con `Handle::block_on`
-//! (nunca desde un worker de tokio) y se corta si el watchdog salta.
+//! (nunca desde un worker de tokio) y se corta si el watchdog salta. Las escrituras pasan antes
+//! por el safe mode de la sesión: es la sesión, no la UI, la que decide si se permiten.
 
 mod cursors;
 mod options;
@@ -21,6 +22,7 @@ use super::convert::{bson_to_js, js_to_bson};
 use super::outcome::{CursorBatch, CursorId};
 use super::watchdog::{Interruption, Watchdog};
 use crate::mongo::describe;
+use crate::safe_mode::SafeMode;
 
 const CANCELLED: &str = "Operación cancelada";
 const TIMED_OUT: &str = "La operación superó el tiempo máximo";
@@ -31,15 +33,17 @@ const MONGO_ERROR: &str = "MongoError";
 #[derive(Clone)]
 pub struct MongoNatives {
     client: Client,
+    safe_mode: SafeMode,
     handle: Handle,
     watchdog: Watchdog,
     cursors: Rc<RefCell<CursorRegistry<Cursor<Document>>>>,
 }
 
 impl MongoNatives {
-    pub fn new(client: Client, handle: Handle, watchdog: Watchdog) -> Self {
+    pub fn new(client: Client, safe_mode: SafeMode, handle: Handle, watchdog: Watchdog) -> Self {
         Self {
             client,
+            safe_mode,
             handle,
             watchdog,
             cursors: Rc::default(),
@@ -85,6 +89,7 @@ impl MongoNatives {
         pipeline: Vec<Document>,
         options: &Document,
     ) -> Result<CursorId, String> {
+        self.safe_mode.check_pipeline(&pipeline)?;
         let options = aggregate_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
         let cursor = self.wait(collection.aggregate(pipeline, options))?;
@@ -92,6 +97,7 @@ impl MongoNatives {
     }
 
     fn run_command(&self, db: &str, command: Document) -> Result<Document, String> {
+        self.safe_mode.check_command(&command)?;
         self.wait(self.client.database(db).run_command(command, None))
     }
 

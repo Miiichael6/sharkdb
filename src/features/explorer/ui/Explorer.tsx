@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
+import { useReadOnly } from "../../connections/ui/useReadOnly";
 import { Spinner } from "../../../shared/ui/common";
 import { MenuList } from "../../../shared/ui/MenuList";
 import { FOLDER_KINDS, isLeaf, parentKey, type TreeNode } from "../domain/tree";
+import { blockedInSafeMode } from "../domain/writeActions";
 import { NodeIcon } from "./NodeIcon";
 import type { Tree } from "./useTree";
 
@@ -118,6 +121,7 @@ interface Props {
 
 export function Explorer({ tree, onAction }: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; node: TreeNode } | null>(null);
+  const isReadOnly = useReadOnly();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -232,19 +236,21 @@ export function Explorer({ tree, onAction }: Props) {
 
       {menu && (
         <MenuList x={menu.x} y={menu.y}>
-          {menuFor(menu.node).map((item, i) =>
-            item === "sep" ? (
-              <li key={i} className="sep" />
-            ) : (
+          {menuFor(menu.node).map((item, i) => {
+            if (item === "sep") return <li key={i} className="sep" />;
+            const blocked = isReadOnly(menu.node.sid) && blockedInSafeMode(item.action);
+            const disabled = item.disabled || blocked;
+            return (
               <li
                 key={item.action}
-                className={`${item.danger ? "danger" : ""} ${item.disabled ? "disabled" : ""}`}
-                onClick={() => !item.disabled && onAction(item.action, menu.node)}
+                className={`${item.danger ? "danger" : ""} ${disabled ? "disabled" : ""}`}
+                title={blocked ? SAFE_MODE_ERROR : undefined}
+                onClick={() => !disabled && onAction(item.action, menu.node)}
               >
                 {item.label}
               </li>
-            ),
-          )}
+            );
+          })}
         </MenuList>
       )}
     </div>

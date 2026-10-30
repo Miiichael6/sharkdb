@@ -10,6 +10,7 @@ import {
 import type { Session } from "../features/connections/domain/session";
 import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
+import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
 import { Welcome } from "../features/connections/ui/Welcome";
 import type { TreeNode } from "../features/explorer/domain/tree";
 import { Workspace } from "../features/explorer/ui/Workspace";
@@ -19,6 +20,7 @@ import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
 import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
+import { useNotify } from "../shared/ui/useNotifications";
 import { useServices } from "./services";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
@@ -41,6 +43,7 @@ function App() {
   const files = useScriptFileActions(tabs);
   const layout = usePanelLayout();
   const log = useLog();
+  const notify = useNotify();
 
   useEffect(() => {
     service.list().then(setConnections, (e) => setError(errorMessage(e)));
@@ -83,6 +86,20 @@ function App() {
     });
   };
 
+  const setSafeMode = async (sid: string, enabled: boolean) => {
+    const session = sessions.find((s) => s.conn.id === sid);
+    if (!session) return;
+    try {
+      const next = await service.setSafeMode(session, enabled);
+      setSessions((s) => s.map((x) => (x.conn.id === sid ? next : x)));
+      const text = `Safe mode ${enabled ? "activado" : "desactivado"} en ${displayName(session.conn)}`;
+      log.info(text);
+      notify.info(text);
+    } catch (e) {
+      notify.fail(e);
+    }
+  };
+
   const shellTab = (node: TreeNode, run = false) => {
     const session = sessions.find((s) => s.conn.id === node.sid);
     return tabForNode(node, session ? displayName(session.conn) : node.sid, run);
@@ -90,7 +107,7 @@ function App() {
   const tabFor = (selected: TreeNode | undefined) => () => (selected ? shellTab(selected) : null);
 
   return (
-    <>
+    <ReadOnlyProvider sessions={sessions}>
       {showWelcome || !sessions.length ? (
         <Welcome
           connections={connections}
@@ -129,6 +146,7 @@ function App() {
               onNewConnection={() => setDialog({ kind: "picker" })}
               onShowConnections={() => setShowWelcome(true)}
               onConnect={connect}
+              onSetSafeMode={setSafeMode}
             />
           )}
           renderMain={(details, selected) => (
@@ -159,7 +177,7 @@ function App() {
           }}
         />
       )}
-    </>
+    </ReadOnlyProvider>
   );
 }
 

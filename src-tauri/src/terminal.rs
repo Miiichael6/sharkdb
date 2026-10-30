@@ -120,6 +120,10 @@ fn launch(_mongosh: &Path, _uri: &str) -> std::io::Result<()> {
 
 #[tauri::command]
 pub async fn open_mongosh(sessions: State<'_, Sessions>, id: String, db: String) -> Result<(), String> {
+    // mongosh runs outside the app and can write freely: not while the session is read-only.
+    mongo::writable_session(&sessions, &id)
+        .await
+        .map_err(|e| format!("{e}: mongosh no respeta el safe mode, desactívalo para abrirlo"))?;
     let (uri, tunnel_port) = mongo::session_uri(&sessions, &id).await?;
     let mongosh = find_executable(MONGOSH)
         .ok_or("No se encontró mongosh en el PATH. Instálalo desde https://www.mongodb.com/try/download/shell")?;

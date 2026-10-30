@@ -7,17 +7,23 @@ const INFO = { version: "7.0.0", databases: [] };
 
 function setup(saved: MongoConnection[] = []) {
   const store: ConnectionStore = { load: vi.fn(async () => saved), save: vi.fn(async () => {}) };
-  const gateway: SessionGateway = { test: vi.fn(async () => INFO), open: vi.fn(async () => INFO), close: vi.fn(async () => {}) };
+  const gateway: SessionGateway = {
+    test: vi.fn(async () => INFO),
+    open: vi.fn(async () => INFO),
+    setSafeMode: vi.fn(async () => {}),
+    close: vi.fn(async () => {}),
+  };
   const files: FilePicker = { pick: vi.fn(async () => "C:\\ca.pem") };
   return { store, gateway, files, service: createConnectionService(store, gateway, files) };
 }
 
 describe("connectionService", () => {
   it("migrates connections saved without the new fields", async () => {
-    const { ssh: _ssh, tlsFiles: _tls, ...old } = newConnection();
+    const { ssh: _ssh, tlsFiles: _tls, protected: _protected, ...old } = newConnection();
     const { service } = setup([old as MongoConnection]);
     const [loaded] = await service.list();
     expect(loaded.ssh.enabled).toBe(false);
+    expect(loaded.protected).toBe(false);
     expect(loaded.tlsFiles.caFile).toBe("");
   });
 
@@ -25,7 +31,23 @@ describe("connectionService", () => {
     const { service, gateway } = setup();
     const conn = newConnection();
     await service.open(conn);
-    expect(gateway.open).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null);
+    expect(gateway.open).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null, false);
+  });
+
+  it("opens protected connections in safe mode", async () => {
+    const { service, gateway } = setup();
+    const conn = { ...newConnection(), protected: true };
+    const session = await service.open(conn);
+    expect(session.safeMode).toBe(true);
+    expect(gateway.open).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null, true);
+  });
+
+  it("switches safe mode in the backend before reporting it", async () => {
+    const { service, gateway } = setup();
+    const session = await service.open(newConnection());
+    const next = await service.setSafeMode(session, true);
+    expect(gateway.setSafeMode).toHaveBeenCalledWith(session.conn.id, true);
+    expect(next).toEqual({ ...session, safeMode: true });
   });
 
   it("passes the tunnel settings when SSH is enabled", async () => {

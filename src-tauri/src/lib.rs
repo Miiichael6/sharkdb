@@ -1,5 +1,6 @@
 mod files;
 mod mongo;
+mod safe_mode;
 mod secrets;
 mod shell;
 mod ssh_tunnel;
@@ -24,6 +25,7 @@ pub fn run() {
             mongo::connect,
             mongo::disconnect,
             mongo::run_command,
+            mongo::set_safe_mode,
             shell::commands::execute_script,
             shell::commands::next_batch,
             shell::commands::close_cursor,

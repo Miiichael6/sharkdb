@@ -16,8 +16,9 @@ interface Props {
   version: number;
   childCount?: number;
   onAction: (mode: PanelMode) => void;
-  onEditIndex: (ix: IndexSpec) => void;
-  onDropIndex: (ix: IndexSpec) => void;
+  /** Left out while the session is read-only: the index table then hides its edit buttons. */
+  onEditIndex?: (ix: IndexSpec) => void;
+  onDropIndex?: (ix: IndexSpec) => void;
 }
 
 type Content =
@@ -164,8 +165,8 @@ function IndexTable({
   onDrop,
 }: {
   indexes: IndexSpec[];
-  onEdit: (ix: IndexSpec) => void;
-  onDrop: (ix: IndexSpec) => void;
+  onEdit?: (ix: IndexSpec) => void;
+  onDrop?: (ix: IndexSpec) => void;
 }) {
   return (
     <table className="grid">
@@ -196,8 +197,8 @@ function IndexTable({
             <td className="row-actions">
               {ix.name !== "_id_" && (
                 <>
-                  <button className="ghost" onClick={() => onEdit(ix)}>Editar</button>
-                  <button className="ghost danger-text" onClick={() => onDrop(ix)}>Eliminar</button>
+                  {onEdit && <button className="ghost" onClick={() => onEdit(ix)}>Editar</button>}
+                  {onDrop && <button className="ghost danger-text" onClick={() => onDrop(ix)}>Eliminar</button>}
                 </>
               )}
             </td>

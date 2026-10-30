@@ -8,10 +8,14 @@ export interface ConnectionStore {
   save(connections: MongoConnection[]): Promise<void>;
 }
 
-/** Opens and closes server sessions, keyed by connection id; `ssh` routes them through a tunnel. */
+/**
+ * Opens and closes server sessions, keyed by connection id; `ssh` routes them through a tunnel.
+ * `safeMode` is the session's read-only switch, enforced by the backend.
+ */
 export interface SessionGateway {
   test(uri: string, ssh: SshTunnelConfig | null): Promise<ServerInfo>;
-  open(id: string, uri: string, ssh: SshTunnelConfig | null): Promise<ServerInfo>;
+  open(id: string, uri: string, ssh: SshTunnelConfig | null, safeMode: boolean): Promise<ServerInfo>;
+  setSafeMode(id: string, enabled: boolean): Promise<void>;
   close(id: string): Promise<void>;
 }
 

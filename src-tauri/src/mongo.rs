@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, State};
 
+use crate::safe_mode::SafeMode;
 use crate::shell::ShellSessions;
 use crate::ssh_tunnel::{SshConfig, SshTunnel, TunnelTarget};
 use crate::store;
@@ -27,6 +28,8 @@ struct OpenClient {
     tunnel: Option<SshTunnel>,
     /// The URI it was opened with, for external tools (mongosh).
     uri: String,
+    /// Read-only switch of the session, shared with the shells that use its client.
+    safe_mode: SafeMode,
 }
 
 impl OpenClient {
@@ -104,7 +107,12 @@ fn known_hosts_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(store::config_dir(app)?.join(KNOWN_HOSTS_FILE))
 }
 
-async fn open(uri: &str, ssh: Option<SshConfig>, known_hosts: PathBuf) -> Result<OpenClient, String> {
+async fn open(
+    uri: &str,
+    ssh: Option<SshConfig>,
+    known_hosts: PathBuf,
+    safe_mode: bool,
+) -> Result<OpenClient, String> {
     let mut opts = ClientOptions::parse(uri).await.map_err(describe)?;
     opts.app_name = Some("robo3b".into());
     opts.server_selection_timeout.get_or_insert(TIMEOUT);
@@ -119,7 +127,12 @@ async fn open(uri: &str, ssh: Option<SshConfig>, known_hosts: PathBuf) -> Result
         None => None,
     };
     let client = Client::with_options(opts).map_err(describe)?;
-    Ok(OpenClient { client, tunnel, uri: uri.to_string() })
+    Ok(OpenClient {
+        client,
+        tunnel,
+        uri: uri.to_string(),
+        safe_mode: SafeMode::new(safe_mode),
+    })
 }
 
 async fn server_info(client: &Client) -> Result<ServerInfo, String> {
@@ -153,7 +166,7 @@ async fn server_info(client: &Client) -> Result<ServerInfo, String> {
 
 #[tauri::command]
 pub async fn test_connection(app: AppHandle, uri: String, ssh: Option<SshConfig>) -> Result<ServerInfo, String> {
-    let open = open(&uri, ssh, known_hosts_path(&app)?).await?;
+    let open = open(&uri, ssh, known_hosts_path(&app)?, true).await?;
     let info = server_info(&open.client).await;
     open.shutdown().await;
     info
@@ -167,8 +180,9 @@ pub async fn connect(
     id: String,
     uri: String,
     ssh: Option<SshConfig>,
+    safe_mode: bool,
 ) -> Result<ServerInfo, String> {
-    let client = open(&uri, ssh, known_hosts_path(&app)?).await?;
+    let client = open(&uri, ssh, known_hosts_path(&app)?, safe_mode).await?;
     let info = match server_info(&client.client).await {
         Ok(info) => info,
         Err(e) => {
@@ -198,14 +212,41 @@ pub async fn disconnect(
     Ok(())
 }
 
-pub(crate) async fn session(sessions: &Sessions, id: &str) -> Result<Client, String> {
+const NOT_OPEN: &str = "La conexión no está abierta";
+
+/// The client of an open session and its read-only switch. Code that runs arbitrary commands
+/// checks them with `safe_mode.check_command(&command)?` before sending them.
+pub(crate) async fn session_with_safe_mode(
+    sessions: &Sessions,
+    id: &str,
+) -> Result<(Client, SafeMode), String> {
     sessions
         .0
         .lock()
         .await
         .get(id)
-        .map(|open| open.client.clone())
-        .ok_or_else(|| "La conexión no está abierta".to_string())
+        .map(|open| (open.client.clone(), open.safe_mode.clone()))
+        .ok_or_else(|| NOT_OPEN.to_string())
+}
+
+/// Client of a session for an operation that always writes (copy, restore, sync); fails with
+/// "Safe mode activo" while the session is read-only. Any new writing command goes through here
+/// (copy, backup/restore and sync too).
+pub(crate) async fn writable_session(sessions: &Sessions, id: &str) -> Result<Client, String> {
+    let (client, safe_mode) = session_with_safe_mode(sessions, id).await?;
+    safe_mode.ensure_writable()?;
+    Ok(client)
+}
+
+/// Turns the read-only switch of an open session on or off; the open shells see it at once.
+#[tauri::command]
+pub async fn set_safe_mode(
+    sessions: State<'_, Sessions>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    session_with_safe_mode(&sessions, &id).await?.1.set(enabled);
+    Ok(())
 }
 
 /// URI an open session was opened with, and the local port of its SSH tunnel if it has one.
@@ -216,7 +257,7 @@ pub(crate) async fn session_uri(sessions: &Sessions, id: &str) -> Result<(String
         .await
         .get(id)
         .map(|open| (open.uri.clone(), open.tunnel.as_ref().map(SshTunnel::local_port)))
-        .ok_or_else(|| "La conexión no está abierta".to_string())
+        .ok_or_else(|| NOT_OPEN.to_string())
 }
 
 /// Parses a command written as extended JSON. Key order matters (the first key is the command
@@ -239,10 +280,12 @@ pub async fn run_command(
     db: String,
     command: Value,
 ) -> Result<Value, String> {
-    let client = session(&sessions, &id).await?;
+    let (client, safe_mode) = session_with_safe_mode(&sessions, &id).await?;
+    let command = command_from_json(command)?;
+    safe_mode.check_command(&command)?;
     let reply = client
         .database(&db)
-        .run_command(command_from_json(command)?, None)
+        .run_command(command, None)
         .await
         .map_err(describe)?;
     Ok(reply_to_json(reply))
@@ -298,7 +341,7 @@ mod tests {
     /// ROBO3B_SSH (the tunnel settings as the frontend sends them, in JSON).
     async fn open_and_list(uri: &str, ssh: Option<SshConfig>) -> OpenClient {
         let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
-        let open = open(uri, ssh, known_hosts).await.unwrap();
+        let open = open(uri, ssh, known_hosts, false).await.unwrap();
         let info = server_info(&open.client).await.unwrap();
         assert!(!info.databases.is_empty());
         open

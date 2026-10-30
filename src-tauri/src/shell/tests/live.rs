@@ -9,6 +9,7 @@ use mongodb::bson::{Bson, doc};
 use tokio::runtime::Handle;
 
 use super::{prints, value};
+use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
 use crate::shell::bridge::MongoBridge;
 use crate::shell::engine::EngineLimits;
 use crate::shell::native::MongoNatives;
@@ -21,10 +22,14 @@ const OTHER_DB: &str = "robo3b_test_otra";
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn spawn(client: &Client) -> ShellRuntime {
+    spawn_with(client, SafeMode::default())
+}
+
+fn spawn_with(client: &Client, safe_mode: SafeMode) -> ShellRuntime {
     let client = client.clone();
     let handle = Handle::current();
     ShellRuntime::spawn(EngineLimits::default(), handle.clone(), move |watchdog| {
-        Rc::new(MongoNatives::new(client, handle, watchdog)) as Rc<dyn MongoBridge>
+        Rc::new(MongoNatives::new(client, safe_mode, handle, watchdog)) as Rc<dyn MongoBridge>
     })
     .expect("runtime")
 }
@@ -137,4 +142,35 @@ async fn live_shell_against_local_mongo() {
     tokio::time::timeout(SHUTDOWN_TIMEOUT, client.shutdown())
         .await
         .expect("shutdown no espera a cursores del shell");
+}
+
+/// Con safe mode toda escritura del script se rechaza antes de llegar al servidor; las lecturas
+/// siguen funcionando y apagarlo surte efecto en el mismo shell.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_safe_mode_rejects_writes() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let safe_mode = SafeMode::new(false);
+    let shell = spawn_with(&client, safe_mode.clone());
+    run_ok(&shell, "db.dropDatabase(); db.x.insertOne({ _id: 1 })").await;
+
+    safe_mode.set(true);
+    for write in [
+        "db.x.insertOne({ _id: 2 })",
+        "db.x.deleteMany({})",
+        "db.x.drop()",
+        "db.x.aggregate([{ $out: 'y' }]).toArray()",
+        "db.x.createIndex({ a: 1 })",
+    ] {
+        let outcome = shell.run(LIVE_DB.into(), write.into()).await.unwrap();
+        let error = outcome.error.expect(write);
+        assert!(error.message.contains(SAFE_MODE_ERROR), "{write}: {}", error.message);
+    }
+    assert_eq!(value(&run_ok(&shell, "db.x.count()").await), Some(Bson::Double(1.0)));
+    run_ok(&shell, "db.x.find().toArray(); db.x.aggregate([{ $match: {} }]).toArray()").await;
+
+    safe_mode.set(false);
+    run_ok(&shell, "db.x.insertOne({ _id: 2 })").await;
+    drop(shell);
+    client.database(LIVE_DB).drop(None).await.unwrap();
 }

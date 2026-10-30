@@ -6,6 +6,7 @@ import { createServices, ServicesProvider } from "./app/services";
 import { DocumentActionsProvider } from "./features/documents/ui/DocumentActionsProvider";
 import { currentModalView } from "./shared/ui/modalWindow";
 import { LogProvider } from "./shared/ui/useLog";
+import { NotificationsProvider } from "./shared/ui/useNotifications";
 
 const modal = currentModalView();
 
@@ -16,9 +17,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     ) : (
       <ServicesProvider services={createServices()}>
         <LogProvider>
-          <DocumentActionsProvider>
-            <App />
-          </DocumentActionsProvider>
+          <NotificationsProvider>
+            <DocumentActionsProvider>
+              <App />
+            </DocumentActionsProvider>
+          </NotificationsProvider>
         </LogProvider>
       </ServicesProvider>
     )}
