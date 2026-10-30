@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::Client;
+use mongodb::bson::{Bson, Document, doc};
 use mongodb::error::{Error, ErrorKind};
 use mongodb::options::{ClientOptions, ListDatabasesOptions};
-use mongodb::Client;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::State;
+
+use crate::shell::ShellSessions;
 use tokio::sync::Mutex;
 
 const TIMEOUT: Duration = Duration::from_secs(6);
@@ -32,7 +34,7 @@ pub struct ServerInfo {
 }
 
 /// Driver errors carry debug noise (labels, topology dumps); keep what a user can act on.
-fn describe(e: Error) -> String {
+pub(crate) fn describe(e: Error) -> String {
     match *e.kind {
         ErrorKind::Command(c) => format!("{} ({})", c.message, c.code_name),
         ErrorKind::Authentication { message, .. } => format!("Autenticación fallida: {message}"),
@@ -100,11 +102,14 @@ pub async fn test_connection(uri: String) -> Result<ServerInfo, String> {
 #[tauri::command]
 pub async fn connect(
     sessions: State<'_, Sessions>,
+    shells: State<'_, ShellSessions>,
     id: String,
     uri: String,
 ) -> Result<ServerInfo, String> {
     let client = open(&uri).await?;
     let info = server_info(&client).await?;
+    // El shell abierto usa el cliente anterior: se suelta antes de cerrarlo.
+    shells.close(&id);
     if let Some(old) = sessions.0.lock().await.insert(id, client) {
         old.shutdown().await;
     }
@@ -112,14 +117,20 @@ pub async fn connect(
 }
 
 #[tauri::command]
-pub async fn disconnect(sessions: State<'_, Sessions>, id: String) -> Result<(), String> {
+pub async fn disconnect(
+    sessions: State<'_, Sessions>,
+    shells: State<'_, ShellSessions>,
+    id: String,
+) -> Result<(), String> {
+    // `shutdown` espera a que se suelten los cursores, y los del shell viven en su hilo.
+    shells.close(&id);
     if let Some(client) = sessions.0.lock().await.remove(&id) {
         client.shutdown().await;
     }
     Ok(())
 }
 
-async fn session(sessions: &Sessions, id: &str) -> Result<Client, String> {
+pub(crate) async fn session(sessions: &Sessions, id: &str) -> Result<Client, String> {
     sessions
         .0
         .lock()
@@ -174,7 +185,9 @@ mod tests {
         .unwrap();
         let keys: Vec<&String> = command.keys().collect();
         assert_eq!(keys, ["createIndexes", "indexes", "since"]);
-        let index = command.get_array("indexes").unwrap()[0].as_document().unwrap();
+        let index = command.get_array("indexes").unwrap()[0]
+            .as_document()
+            .unwrap();
         let index_keys: Vec<&String> = index.get_document("key").unwrap().keys().collect();
         assert_eq!(index_keys, ["b", "a"]);
         assert!(matches!(command.get("since"), Some(Bson::DateTime(_))));
