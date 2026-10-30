@@ -1,3 +1,4 @@
+mod copy;
 mod files;
 mod mongo;
 mod secrets;
@@ -24,6 +25,7 @@ pub fn run() {
             mongo::connect,
             mongo::disconnect,
             mongo::run_command,
+            copy::copy_collection,
             shell::commands::execute_script,
             shell::commands::next_batch,
             shell::commands::close_cursor,

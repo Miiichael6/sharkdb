@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
 import { useDocumentActions } from "../../../shared/ui/documentActions";
-import type { IndexSpec } from "../domain/mongo";
+import type { CopyProgress, CopyRequest } from "../domain/copySpec";
+import type { IndexSpec, UserEntry } from "../domain/mongo";
+import type { UserSpec } from "../domain/userSpec";
 import { childKey, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
 import type { PanelMode } from "./DetailPanel";
 import type { PromptField } from "./dialogs";
@@ -19,6 +21,8 @@ export type ExplorerDialog =
       submit: (v: Record<string, string>) => Promise<void>;
     }
   | { kind: "index"; node: TreeNode; initial?: IndexSpec }
+  | { kind: "user"; node: TreeNode; initial?: UserEntry }
+  | { kind: "copy"; node: TreeNode }
   | { kind: "confirm"; title: string; message: string; label: string; run: () => Promise<void> };
 
 const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbStats", "collStats"];
@@ -55,11 +59,19 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     setVersion((v) => v + 1);
   };
 
+  /** Refresh workspace: the whole tree plus the detail panel. */
+  const refreshAll = () => {
+    tree.refreshAll();
+    setVersion((v) => v + 1);
+  };
+
   const indexesFolderKey = (n: TreeNode) =>
     n.kind === "indexes" ? n.key : n.kind === "index" ? parentKey(n.key)! : childKey(n.key, "indexes", "Indexes");
 
   const collectionsFolderKey = (n: TreeNode) =>
     ancestor(n, "collections")?.key ?? childKey(ancestor(n, "database")!.key, "collections", "Collections");
+
+  const usersFolderKey = (n: TreeNode) => (n.kind === "users" ? n.key : parentKey(n.key));
 
   const editIndex = (n: TreeNode, initial?: IndexSpec) => setDialog({ kind: "index", node: n, initial });
 
@@ -101,6 +113,25 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     if (coll) tree.expand(coll);
     refreshKey(indexesFolderKey(n));
     notify(`Índice “${spec.name}” ${initial ? "actualizado" : "creado"}`);
+  };
+
+  const submitUser = async (spec: UserSpec) => {
+    if (dialog?.kind !== "user") return;
+    const { node: n, initial } = dialog;
+    if (initial) await explorer.updateUser(n.sid, n.db!, spec);
+    else await explorer.createUser(n.sid, n.db!, spec);
+    setDialog(null);
+    refreshKey(usersFolderKey(n));
+    notify(`Usuario “${spec.user}” ${initial ? "actualizado" : "creado"}`);
+  };
+
+  const submitCopy = async (request: CopyRequest, onProgress: (p: CopyProgress) => void) => {
+    const copied = await explorer.copyCollection(request, onProgress);
+    setDialog(null);
+    // The target may be a new database or a collection on another server: reload what is open.
+    refreshAll();
+    const { db, coll } = request.target;
+    notify(`“${request.source.coll}” copiada a ${db.trim()}.${coll.trim()} (${copied.toLocaleString()} documentos)`);
   };
 
   const confirm = () => {
@@ -217,6 +248,15 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
       case "dropIndex":
         dropIndex(n, n.data);
         break;
+      case "addUser":
+        setDialog({ kind: "user", node: n });
+        break;
+      case "editUser":
+        setDialog({ kind: "user", node: n, initial: n.data });
+        break;
+      case "copyCollection":
+        setDialog({ kind: "copy", node: n });
+        break;
       case "dropUser":
         confirmRemoval(
           n,
@@ -240,11 +280,17 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
     }
   };
 
-  /** Refresh workspace: the whole tree plus the detail panel. */
-  const refreshAll = () => {
-    tree.refreshAll();
-    setVersion((v) => v + 1);
+  return {
+    dialog,
+    closeDialog,
+    version,
+    onAction,
+    editIndex,
+    dropIndex,
+    submitIndex,
+    submitUser,
+    submitCopy,
+    confirm,
+    refreshAll,
   };
-
-  return { dialog, closeDialog, version, onAction, editIndex, dropIndex, submitIndex, confirm, refreshAll };
 }

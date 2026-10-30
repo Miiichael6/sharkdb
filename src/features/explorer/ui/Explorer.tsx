@@ -26,7 +26,10 @@ export type Action =
   | "editIndex"
   | "dropIndex"
   | "view"
+  | "addUser"
+  | "editUser"
   | "dropUser"
+  | "copyCollection"
   | "removeFunction";
 
 type MenuItem = { label: string; action: Action; danger?: boolean; disabled?: boolean } | "sep";
@@ -79,6 +82,7 @@ function menuFor(n: TreeNode): MenuItem[] {
         { label: "Añadir índice…", action: "addIndex" },
         "sep",
         { label: "Renombrar colección…", action: "renameCollection" },
+        { label: "Copiar colección a base de datos…", action: "copyCollection" },
         { label: "Eliminar todos los documentos…", action: "removeAllDocuments", danger: true },
         { label: "Eliminar colección…", action: "dropCollection", danger: true },
       ];
@@ -95,12 +99,17 @@ function menuFor(n: TreeNode): MenuItem[] {
       ];
     }
     case "users":
+      return [
+        { label: "Añadir usuario…", action: "addUser" },
+        { label: "Refrescar", action: "refresh" },
+      ];
     case "functions":
     case "systemCollections":
       return [{ label: "Refrescar", action: "refresh" }];
     case "user":
       return [
         { label: "Ver usuario", action: "view" },
+        { label: "Editar usuario…", action: "editUser" },
         { label: "Eliminar usuario…", action: "dropUser", danger: true },
       ];
     case "function":
