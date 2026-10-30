@@ -6,7 +6,8 @@
 //! - `convert`: JS ↔ BSON sin pérdida de tipos.
 //! - `session`: motor + API `db` (`prelude`) sobre un `MongoBridge` (`native` en producción).
 //! - `syntax`: reescritura de `use x` / `show dbs` a llamadas JS.
-//! - `commands`: comandos Tauri (`execute_script`, `next_batch`, `close_cursor`, `cancel_script`).
+//! - `commands`: comandos Tauri (`execute_script`, `next_batch`, `close_cursor`, `cancel_script`,
+//!   `close_shell`).
 
 mod bridge;
 mod bson_types;

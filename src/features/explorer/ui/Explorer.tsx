@@ -4,6 +4,7 @@ import { FOLDER_KINDS, isLeaf, parentKey, type NodeKind, type TreeNode } from ".
 import type { Tree } from "./useTree";
 
 export type Action =
+  | "openShell"
   | "refresh"
   | "createDatabase"
   | "serverStatus"
@@ -30,6 +31,7 @@ function menuFor(n: TreeNode): MenuItem[] {
   switch (n.kind) {
     case "server":
       return [
+        { label: "Abrir shell", action: "openShell" },
         { label: "Refrescar", action: "refresh" },
         { label: "Crear base de datos…", action: "createDatabase" },
         "sep",
@@ -43,6 +45,7 @@ function menuFor(n: TreeNode): MenuItem[] {
       return [];
     case "database":
       return [
+        { label: "Abrir shell", action: "openShell" },
         { label: "Refrescar", action: "refresh" },
         { label: "Estadísticas", action: "dbStats" },
         "sep",
@@ -57,11 +60,13 @@ function menuFor(n: TreeNode): MenuItem[] {
     case "collection":
       if (n.data?.type === "view") {
         return [
+          { label: "Abrir shell", action: "openShell" },
           { label: "Ver definición", action: "view" },
           { label: "Eliminar vista…", action: "dropCollection", danger: true },
         ];
       }
       return [
+        { label: "Abrir shell", action: "openShell" },
         { label: "Estadísticas", action: "collStats" },
         { label: "Añadir índice…", action: "addIndex" },
         "sep",
@@ -170,7 +175,8 @@ export function Explorer({ tree, onAction }: Props) {
           className={`tree-row ${tree.selected === n.key ? "selected" : ""}`}
           style={{ paddingLeft: 6 + depth * 16 }}
           onClick={() => tree.select(n.key)}
-          onDoubleClick={() => tree.toggle(n)}
+          // Like Robo 3T, double clicking a collection opens a shell with its default query.
+          onDoubleClick={() => (n.kind === "collection" ? onAction("openShell", n) : tree.toggle(n))}
           onContextMenu={(e) => {
             e.preventDefault();
             tree.select(n.key);

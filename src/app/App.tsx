@@ -11,8 +11,12 @@ import type { Session } from "../features/connections/domain/session";
 import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { Welcome } from "../features/connections/ui/Welcome";
+import type { TreeNode } from "../features/explorer/domain/tree";
 import { Workspace } from "../features/explorer/ui/Workspace";
+import { ShellTabs } from "../features/shell/ui/ShellTabs";
+import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
 import { errorMessage } from "../shared/errors";
+import { useLog } from "../shared/ui/useLog";
 import { useServices } from "./services";
 import "./App.css";
 
@@ -30,6 +34,8 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const tabs = useShellTabs();
+  const log = useLog();
 
   useEffect(() => {
     service.list().then(setConnections, (e) => setError(errorMessage(e)));
@@ -51,8 +57,10 @@ function App() {
       // Reconnecting an open connection (e.g. after editing it) replaces its session.
       setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
       setShowWelcome(false);
+      log.info(`Conectado a ${displayName(conn)}`);
     } catch (e) {
       setError(`${displayName(conn)}: ${errorMessage(e)}`);
+      log.error(`No se pudo conectar a ${displayName(conn)}`, e);
     } finally {
       setConnectingId(null);
     }
@@ -60,11 +68,19 @@ function App() {
 
   const disconnect = async (sid: string) => {
     await service.close(sid).catch(() => {});
+    tabs.closeSession(sid);
+    const session = sessions.find((s) => s.conn.id === sid);
+    if (session) log.info(`Desconectado de ${displayName(session.conn)}`);
     setSessions((s) => {
       const next = s.filter((x) => x.conn.id !== sid);
       if (!next.length) setShowWelcome(true);
       return next;
     });
+  };
+
+  const shellTab = (node: TreeNode) => {
+    const session = sessions.find((s) => s.conn.id === node.sid);
+    return tabForNode(node, session ? displayName(session.conn) : node.sid);
   };
 
   return (
@@ -87,7 +103,16 @@ function App() {
           }}
         />
       ) : (
-        <Workspace sessions={sessions} onDisconnect={disconnect} onShowConnections={() => setShowWelcome(true)} />
+        <Workspace
+          sessions={sessions}
+          onDisconnect={disconnect}
+          onShowConnections={() => setShowWelcome(true)}
+          onOpenShell={(node) => tabs.open(shellTab(node))}
+          onShowDetails={tabs.showDetails}
+          renderMain={(details, selected) => (
+            <ShellTabs tabs={tabs} details={details} newTabTarget={() => (selected ? shellTab(selected) : null)} />
+          )}
+        />
       )}
 
       {dialog.kind === "picker" && (

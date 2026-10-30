@@ -1,5 +1,6 @@
-//! Comandos Tauri del shell: finos, solo localizan el `ShellRuntime` de la sesión y delegan.
-//! El runtime de una sesión se crea al ejecutar el primer script y se suelta al desconectar.
+//! Comandos Tauri del shell: finos, solo localizan el `ShellRuntime` de la pestaña y delegan.
+//! Cada pestaña (`tab`) de una conexión (`sid`) tiene su propio runtime, como en Robo 3T: se crea
+//! al ejecutar su primer script y se suelta al cerrar la pestaña o desconectar.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -16,26 +17,29 @@ use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
 use super::runtime::ShellRuntime;
 use crate::mongo::{self, Sessions};
 
-const NO_SHELL: &str = "No hay ningún shell abierto en esta conexión";
+const NO_SHELL: &str = "No hay ningún shell abierto en esta pestaña";
 
-/// Runtimes de shell abiertos, por id de conexión.
+type TabShells = HashMap<String, Arc<ShellRuntime>>;
+
+/// Runtimes de shell abiertos, por id de conexión y, dentro de ella, por pestaña.
 #[derive(Default)]
-pub struct ShellSessions(Mutex<HashMap<String, Arc<ShellRuntime>>>);
+pub struct ShellSessions(Mutex<HashMap<String, TabShells>>);
 
 impl ShellSessions {
-    fn get(&self, sid: &str) -> Option<Arc<ShellRuntime>> {
-        self.lock().get(sid).cloned()
+    fn get(&self, sid: &str, tab: &str) -> Option<Arc<ShellRuntime>> {
+        self.lock().get(sid)?.get(tab).cloned()
     }
 
-    fn require(&self, sid: &str) -> Result<Arc<ShellRuntime>, String> {
-        self.get(sid).ok_or_else(|| NO_SHELL.to_string())
+    fn require(&self, sid: &str, tab: &str) -> Result<Arc<ShellRuntime>, String> {
+        self.get(sid, tab).ok_or_else(|| NO_SHELL.to_string())
     }
 
-    /// El runtime de la sesión, creándolo si aún no existe. Se comprueba con el cerrojo tomado
+    /// El runtime de la pestaña, creándolo si aún no existe. Se comprueba con el cerrojo tomado
     /// para que dos scripts lanzados a la vez no creen dos.
-    fn get_or_spawn(&self, sid: &str, client: Client) -> Result<Arc<ShellRuntime>, String> {
+    fn get_or_spawn(&self, sid: &str, tab: &str, client: Client) -> Result<Arc<ShellRuntime>, String> {
         let mut shells = self.lock();
-        if let Some(shell) = shells.get(sid) {
+        let tabs = shells.entry(sid.to_string()).or_default();
+        if let Some(shell) = tabs.get(tab) {
             return Ok(shell.clone());
         }
         let handle = Handle::current();
@@ -44,19 +48,27 @@ impl ShellSessions {
             Rc::new(MongoNatives::new(client, bridge_handle, watchdog)) as Rc<dyn MongoBridge>
         })?;
         let runtime = Arc::new(runtime);
-        shells.insert(sid.to_string(), runtime.clone());
+        tabs.insert(tab.to_string(), runtime.clone());
         Ok(runtime)
     }
 
-    /// Suelta el runtime de la sesión: corta su script y cierra sus cursores. Se cancela aquí
-    /// porque un `execute_script` en curso aún tiene su propia referencia al runtime.
+    /// Suelta los runtimes de todas las pestañas de la conexión: corta sus scripts y cierra sus
+    /// cursores. Se cancela aquí porque un `execute_script` en curso aún tiene su propia
+    /// referencia al runtime.
     pub fn close(&self, sid: &str) {
-        if let Some(shell) = self.lock().remove(sid) {
+        let tabs = self.lock().remove(sid).unwrap_or_default();
+        tabs.values().for_each(|shell| shell.cancel());
+    }
+
+    /// Suelta el runtime de una sola pestaña.
+    fn close_tab(&self, sid: &str, tab: &str) {
+        let shell = self.lock().get_mut(sid).and_then(|tabs| tabs.remove(tab));
+        if let Some(shell) = shell {
             shell.cancel();
         }
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Arc<ShellRuntime>>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, TabShells>> {
         self.0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -68,12 +80,13 @@ pub async fn execute_script(
     sessions: State<'_, Sessions>,
     shells: State<'_, ShellSessions>,
     sid: String,
+    tab: String,
     db: String,
     code: String,
 ) -> Result<ScriptOutcome, String> {
-    let shell = match shells.get(&sid) {
+    let shell = match shells.get(&sid, &tab) {
         Some(shell) => shell,
-        None => shells.get_or_spawn(&sid, mongo::session(&sessions, &sid).await?)?,
+        None => shells.get_or_spawn(&sid, &tab, mongo::session(&sessions, &sid).await?)?,
     };
     shell.run(db, code).await
 }
@@ -82,28 +95,35 @@ pub async fn execute_script(
 pub async fn next_batch(
     shells: State<'_, ShellSessions>,
     sid: String,
+    tab: String,
     cursor_id: CursorId,
     size: usize,
 ) -> Result<CursorBatch, String> {
-    shells.require(&sid)?.next_batch(cursor_id, size).await
+    shells.require(&sid, &tab)?.next_batch(cursor_id, size).await
 }
 
 #[tauri::command]
 pub fn close_cursor(
     shells: State<'_, ShellSessions>,
     sid: String,
+    tab: String,
     cursor_id: CursorId,
 ) -> Result<(), String> {
-    match shells.get(&sid) {
+    match shells.get(&sid, &tab) {
         Some(shell) => shell.close_cursor(cursor_id),
-        // Sin shell (desconectado) el cursor ya está cerrado.
+        // Sin shell (pestaña cerrada o desconectado) el cursor ya está cerrado.
         None => Ok(()),
     }
 }
 
 #[tauri::command]
-pub fn cancel_script(shells: State<'_, ShellSessions>, sid: String) {
-    if let Some(shell) = shells.get(&sid) {
+pub fn cancel_script(shells: State<'_, ShellSessions>, sid: String, tab: String) {
+    if let Some(shell) = shells.get(&sid, &tab) {
         shell.cancel();
     }
+}
+
+#[tauri::command]
+pub fn close_shell(shells: State<'_, ShellSessions>, sid: String, tab: String) {
+    shells.close_tab(&sid, &tab);
 }
