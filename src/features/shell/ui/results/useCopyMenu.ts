@@ -17,8 +17,11 @@ interface MenuState {
   items: ContextMenuItem[];
 }
 
-/** "Copiar valor / documento / ruta" menu of the result views, writing shell syntax to the clipboard. */
-export function useCopyMenu(zone: DateZone) {
+/**
+ * "Copiar valor / documento / ruta" menu of the result views, writing shell syntax to the clipboard,
+ * followed by the entries `more` adds for the clicked document.
+ */
+export function useCopyMenu(zone: DateZone, more?: (target: CopyTarget) => ContextMenuItem[]) {
   const log = useLog();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -35,6 +38,7 @@ export function useCopyMenu(zone: DateZone) {
         { label: "Copiar valor", onSelect: () => copy(formatValue(target.value, zone)) },
         { label: "Copiar documento", onSelect: () => copy(formatValue(target.doc, zone)) },
         { label: "Copiar ruta", onSelect: () => copy(dottedPath(target.path)), disabled: !target.path.length },
+        ...(more?.(target) ?? []),
       ],
     });
   };

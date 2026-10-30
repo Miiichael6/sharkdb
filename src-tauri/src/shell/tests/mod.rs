@@ -1,9 +1,11 @@
 //! Tests del shell que necesitan el motor QuickJS completo.
 
 mod convert;
+mod document_eval;
 mod engine;
 mod fake_bridge;
 mod live;
+mod live_documents;
 mod prelude;
 mod runtime;
 

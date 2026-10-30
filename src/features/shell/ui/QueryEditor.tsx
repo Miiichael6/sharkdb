@@ -1,10 +1,8 @@
 import { autocompletion, type CompletionSource } from "@codemirror/autocomplete";
-import { javascript } from "@codemirror/lang-javascript";
-import { EditorState, Prec } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { basicSetup } from "codemirror";
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
+import { CodeEditor, replaceAll } from "../../../shared/ui/CodeEditor";
 import { formatScript } from "../domain/formatScript";
 
 interface Props {
@@ -18,20 +16,12 @@ interface Props {
   autoFocus?: boolean;
 }
 
-const fillParent = EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { fontFamily: '"Cascadia Mono", Consolas, monospace' } });
-
-function replaceAll(view: EditorView, code: string) {
-  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: code } });
-}
-
-/** CodeMirror script editor of a shell tab. `value` changes from outside (format, history, file) are applied in place. */
+/** Script editor of a shell tab: run, format and history shortcuts plus autocompletion. */
 export function QueryEditor({ value, onChange, onRun, onHistory, completion, autoFocus }: Props) {
-  const host = useRef<HTMLDivElement>(null);
-  const view = useRef<EditorView | null>(null);
-  const handlers = useRef({ onChange, onRun, onHistory });
-  handlers.current = { onChange, onRun, onHistory };
+  const handlers = useRef({ onRun, onHistory });
+  handlers.current = { onRun, onHistory };
 
-  useEffect(() => {
+  const [extensions] = useState(() => {
     const run = (v: EditorView) => {
       const sel = v.state.selection.main;
       handlers.current.onRun(sel.empty ? v.state.doc.toString() : v.state.sliceDoc(sel.from, sel.to));
@@ -48,32 +38,8 @@ export function QueryEditor({ value, onChange, onRun, onHistory, completion, aut
       { key: "Mod-ArrowUp", run: browse("older") },
       { key: "Mod-ArrowDown", run: browse("newer") },
     ]);
+    return [Prec.highest(shortcuts), autocompletion({ override: [completion] })];
+  });
 
-    const editor = new EditorView({
-      parent: host.current!,
-      state: EditorState.create({
-        doc: value,
-        extensions: [
-          Prec.highest(shortcuts),
-          basicSetup,
-          javascript(),
-          autocompletion({ override: [completion] }),
-          oneDark,
-          fillParent,
-          EditorView.updateListener.of((u) => u.docChanged && handlers.current.onChange(u.state.doc.toString())),
-        ],
-      }),
-    });
-    view.current = editor;
-    if (autoFocus) editor.focus();
-    return () => editor.destroy();
-    // Created once; later `value`s go through the effect below.
-  }, []);
-
-  useEffect(() => {
-    const editor = view.current;
-    if (editor && editor.state.doc.toString() !== value) replaceAll(editor, value);
-  }, [value]);
-
-  return <div className="query-editor" ref={host} />;
+  return <CodeEditor className="query-editor" value={value} onChange={onChange} extensions={extensions} autoFocus={autoFocus} />;
 }

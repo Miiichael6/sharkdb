@@ -68,7 +68,7 @@ export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Prop
         completion={completion}
         autoFocus
       />
-      <ResultsPanel run={run} view={view} />
+      <ResultsPanel sid={tab.sid} run={run} view={view} />
     </section>
   );
 }

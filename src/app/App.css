@@ -838,6 +838,15 @@ table.grid {
 .modal.index-dialog {
   width: 540px;
 }
+.modal.document-dialog {
+  width: min(760px, calc(100vw - 40px));
+}
+.document-editor {
+  height: min(60vh, 520px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
 .modal.dialog h3 {
   margin: 0 0 14px;
   font-size: 15px;

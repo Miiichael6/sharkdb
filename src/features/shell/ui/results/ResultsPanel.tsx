@@ -7,17 +7,19 @@ import type { ResultViewState } from "./useResultView";
 import { ValueResult } from "./ValueResult";
 
 interface Props {
+  /** Session the script ran in. */
+  sid: string;
   run: RunState;
   view: ResultViewState;
 }
 
-function ResultItem({ result, index, run, view }: Props & { result: ScriptResult; index: number }) {
+function ResultItem({ sid, result, index, run, view }: Props & { result: ScriptResult; index: number }) {
   switch (result.kind) {
     case "print":
       return <pre className="output-print">{result.text}</pre>;
     case "cursor": {
       const pager = run.pagers.get(index);
-      return pager ? <CursorResult pager={pager} view={view} /> : null;
+      return pager ? <CursorResult sid={sid} pager={pager} view={view} /> : null;
     }
     default:
       return <ValueResult value={result.value} view={view} />;
@@ -25,7 +27,7 @@ function ResultItem({ result, index, run, view }: Props & { result: ScriptResult
 }
 
 /** What the last run printed and returned, stacked in order, under the view toolbar. */
-function RunOutput({ run, view }: Props) {
+function RunOutput({ sid, run, view }: Props) {
   if (run.running) return <div className="script-output center"><Spinner /></div>;
   if (run.failure) return <div className="script-output"><div className="output-error">{run.failure}</div></div>;
   if (!run.outcome) {
@@ -35,7 +37,7 @@ function RunOutput({ run, view }: Props) {
   return (
     <div className="script-output">
       {results.map((r, i) => (
-        <ResultItem key={i} result={r} index={i} run={run} view={view} />
+        <ResultItem key={i} sid={sid} result={r} index={i} run={run} view={view} />
       ))}
       {error && <div className="output-error">{scriptErrorText(error)}</div>}
       {!error && !results.length && <div className="muted small">El script no devolvió nada.</div>}
@@ -44,11 +46,11 @@ function RunOutput({ run, view }: Props) {
 }
 
 /** Results area of a shell tab. */
-export function ResultsPanel({ run, view }: Props) {
+export function ResultsPanel({ sid, run, view }: Props) {
   return (
     <div className="results-panel">
       <ResultsToolbar view={view} />
-      <RunOutput run={run} view={view} />
+      <RunOutput sid={sid} run={run} view={view} />
     </div>
   );
 }

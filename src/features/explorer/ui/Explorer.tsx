@@ -16,6 +16,8 @@ export type Action =
   | "dropDatabase"
   | "collStats"
   | "addIndex"
+  | "insertDocument"
+  | "removeAllDocuments"
   | "renameCollection"
   | "dropCollection"
   | "editIndex"
@@ -68,9 +70,11 @@ function menuFor(n: TreeNode): MenuItem[] {
       return [
         { label: "Abrir shell", action: "openShell" },
         { label: "Estadísticas", action: "collStats" },
+        { label: "Insertar documento…", action: "insertDocument" },
         { label: "Añadir índice…", action: "addIndex" },
         "sep",
         { label: "Renombrar colección…", action: "renameCollection" },
+        { label: "Eliminar todos los documentos…", action: "removeAllDocuments", danger: true },
         { label: "Eliminar colección…", action: "dropCollection", danger: true },
       ];
     case "indexes":

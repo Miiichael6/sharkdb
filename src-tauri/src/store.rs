@@ -56,7 +56,10 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
 
 #[tauri::command]
 pub fn load_connections(app: AppHandle) -> Result<Value, String> {
-    read_json(&config_dir(&app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))
+    read_json(
+        &config_dir(&app)?.join(CONNECTIONS_FILE),
+        Value::Array(vec![]),
+    )
 }
 
 #[tauri::command]
@@ -95,7 +98,10 @@ mod tests {
     fn json_round_trip_and_missing_file() {
         let dir = std::env::temp_dir().join(format!("robo3b-store-{}", std::process::id()));
         let path = dir.join(HISTORY_DIR).join("x.json");
-        assert_eq!(read_json(&path, Value::Array(vec![])).unwrap(), Value::Array(vec![]));
+        assert_eq!(
+            read_json(&path, Value::Array(vec![])).unwrap(),
+            Value::Array(vec![])
+        );
         let value = serde_json::json!([{ "code": "db.x.find({})" }]);
         write_json(&path, &value).unwrap();
         assert_eq!(read_json(&path, Value::Null).unwrap(), value);

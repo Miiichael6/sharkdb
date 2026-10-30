@@ -11,6 +11,7 @@ use tauri::State;
 use tokio::runtime::Handle;
 
 use super::bridge::MongoBridge;
+use super::document_eval::{self, DocumentEval};
 use super::engine::EngineLimits;
 use super::native::MongoNatives;
 use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
@@ -36,7 +37,12 @@ impl ShellSessions {
 
     /// El runtime de la pestaña, creándolo si aún no existe. Se comprueba con el cerrojo tomado
     /// para que dos scripts lanzados a la vez no creen dos.
-    fn get_or_spawn(&self, sid: &str, tab: &str, client: Client) -> Result<Arc<ShellRuntime>, String> {
+    fn get_or_spawn(
+        &self,
+        sid: &str,
+        tab: &str,
+        client: Client,
+    ) -> Result<Arc<ShellRuntime>, String> {
         let mut shells = self.lock();
         let tabs = shells.entry(sid.to_string()).or_default();
         if let Some(shell) = tabs.get(tab) {
@@ -99,7 +105,10 @@ pub async fn next_batch(
     cursor_id: CursorId,
     size: usize,
 ) -> Result<CursorBatch, String> {
-    shells.require(&sid, &tab)?.next_batch(cursor_id, size).await
+    shells
+        .require(&sid, &tab)?
+        .next_batch(cursor_id, size)
+        .await
 }
 
 #[tauri::command]
@@ -126,4 +135,13 @@ pub fn cancel_script(shells: State<'_, ShellSessions>, sid: String, tab: String)
 #[tauri::command]
 pub fn close_shell(shells: State<'_, ShellSessions>, sid: String, tab: String) {
     shells.close_tab(&sid, &tab);
+}
+
+/// Evalúa el texto de un documento con la sintaxis del shell. QuickJS es síncrono: se hace en un
+/// hilo de bloqueo para no frenar los demás comandos.
+#[tauri::command]
+pub async fn eval_document(text: String) -> Result<DocumentEval, String> {
+    tokio::task::spawn_blocking(move || document_eval::evaluate(&text))
+        .await
+        .map_err(|e| e.to_string())
 }
