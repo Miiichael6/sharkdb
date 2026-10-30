@@ -4,7 +4,8 @@ import { formatScript } from "../domain/formatScript";
 import type { ShellTab as Tab } from "../domain/tabs";
 import { shellCompletionSource } from "./completionSource";
 import { QueryEditor } from "./QueryEditor";
-import { ScriptOutput } from "./ScriptOutput";
+import { ResultsPanel } from "./results/ResultsPanel";
+import { useResultView } from "./results/useResultView";
 import { useHistoryBrowser } from "./useHistoryBrowser";
 import { useShellRun } from "./useShellRun";
 
@@ -16,10 +17,11 @@ interface Props {
   onSave: () => void;
 }
 
-/** A shell tab: where it runs (server · database · last run time), the script editor and its output. */
+/** A shell tab: where it runs (server · database · last run time), the script editor and its results. */
 export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Props) {
   const { schema } = useServices();
   const run = useShellRun(tab);
+  const view = useResultView();
   const history = useHistoryBrowser(tab.sid);
   const target = useRef(tab);
   target.current = tab;
@@ -66,7 +68,7 @@ export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Prop
         completion={completion}
         autoFocus
       />
-      <ScriptOutput run={run} />
+      <ResultsPanel run={run} view={view} />
     </section>
   );
 }

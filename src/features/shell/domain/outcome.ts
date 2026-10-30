@@ -53,3 +53,17 @@ export function pageOf(buffer: Doc[], skip: number, limit: number, exhausted: bo
   const end = skip + limit;
   return { documents: buffer.slice(skip, end), hasMore: buffer.length > end || !exhausted };
 }
+
+const ERROR_TITLE: Record<ScriptErrorKind, string> = {
+  script: "Error",
+  timeout: "Tiempo agotado",
+  cancelled: "Detenido",
+  outOfMemory: "Sin memoria",
+  conversion: "Resultado no convertible",
+};
+
+/** How a script error reads under the results: `Error (línea 3, columna 5): …`. */
+export function scriptErrorText(e: ScriptError): string {
+  const at = e.line ? ` (línea ${e.line}${e.column ? `, columna ${e.column}` : ""})` : "";
+  return `${ERROR_TITLE[e.kind]}${at}: ${e.message}`;
+}

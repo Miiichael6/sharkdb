@@ -1,7 +1,7 @@
 # 08 · Preferencias y empaquetado
 
 **Estado:** ⛔ Bloqueada (D4)
-**Fase:** 6 Cierre · **Depende de:** 06, 07 · **Doc:** R13, R14
+**Fase:** 6 Cierre · **Depende de:** 06, 07, 11 · **Doc:** R13, R14, R33
 
 ## Objetivo
 Diálogo de preferencias aplicado en toda la app y un instalador de release listo para distribuir.
@@ -11,6 +11,7 @@ Diálogo de preferencias aplicado en toda la app y un instalador de release list
 ### Paso 1: Preferencias
 - [ ] `src/features/settings/domain/settings.ts` (tipo + valores por defecto: vista de resultados, fechas UTC/local (persistir el interruptor creado en 05), expandir primer documento, codificación UUID, tamaño de lote, timeout, tema claro/oscuro) + persistencia en `store.rs` (`load_settings`/`save_settings`) (R13)
 - [ ] `src/features/settings/ui/SettingsDialog.tsx` + contexto `useSettings`; consumirlo en `bsonFormat.ts` (zona, UUID), `ResultsPanel` (vista por defecto) y `shellService` (lote, timeout) (R13)
+- [ ] Botón **Ajustes** (`Ctrl+,`) en la barra de herramientas (11) y entrada en su Menú, que abren `SettingsDialog` (R33)
 
 ### Paso 2: Release
 - [ ] `src-tauri/tauri.conf.json`: `productName`, identificador, versión, iconos propios, targets según D4; diálogo "Acerca de" con versión (R14)

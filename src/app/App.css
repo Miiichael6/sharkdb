@@ -999,15 +999,198 @@ table.grid {
   font-size: 12px;
   white-space: pre-wrap;
 }
-.cursor-result {
+.output-value {
+  margin: 0;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+/* ---------- results ---------- */
+
+.results-panel {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
-.cursor-bar {
+.results-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-side);
+}
+.results-toolbar .segmented button {
+  padding: 2px 10px;
+  font-size: 12px;
+}
+/* One result fills the area; several stack and the area scrolls. */
+.doc-result {
+  flex: 1 0 280px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.paging-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.paging-bar button {
+  padding: 2px 6px;
+}
+.paging-field {
+  width: 64px;
+  padding: 1px 6px;
+  text-align: right;
+}
+.documents-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.virtual-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+}
+.virtual-body {
+  position: relative;
+  min-width: max-content;
+}
+.result-grid {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+.grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  min-width: max-content;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--muted);
+}
+.grid-header .grid-cell {
+  position: relative;
+  line-height: 22px;
+  border-right: 1px solid var(--border);
+}
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+.grid-row {
+  display: flex;
+  align-items: center;
+  min-width: max-content;
+  cursor: default;
+}
+.grid-row:hover {
+  background: var(--surface);
+}
+.grid-row.selected {
+  background: var(--select);
+}
+.virtual-list:focus-visible .grid-row.selected {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.grid-cell {
+  flex: none;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tree-key {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.twisty {
+  flex: none;
+  width: 14px;
+  margin-left: 4px;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+}
+.type-icon {
+  flex: none;
+  min-width: 18px;
+  font-size: 10px;
+  text-align: center;
+  opacity: 0.85;
+}
+.result-text {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre;
+  user-select: text;
+  outline: none;
+}
+
+/* BSON types, same hues in tree icons, values and table cells. */
+.bson-objectId,
+.bson-dbPointer {
+  color: #c792ea;
+}
+.bson-date,
+.bson-timestamp {
+  color: #f0b45a;
+}
+.bson-int32,
+.bson-int64,
+.bson-double,
+.bson-decimal {
+  color: #7fc8f8;
+}
+.bson-string,
+.bson-symbol {
+  color: #a5d68a;
+}
+.bson-boolean,
+.bson-null,
+.bson-undefined,
+.bson-minKey,
+.bson-maxKey {
+  color: #f07178;
+}
+.bson-binary,
+.bson-regex,
+.bson-code {
+  color: #e6c07b;
+}
+.tree-key .bson-object,
+.tree-key .bson-array {
+  color: var(--muted);
 }
 
 /* ---------- logs ---------- */

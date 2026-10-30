@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingForPage, pageOf } from "./outcome";
+import { missingForPage, pageOf, scriptErrorText } from "./outcome";
 
 const docs = (n: number) => Array.from({ length: n }, (_, i) => ({ _id: i }));
 
@@ -27,5 +27,14 @@ describe("pageOf", () => {
 
   it("has more while the cursor is still open", () => {
     expect(pageOf(docs(50), 0, 50, false).hasMore).toBe(true);
+  });
+});
+
+describe("scriptErrorText", () => {
+  it("says where the error happened when known", () => {
+    expect(scriptErrorText({ kind: "script", message: "x is not defined", line: 3, column: 5 })).toBe(
+      "Error (línea 3, columna 5): x is not defined",
+    );
+    expect(scriptErrorText({ kind: "cancelled", message: "interrumpido", line: null, column: null })).toBe("Detenido: interrumpido");
   });
 });
