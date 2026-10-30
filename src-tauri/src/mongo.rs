@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use mongodb::bson::{doc, Bson};
+use mongodb::bson::{doc, Bson, Document};
 use mongodb::error::{Error, ErrorKind};
 use mongodb::options::{ClientOptions, ListDatabasesOptions};
 use mongodb::Client;
@@ -129,8 +129,19 @@ async fn session(sessions: &Sessions, id: &str) -> Result<Client, String> {
         .ok_or_else(|| "La conexión no está abierta".to_string())
 }
 
-/// Runs a database command written as extended JSON. Key order matters (the first key is the
-/// command name, index keys are ordered), which is why serde_json has `preserve_order` on.
+/// Parses a command written as extended JSON. Key order matters (the first key is the command
+/// name, index keys are ordered), which is why serde_json has `preserve_order` on.
+fn command_from_json(command: Value) -> Result<Document, String> {
+    match Bson::try_from(command).map_err(|e| e.to_string())? {
+        Bson::Document(command) => Ok(command),
+        _ => Err("El comando debe ser un objeto JSON".into()),
+    }
+}
+
+fn reply_to_json(reply: Document) -> Value {
+    Bson::Document(reply).into_relaxed_extjson()
+}
+
 #[tauri::command]
 pub async fn run_command(
     sessions: State<'_, Sessions>,
@@ -139,13 +150,49 @@ pub async fn run_command(
     command: Value,
 ) -> Result<Value, String> {
     let client = session(&sessions, &id).await?;
-    let Bson::Document(command) = Bson::try_from(command).map_err(|e| e.to_string())? else {
-        return Err("El comando debe ser un objeto JSON".into());
-    };
     let reply = client
         .database(&db)
-        .run_command(command, None)
+        .run_command(command_from_json(command)?, None)
         .await
         .map_err(describe)?;
-    Ok(Bson::Document(reply).into_relaxed_extjson())
+    Ok(reply_to_json(reply))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mongodb::bson::oid::ObjectId;
+    use serde_json::json;
+
+    #[test]
+    fn command_keeps_key_order_and_extended_json_types() {
+        let command = command_from_json(json!({
+            "createIndexes": "orders",
+            "indexes": [{ "key": { "b": 1, "a": -1 }, "name": "b_1_a_-1" }],
+            "since": { "$date": "2024-01-02T03:04:05Z" },
+        }))
+        .unwrap();
+        let keys: Vec<&String> = command.keys().collect();
+        assert_eq!(keys, ["createIndexes", "indexes", "since"]);
+        let index = command.get_array("indexes").unwrap()[0].as_document().unwrap();
+        let index_keys: Vec<&String> = index.get_document("key").unwrap().keys().collect();
+        assert_eq!(index_keys, ["b", "a"]);
+        assert!(matches!(command.get("since"), Some(Bson::DateTime(_))));
+    }
+
+    #[test]
+    fn command_must_be_an_object() {
+        assert!(command_from_json(json!([1, 2])).is_err());
+        assert!(command_from_json(json!("ping")).is_err());
+    }
+
+    #[test]
+    fn reply_uses_relaxed_extended_json() {
+        let oid = ObjectId::parse_str("65a1b2c3d4e5f6a7b8c9d0e1").unwrap();
+        let reply = doc! { "ok": 1.0, "n": 3_i64, "_id": oid };
+        assert_eq!(
+            reply_to_json(reply),
+            json!({ "ok": 1.0, "n": 3, "_id": { "$oid": "65a1b2c3d4e5f6a7b8c9d0e1" } })
+        );
+    }
 }
