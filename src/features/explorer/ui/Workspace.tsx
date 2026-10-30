@@ -4,10 +4,13 @@ import { LogPanel } from "../../../shared/ui/LogPanel";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
-import { useNotice } from "../../../shared/ui/useNotice";
+import { useNotify } from "../../../shared/ui/useNotifications";
 import { displayName } from "../../connections/domain/connection";
+import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
+import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { Session } from "../../connections/domain/session";
 import { databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
+import { blockedInSafeMode } from "../domain/writeActions";
 import { useTree } from "./useTree";
 import { DetailPanel, type PanelMode } from "./DetailPanel";
 import { Explorer, type Action } from "./Explorer";
@@ -52,7 +55,8 @@ export function Workspace(props: Props) {
   const { explorer, terminal } = useServices();
   const tree = useTree(roots, explorer.loadChildren);
   const [panel, setPanel] = useState<{ key: string; mode: PanelMode } | null>(null);
-  const { notice, ok, fail, dismiss } = useNotice();
+  const { ok, fail } = useNotify();
+  const isReadOnly = useReadOnly();
   const log = useLog();
   const actions = useExplorerActions({
     tree,
@@ -78,7 +82,9 @@ export function Workspace(props: Props) {
   );
 
   const onAction = (action: Action, n: TreeNode) => {
-    if (action === "openShell") onOpenShell(n);
+    // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.
+    if (isReadOnly(n.sid) && blockedInSafeMode(action)) fail(SAFE_MODE_ERROR);
+    else if (action === "openShell") onOpenShell(n);
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
     else actions.onAction(action, n);
   };
@@ -92,6 +98,7 @@ export function Workspace(props: Props) {
     openMongosh,
     runAction: onAction,
   };
+  const readOnlySelected = !!selected && isReadOnly(selected.sid);
   const mode: PanelMode = panel && panel.key === selected?.key ? panel.mode : "default";
 
   const details = selected && (
@@ -101,8 +108,8 @@ export function Workspace(props: Props) {
       version={actions.version}
       childCount={tree.children.get(selected.key)?.length}
       onAction={(m) => setPanel({ key: selected.key, mode: m })}
-      onEditIndex={(ix) => actions.editIndex(selected, ix)}
-      onDropIndex={(ix) => actions.dropIndex(selected, ix)}
+      onEditIndex={readOnlySelected ? undefined : (ix) => actions.editIndex(selected, ix)}
+      onDropIndex={readOnlySelected ? undefined : (ix) => actions.dropIndex(selected, ix)}
     />
   );
 
@@ -116,7 +123,7 @@ export function Workspace(props: Props) {
 
       {logsOpen && <LogPanel onClose={onCloseLogs} />}
 
-      <NoticeToast notice={notice} onDismiss={dismiss} />
+      <NoticeToast />
 
       <ExplorerDialogs
         dialog={actions.dialog}

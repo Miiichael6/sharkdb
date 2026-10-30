@@ -49,6 +49,9 @@ export function ConnectionTab({ conn, set, modeError, onSwitchMode }: Props) {
           </div>
         </div>
       </div>
+      <CheckRow checked={conn.protected} onChange={(v) => set("protected", v)}>
+        Conexión protegida: nunca modificar <span className="muted">(abre en safe mode, solo lectura)</span>
+      </CheckRow>
 
       <div className="divider" />
 

@@ -17,6 +17,7 @@ use super::native::MongoNatives;
 use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
 use super::runtime::ShellRuntime;
 use crate::mongo::{self, Sessions};
+use crate::safe_mode::SafeMode;
 
 const NO_SHELL: &str = "No hay ningún shell abierto en esta pestaña";
 
@@ -41,7 +42,7 @@ impl ShellSessions {
         &self,
         sid: &str,
         tab: &str,
-        client: Client,
+        (client, safe_mode): (Client, SafeMode),
     ) -> Result<Arc<ShellRuntime>, String> {
         let mut shells = self.lock();
         let tabs = shells.entry(sid.to_string()).or_default();
@@ -51,7 +52,7 @@ impl ShellSessions {
         let handle = Handle::current();
         let bridge_handle = handle.clone();
         let runtime = ShellRuntime::spawn(EngineLimits::default(), handle, move |watchdog| {
-            Rc::new(MongoNatives::new(client, bridge_handle, watchdog)) as Rc<dyn MongoBridge>
+            Rc::new(MongoNatives::new(client, safe_mode, bridge_handle, watchdog)) as Rc<dyn MongoBridge>
         })?;
         let runtime = Arc::new(runtime);
         tabs.insert(tab.to_string(), runtime.clone());
@@ -92,7 +93,7 @@ pub async fn execute_script(
 ) -> Result<ScriptOutcome, String> {
     let shell = match shells.get(&sid, &tab) {
         Some(shell) => shell,
-        None => shells.get_or_spawn(&sid, &tab, mongo::session(&sessions, &sid).await?)?,
+        None => shells.get_or_spawn(&sid, &tab, mongo::session_with_safe_mode(&sessions, &sid).await?)?,
     };
     shell.run(db, code).await
 }

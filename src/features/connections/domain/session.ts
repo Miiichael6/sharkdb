@@ -15,4 +15,6 @@ export interface ServerInfo {
 export interface Session {
   conn: MongoConnection;
   info: ServerInfo;
+  /** Read-only switch: while on, the backend rejects every write of this session. */
+  safeMode: boolean;
 }

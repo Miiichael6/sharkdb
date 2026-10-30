@@ -6,24 +6,32 @@ interface Props {
   action: ToolbarAction;
   pressed?: boolean;
   disabled?: boolean;
-  /** Opens a menu or popover instead of acting right away. */
-  popup?: boolean;
+  /** Opens a menu or a popover dialog instead of acting right away. */
+  popup?: "menu" | "dialog";
+  /** Small counter over the icon (e.g. unread notifications). */
+  badge?: string;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
-export function ToolbarButton({ action, pressed, disabled, popup, onClick }: Props) {
+export function ToolbarButton({ action, pressed, disabled, popup, badge, onClick }: Props) {
   return (
     <button
       type="button"
       className={`tb-btn ${pressed ? "pressed" : ""}`}
+      data-action={action.id}
       title={actionTitle(action)}
-      aria-label={action.label}
+      aria-label={badge ? `${action.label} (${badge})` : action.label}
       aria-pressed={action.toggle ? !!pressed : undefined}
-      aria-haspopup={popup ? "menu" : undefined}
+      aria-haspopup={popup}
       disabled={disabled}
       onClick={onClick}
     >
       <ToolbarIcon id={action.id} />
+      {badge && (
+        <span className="tb-badge" aria-hidden>
+          {badge}
+        </span>
+      )}
     </button>
   );
 }

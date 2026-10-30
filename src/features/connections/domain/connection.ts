@@ -30,6 +30,8 @@ export interface MongoConnection extends AdvancedOptions {
   options: string;
   /** Tunnel used in both modes (fields and URI). */
   ssh: SshSettings;
+  /** Production-like: never modified, so its sessions open in safe mode (read-only). */
+  protected: boolean;
 }
 
 export const TAGS: Tag[] = ["local", "development", "testing", "staging", "production"];
@@ -70,6 +72,7 @@ export function newConnection(): MongoConnection {
     connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
     options: "",
     ssh: newSshSettings(),
+    protected: false,
   };
 }
 

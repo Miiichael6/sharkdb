@@ -15,6 +15,7 @@ import { QuickOpen } from "../features/workspace/ui/QuickOpen";
 import { Toolbar } from "../features/workspace/ui/Toolbar";
 import type { PanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { useToolbarShortcuts, type ToolbarHandlers } from "../features/workspace/ui/useToolbarShortcuts";
+import { ConfirmDialog } from "../shared/ui/common";
 import { openModalWindow } from "../shared/ui/modalWindow";
 import { useLog } from "../shared/ui/useLog";
 import { OPEN_DATABASE_VIEW } from "./ModalWindow";
@@ -33,12 +34,16 @@ interface Props {
   onNewConnection: () => void;
   onShowConnections: () => void;
   onConnect: (conn: MongoConnection) => void;
+  /** Turns the read-only safe mode of a session on or off. */
+  onSetSafeMode: (sid: string, enabled: boolean) => void;
 }
 
 export function WorkspaceToolbar(props: Props) {
-  const { controls, sessions, connections, tabs, files, layout, newTabTarget, onNewConnection, onShowConnections, onConnect } =
+  const { controls, sessions, connections, tabs, files, layout, newTabTarget, onNewConnection, onShowConnections, onConnect, onSetSafeMode } =
     props;
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Turning safe mode off on a protected connection asks first.
+  const [unprotect, setUnprotect] = useState<Session | null>(null);
   const log = useLog();
 
   const target = useCurrentTarget(tabs.active, controls.selected);
@@ -50,6 +55,7 @@ export function WorkspaceToolbar(props: Props) {
         connection: displayName(session.conn),
         db: target.db,
         coll: target.coll,
+        safeMode: session.safeMode,
       }
     : null;
   const quickOpen = useQuickOpen({ controls, sessions, connections, layout, target, onConnect });
@@ -80,6 +86,12 @@ export function WorkspaceToolbar(props: Props) {
     else if (result?.kind === "new") newDatabase();
   };
 
+  const toggleSafeMode = () => {
+    if (!session) return;
+    if (session.safeMode && session.conn.protected) setUnprotect(session);
+    else onSetSafeMode(session.conn.id, !session.safeMode);
+  };
+
   const handlers: ToolbarHandlers = {
     toggleSidebar: layout.toggleSidebar,
     connections: onShowConnections,
@@ -89,6 +101,7 @@ export function WorkspaceToolbar(props: Props) {
     openDatabase: () => quickOpen.open("database"),
     quickActions: () => target?.db && quickOpen.open("action"),
     refresh: controls.refreshAll,
+    safeMode: toggleSafeMode,
     logs: layout.toggleLogs,
   };
   useToolbarShortcuts(handlers);
@@ -110,12 +123,24 @@ export function WorkspaceToolbar(props: Props) {
     <>
       <Toolbar
         handlers={handlers}
-        pressed={{ toggleSidebar: !layout.sidebarHidden, logs: layout.logsOpen }}
-        disabled={{ databases: !target, openMongosh: !target, quickActions: !target?.db }}
+        pressed={{ toggleSidebar: !layout.sidebarHidden, logs: layout.logsOpen, safeMode: !!session?.safeMode }}
+        disabled={{ databases: !target, openMongosh: !target || !!session?.safeMode, quickActions: !target?.db, safeMode: !session }}
         menuItems={menuItems}
         status={status}
       />
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      {unprotect && (
+        <ConfirmDialog
+          title="Desactivar safe mode"
+          message={`“${displayName(unprotect.conn)}” es una conexión protegida. ¿Permitir escrituras en esta sesión?`}
+          confirmLabel="Permitir escrituras"
+          onCancel={() => setUnprotect(null)}
+          onConfirm={() => {
+            onSetSafeMode(unprotect.conn.id, false);
+            setUnprotect(null);
+          }}
+        />
+      )}
       {quickOpen.mode && (
         <QuickOpen key={quickOpen.mode} mode={quickOpen.mode} context={quickOpen.context} items={quickOpen.items} onPick={quickOpen.pick} onClose={quickOpen.close} />
       )}

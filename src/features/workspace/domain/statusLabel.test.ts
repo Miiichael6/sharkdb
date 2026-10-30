@@ -8,6 +8,10 @@ describe("statusLabel", () => {
     expect(statusLabel({ ...base, db: "shop", coll: "orders" })).toBe("PRODUCTION | MongoDB 7.0.2 : Clientes : shop : orders");
   });
 
+  it("says when the session is read-only", () => {
+    expect(statusLabel({ ...base, safeMode: true })).toBe("PRODUCTION | SOLO LECTURA | MongoDB 7.0.2 : Clientes");
+  });
+
   it("leaves out the database and collection when there are none", () => {
     expect(statusLocation(base)).toBe("MongoDB 7.0.2 : Clientes");
     expect(statusLocation({ ...base, db: "shop" })).toBe("MongoDB 7.0.2 : Clientes : shop");

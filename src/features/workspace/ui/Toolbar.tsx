@@ -1,5 +1,8 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { badgeText } from "../../../shared/domain/notifications";
 import { ContextMenu, type ContextMenuItem } from "../../../shared/ui/ContextMenu";
+import { NotificationCenter } from "../../../shared/ui/NotificationCenter";
+import { useNotifications } from "../../../shared/ui/useNotifications";
 import type { StatusContext } from "../domain/statusLabel";
 import { TOOLBAR_ACTIONS, TOOLBAR_LAYOUT, type ToolbarActionId } from "../domain/toolbarActions";
 import { StatusPill } from "./StatusPill";
@@ -7,8 +10,9 @@ import { ToolbarButton } from "./ToolbarButton";
 import type { ToolbarHandlers } from "./useToolbarShortcuts";
 
 /** Actions that open a popup anchored to their button instead of running a handler. */
-type PopupId = Extract<ToolbarActionId, "menu">;
-const isPopup = (id: ToolbarActionId): id is PopupId => id === "menu";
+const POPUPS = { menu: "menu", notifications: "dialog" } as const;
+type PopupId = keyof typeof POPUPS;
+const isPopup = (id: ToolbarActionId): id is PopupId => id in POPUPS;
 
 const POPUP_GAP_PX = 4;
 
@@ -24,6 +28,8 @@ interface Props {
 export function Toolbar({ handlers, pressed, disabled, menuItems, status }: Props) {
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
+  const { unread } = useNotifications();
+  const badges: Partial<Record<ToolbarActionId, string>> = { notifications: unread ? badgeText(unread) : undefined };
 
   const onButton = (id: ToolbarActionId, e: MouseEvent<HTMLButtonElement>) => {
     if (!isPopup(id)) return handlers[id]?.();
@@ -51,7 +57,8 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status }: Prop
           action={TOOLBAR_ACTIONS[id]}
           pressed={pressed[id] || popup?.id === id}
           disabled={disabled[id]}
-          popup={isPopup(id)}
+          popup={isPopup(id) ? POPUPS[id] : undefined}
+          badge={badges[id]}
           onClick={(e) => onButton(id, e)}
         />
       ))}
@@ -67,6 +74,7 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status }: Prop
       {popup?.id === "menu" && (
         <ContextMenu x={popup.x} y={popup.y} items={menuItems} onClose={closePopup} label={TOOLBAR_ACTIONS.menu.label} />
       )}
+      {popup?.id === "notifications" && <NotificationCenter x={popup.x} y={popup.y} onClose={closePopup} />}
     </div>
   );
 }
