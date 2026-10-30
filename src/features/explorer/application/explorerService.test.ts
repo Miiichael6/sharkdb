@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { TARGET_IS_SOURCE, type CollectionRef, type CopyProgress } from "../domain/copySpec";
+import { TARGET_IS_SOURCE } from "../domain/copySpec";
 import type { Doc, IndexSpec } from "../domain/mongo";
 import { createExplorerService } from "./explorerService";
-import type { CollectionCopier, MongoAdmin } from "./ports";
+import type { MongoAdmin } from "./ports";
 
 const SOURCE = { sid: "s1", db: "shop", coll: "orders" };
 const INDEXES: IndexSpec[] = [
@@ -26,58 +26,35 @@ function fakeAdmin(targetCount = 7) {
   return { admin, calls };
 }
 
-function fakeCopier(progress: CopyProgress[]) {
-  const copies: [CollectionRef, CollectionRef][] = [];
-  const copier: CollectionCopier = {
-    copy: async (source, target, onProgress) => {
-      copies.push([source, target]);
-      progress.forEach(onProgress);
-      return progress[progress.length - 1]?.copied ?? 0;
-    },
-  };
-  return { copier, copies };
-}
-
 describe("explorerService.copyCollection", () => {
-  it("copies on the same server with $out and counts the target", async () => {
+  it("copies with $out on the source's server and counts the target", async () => {
     const { admin, calls } = fakeAdmin();
-    const { copier, copies } = fakeCopier([]);
-    const target = { sid: "s1", db: "archive", coll: "orders" };
-    const copied = await createExplorerService(admin, copier).copyCollection(
-      { source: SOURCE, target, copyIndexes: false },
-      () => {},
-    );
+    const copied = await createExplorerService(admin).copyCollection({
+      source: SOURCE,
+      target: { db: "archive", coll: "orders" },
+      copyIndexes: false,
+    });
     expect(copied).toBe(7);
-    expect(copies).toEqual([]);
     expect(calls).toEqual([
       ["runPipeline", "s1", "shop", "orders", [{ $match: {} }, { $out: { db: "archive", coll: "orders" } }]],
       ["collStats", "s1", "archive", "orders"],
     ]);
   });
 
-  it("copies between connections through the copier, reporting its progress, and recreates indexes", async () => {
+  it("recreates the indexes on the target when asked", async () => {
     const { admin, calls } = fakeAdmin();
-    const steps = [
-      { copied: 1000, total: 1500 },
-      { copied: 1500, total: 1500 },
-    ];
-    const { copier, copies } = fakeCopier(steps);
-    const target = { sid: "s2", db: "shop", coll: "orders" };
-    const seen: CopyProgress[] = [];
-    const copied = await createExplorerService(admin, copier).copyCollection(
-      { source: SOURCE, target, copyIndexes: true },
-      (p) => seen.push(p),
-    );
-    expect(copied).toBe(1500);
-    expect(copies).toEqual([[SOURCE, target]]);
-    expect(seen).toEqual(steps);
-    expect(calls).toEqual([["createIndex", "s2", "shop", "orders", "email_1"]]);
+    await createExplorerService(admin).copyCollection({
+      source: SOURCE,
+      target: { db: "archive", coll: "orders" },
+      copyIndexes: true,
+    });
+    expect(calls.slice(2)).toEqual([["createIndex", "s1", "archive", "orders", "email_1"]]);
   });
 
   it("rejects an invalid destination before touching the server", async () => {
     const { admin, calls } = fakeAdmin();
-    const service = createExplorerService(admin, fakeCopier([]).copier);
-    await expect(service.copyCollection({ source: SOURCE, target: SOURCE, copyIndexes: false }, () => {})).rejects.toBe(
+    const service = createExplorerService(admin);
+    await expect(service.copyCollection({ source: SOURCE, target: SOURCE, copyIndexes: false })).rejects.toBe(
       TARGET_IS_SOURCE,
     );
     expect(calls).toEqual([]);

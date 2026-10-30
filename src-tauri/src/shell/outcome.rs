@@ -16,6 +16,8 @@ pub enum ScriptErrorKind {
     OutOfMemory,
     /// El valor final no se pudo convertir a BSON.
     Conversion,
+    /// Safe mode frenó una escritura del script.
+    ReadOnly,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

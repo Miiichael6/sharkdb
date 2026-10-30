@@ -22,7 +22,7 @@ use super::convert::{bson_to_js, js_to_bson};
 use super::outcome::{CursorBatch, CursorId};
 use super::watchdog::{Interruption, Watchdog};
 use crate::mongo::describe;
-use crate::safe_mode::SafeMode;
+use crate::safe_mode::{SAFE_MODE_ERROR, SAFE_MODE_ERROR_NAME, SafeMode};
 
 const CANCELLED: &str = "Operación cancelada";
 const TIMED_OUT: &str = "La operación superó el tiempo máximo";
@@ -195,10 +195,12 @@ impl MongoBridge for MongoNatives {
     }
 }
 
-/// Error JS con `name = MongoError`, para distinguirlo de los fallos del propio script.
+/// Error JS con `name = MongoError` (o `SafeModeError` si lo frenó safe mode), para distinguirlo
+/// de los fallos del propio script.
 fn throw(ctx: &Ctx<'_>, message: &str) -> rquickjs::Error {
+    let name = if message == SAFE_MODE_ERROR { SAFE_MODE_ERROR_NAME } else { MONGO_ERROR };
     match Exception::from_message(ctx.clone(), message) {
-        Ok(exception) => match exception.set("name", MONGO_ERROR) {
+        Ok(exception) => match exception.set("name", name) {
             Ok(()) => ctx.throw(exception.into_value()),
             Err(e) => e,
         },

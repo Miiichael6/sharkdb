@@ -16,6 +16,8 @@ use mongodb::bson::Document;
 pub use policy::{is_write_command, is_write_pipeline};
 
 pub const SAFE_MODE_ERROR: &str = "Safe mode activo: solo lectura";
+/// `name` del error JS que lanza el shell cuando safe mode frena una escritura.
+pub const SAFE_MODE_ERROR_NAME: &str = "SafeModeError";
 
 /// Estado compartido entre la sesión y los shells que la usan: cambiarlo afecta al momento a
 /// todos, incluidos los scripts que ya están en marcha.

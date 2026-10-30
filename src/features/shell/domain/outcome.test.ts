@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { elapsedText, missingForPage, pageOf, scriptErrorText } from "./outcome";
+import { elapsedText, missingForPage, pageOf, READ_ONLY_TEXT, scriptErrorText } from "./outcome";
 
 const docs = (n: number) => Array.from({ length: n }, (_, i) => ({ _id: i }));
 
@@ -36,6 +36,12 @@ describe("scriptErrorText", () => {
       "Error (línea 3, columna 5): x is not defined",
     );
     expect(scriptErrorText({ kind: "cancelled", message: "interrumpido", line: null, column: null })).toBe("Detenido: interrumpido");
+  });
+
+  it("explains a write stopped by safe mode instead of showing the backend's message", () => {
+    expect(scriptErrorText({ kind: "readOnly", message: "Safe mode activo: solo lectura", line: 299, column: 93 })).toBe(
+      `Solo lectura (línea 299): ${READ_ONLY_TEXT}`,
+    );
   });
 });
 

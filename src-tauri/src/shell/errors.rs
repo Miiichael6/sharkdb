@@ -5,6 +5,7 @@ use rquickjs::{Coerced, Ctx, FromJs, Value};
 
 use super::convert::js_to_bson;
 use super::outcome::{ScriptError, ScriptErrorKind};
+use crate::safe_mode::SAFE_MODE_ERROR_NAME;
 
 /// Nombre de fichero con el que QuickJS cita las posiciones (`script:línea:columna`).
 pub const SCRIPT_NAME: &str = "script";
@@ -23,13 +24,12 @@ pub fn describe_thrown<'js>(
     };
     let name: Option<String> = exception.get("name").ok();
     let message = exception.message().unwrap_or_default();
-    let mut error = ScriptError::new(
-        kind,
-        match name {
-            Some(name) if !name.is_empty() => format!("{name}: {message}"),
-            _ => message,
-        },
-    );
+    let mut error = match name {
+        // Ya dice de dónde viene: el `kind` lo distingue y el mensaje queda sin prefijo.
+        Some(name) if name == SAFE_MODE_ERROR_NAME => ScriptError::new(ScriptErrorKind::ReadOnly, message),
+        Some(name) if !name.is_empty() => ScriptError::new(kind, format!("{name}: {message}")),
+        _ => ScriptError::new(kind, message),
+    };
     if let Some((line, column)) = exception.stack().as_deref().and_then(script_position) {
         error.line = Some(line);
         error.column = Some(column);
@@ -43,10 +43,14 @@ pub fn to_bson_reported<'js>(ctx: &Ctx<'js>, value: &Value<'js>) -> Result<Bson,
         .map_err(|_| describe_thrown(ctx, ctx.catch(), ScriptErrorKind::Conversion))
 }
 
-/// Primera posición `script:línea:columna` de una traza de QuickJS.
+/// Primera posición `script:línea:columna` de una traza de QuickJS. Salta los frames de
+/// otros ficheros que acaban igual, como el `eval_script` del prelude.
 fn script_position(stack: &str) -> Option<(u32, u32)> {
     let prefix = format!("{SCRIPT_NAME}:");
-    let start = stack.find(&prefix)? + prefix.len();
+    let (index, _) = stack.match_indices(&prefix).find(|(i, _)| {
+        !stack[..*i].ends_with(|c: char| c.is_alphanumeric() || c == '_')
+    })?;
+    let start = index + prefix.len();
     let mut parts = stack[start..].split(|c: char| !c.is_ascii_digit());
     let line = parts.next()?.parse().ok()?;
     let column = parts.next()?.parse().ok()?;
@@ -64,5 +68,9 @@ mod tests {
             Some((3, 7))
         );
         assert_eq!(script_position("    at <native>\n"), None);
+        assert_eq!(
+            script_position("    at deleteMany (eval_script:299:93)\n    at <eval> (script:1:45)\n"),
+            Some((1, 45))
+        );
     }
 }

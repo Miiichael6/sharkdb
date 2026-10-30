@@ -1,4 +1,5 @@
-//! Prueba contra un MongoDB real en `LIVE_URI`, con la base de datos desechable `LIVE_DB`.
+//! Prueba contra un MongoDB real en `LIVE_URI`, con bases de datos desechables: una por test,
+//! para que puedan correr en paralelo.
 //! No corre por defecto: `cargo test live -- --ignored`.
 
 use std::rc::Rc;
@@ -19,6 +20,7 @@ use crate::shell::runtime::ShellRuntime;
 const LIVE_URI: &str = "mongodb://127.0.0.1:27017";
 const LIVE_DB: &str = "robo3b_test";
 const OTHER_DB: &str = "robo3b_test_otra";
+const SAFE_DB: &str = "robo3b_test_safe";
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn spawn(client: &Client) -> ShellRuntime {
@@ -35,10 +37,11 @@ fn spawn_with(client: &Client, safe_mode: SafeMode) -> ShellRuntime {
 }
 
 async fn run_ok(shell: &ShellRuntime, code: &str) -> ScriptOutcome {
-    let outcome = shell
-        .run(LIVE_DB.into(), code.into())
-        .await
-        .expect("respuesta");
+    run_ok_in(shell, LIVE_DB, code).await
+}
+
+async fn run_ok_in(shell: &ShellRuntime, db: &str, code: &str) -> ScriptOutcome {
+    let outcome = shell.run(db.into(), code.into()).await.expect("respuesta");
     assert_eq!(outcome.error, None, "script: {code}");
     outcome
 }
@@ -152,7 +155,12 @@ async fn live_safe_mode_rejects_writes() {
     let client = Client::with_uri_str(LIVE_URI).await.unwrap();
     let safe_mode = SafeMode::new(false);
     let shell = spawn_with(&client, safe_mode.clone());
-    run_ok(&shell, "db.dropDatabase(); db.x.insertOne({ _id: 1 })").await;
+    run_ok_in(
+        &shell,
+        SAFE_DB,
+        "db.dropDatabase(); db.x.insertOne({ _id: 1 })",
+    )
+    .await;
 
     safe_mode.set(true);
     for write in [
@@ -162,15 +170,28 @@ async fn live_safe_mode_rejects_writes() {
         "db.x.aggregate([{ $out: 'y' }]).toArray()",
         "db.x.createIndex({ a: 1 })",
     ] {
-        let outcome = shell.run(LIVE_DB.into(), write.into()).await.unwrap();
+        let outcome = shell.run(SAFE_DB.into(), write.into()).await.unwrap();
         let error = outcome.error.expect(write);
-        assert!(error.message.contains(SAFE_MODE_ERROR), "{write}: {}", error.message);
+        assert!(
+            error.message.contains(SAFE_MODE_ERROR),
+            "{write}: {}",
+            error.message
+        );
+        assert_eq!(error.kind, ScriptErrorKind::ReadOnly, "{write}");
     }
-    assert_eq!(value(&run_ok(&shell, "db.x.count()").await), Some(Bson::Double(1.0)));
-    run_ok(&shell, "db.x.find().toArray(); db.x.aggregate([{ $match: {} }]).toArray()").await;
+    assert_eq!(
+        value(&run_ok_in(&shell, SAFE_DB, "db.x.count()").await),
+        Some(Bson::Double(1.0))
+    );
+    run_ok_in(
+        &shell,
+        SAFE_DB,
+        "db.x.find().toArray(); db.x.aggregate([{ $match: {} }]).toArray()",
+    )
+    .await;
 
     safe_mode.set(false);
-    run_ok(&shell, "db.x.insertOne({ _id: 2 })").await;
+    run_ok_in(&shell, SAFE_DB, "db.x.insertOne({ _id: 2 })").await;
     drop(shell);
-    client.database(LIVE_DB).drop(None).await.unwrap();
+    client.database(SAFE_DB).drop(None).await.unwrap();
 }

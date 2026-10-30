@@ -1103,16 +1103,6 @@ table.grid {
   flex: 1;
   min-width: 0;
 }
-.copy-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
-}
-.copy-progress progress {
-  width: 100%;
-  accent-color: var(--accent);
-}
 .document-window {
   display: flex;
   flex-direction: column;
@@ -1374,6 +1364,25 @@ table.grid {
   min-height: 0;
   overflow: hidden;
 }
+/* No horizontal scrollbar: on a one-line script it hides the line. It still scrolls sideways
+   (Shift+wheel, touchpad, cursor). Styling one scrollbar makes WebView2 draw both by hand, so the
+   vertical one is drawn here too. */
+.query-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 0;
+}
+.query-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background-clip: padding-box;
+}
+.query-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}
+.query-editor .cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
+}
 .stack-split {
   flex: 1;
   min-height: 0;
@@ -1430,6 +1439,11 @@ table.grid {
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;
+}
+/* Safe mode stopped a write: a notice in the safe mode color, not a failure. */
+.output-error.read-only {
+  color: var(--warn);
+  font-family: inherit;
 }
 .output-value {
   margin: 0;
