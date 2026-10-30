@@ -1,35 +1,104 @@
-// Saved connections live in <app config dir>/connections.json. The frontend owns the shape;
-// here they are just an opaque JSON array.
+// App data lives as JSON in <app config dir>: saved connections in connections.json and each
+// connection's query history in history/<connection id>.json. The frontend owns the shapes;
+// here they are just opaque JSON values.
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-const FILE_NAME: &str = "connections.json";
+const CONNECTIONS_FILE: &str = "connections.json";
+const HISTORY_DIR: &str = "history";
 
-fn file_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join(FILE_NAME))
+fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path().app_config_dir().map_err(|e| e.to_string())
+}
+
+/// Connection ids are UUIDs: anything else could escape the history folder.
+fn history_file_name(connection_id: &str) -> Result<String, String> {
+    let valid = !connection_id.is_empty()
+        && connection_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-');
+    if valid {
+        Ok(format!("{connection_id}.json"))
+    } else {
+        Err(format!("Id de conexión inválido: {connection_id}"))
+    }
+}
+
+fn history_path(app: &AppHandle, connection_id: &str) -> Result<PathBuf, String> {
+    Ok(config_dir(app)?
+        .join(HISTORY_DIR)
+        .join(history_file_name(connection_id)?))
+}
+
+/// The saved value, or `empty` if the file doesn't exist yet.
+fn read_json(path: &Path, empty: Value) -> Result<Value, String> {
+    if !path.exists() {
+        return Ok(empty);
+    }
+    let raw = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    serde_json::from_str(&raw).map_err(|e| format!("{name} inválido: {e}"))
+}
+
+fn write_json(path: &Path, value: &Value) -> Result<(), String> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let raw = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    // Write to a temp file first so a crash mid-write can't truncate the saved data.
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, raw).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn load_connections(app: AppHandle) -> Result<Value, String> {
-    let path = file_path(&app)?;
-    if !path.exists() {
-        return Ok(Value::Array(vec![]));
-    }
-    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&raw).map_err(|e| format!("connections.json inválido: {e}"))
+    read_json(&config_dir(&app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))
 }
 
 #[tauri::command]
 pub fn save_connections(app: AppHandle, connections: Value) -> Result<(), String> {
-    let path = file_path(&app)?;
-    let raw = serde_json::to_string_pretty(&connections).map_err(|e| e.to_string())?;
-    // Write to a temp file first so a crash mid-write can't truncate the saved list.
-    let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, raw).map_err(|e| e.to_string())?;
-    fs::rename(&tmp, &path).map_err(|e| e.to_string())
+    write_json(&config_dir(&app)?.join(CONNECTIONS_FILE), &connections)
+}
+
+#[tauri::command]
+pub fn load_history(app: AppHandle, connection_id: String) -> Result<Value, String> {
+    read_json(&history_path(&app, &connection_id)?, Value::Array(vec![]))
+}
+
+#[tauri::command]
+pub fn save_history(app: AppHandle, connection_id: String, entries: Value) -> Result<(), String> {
+    write_json(&history_path(&app, &connection_id)?, &entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn history_file_is_named_after_the_connection_id() {
+        let id = "0f8fad5b-d9cb-469f-a165-70867728950e";
+        assert_eq!(history_file_name(id).unwrap(), format!("{id}.json"));
+    }
+
+    #[test]
+    fn history_file_rejects_ids_that_could_escape_the_folder() {
+        for id in ["", "../connections", "a/b", "a\\b", "c:x"] {
+            assert!(history_file_name(id).is_err(), "{id}");
+        }
+    }
+
+    #[test]
+    fn json_round_trip_and_missing_file() {
+        let dir = std::env::temp_dir().join(format!("robo3b-store-{}", std::process::id()));
+        let path = dir.join(HISTORY_DIR).join("x.json");
+        assert_eq!(read_json(&path, Value::Array(vec![])).unwrap(), Value::Array(vec![]));
+        let value = serde_json::json!([{ "code": "db.x.find({})" }]);
+        write_json(&path, &value).unwrap();
+        assert_eq!(read_json(&path, Value::Null).unwrap(), value);
+        fs::remove_dir_all(dir).unwrap();
+    }
 }

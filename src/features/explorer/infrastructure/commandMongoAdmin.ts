@@ -1,12 +1,9 @@
 // MongoAdmin built on database commands. Commands are plain objects; key order is kept all the
 // way to the driver, so the command name must come first.
+import { firstBatch, type CommandRunner } from "../../../shared/infrastructure/commandRunner";
 import type { MongoAdmin } from "../application/ports";
 import type { CollectionEntry, DatabaseEntry, Doc, FunctionEntry, IndexSpec, UserEntry } from "../domain/mongo";
 
-/** Runs a database command (extended JSON in, relaxed extended JSON out). */
-export type CommandRunner = (sid: string, db: string, command: Doc) => Promise<Doc>;
-
-const firstBatch = <T>(reply: Doc) => (reply.cursor?.firstBatch ?? []) as T[];
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name);
 
 export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {

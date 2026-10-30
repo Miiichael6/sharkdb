@@ -1,6 +1,6 @@
 import type { Doc } from "../../explorer/domain/mongo";
 import { missingForPage, pageOf, type CursorResult, type Page } from "../domain/outcome";
-import type { ShellGateway } from "./ports";
+import type { ShellGateway, ShellRef } from "./ports";
 
 export type CursorPager = ReturnType<typeof createCursorPager>;
 
@@ -8,14 +8,14 @@ export type CursorPager = ReturnType<typeof createCursorPager>;
  * skip/limit pages over a result cursor. The server cursor only moves forward, so documents
  * already read are kept: going back to a visited page doesn't hit the server.
  */
-export function createCursorPager(gateway: ShellGateway, sid: string, cursor: CursorResult) {
+export function createCursorPager(gateway: ShellGateway, shell: ShellRef, cursor: CursorResult) {
   const buffer: Doc[] = [...cursor.documents];
   let exhausted = cursor.exhausted || cursor.cursorId === null;
 
   async function page(skip: number, limit: number): Promise<Page> {
     let missing = missingForPage(buffer.length, skip, limit);
     while (missing > 0 && !exhausted) {
-      const batch = await gateway.nextBatch(sid, cursor.cursorId!, missing);
+      const batch = await gateway.nextBatch(shell, cursor.cursorId!, missing);
       buffer.push(...batch.documents);
       exhausted = batch.exhausted;
       missing = missingForPage(buffer.length, skip, limit);
@@ -27,7 +27,7 @@ export function createCursorPager(gateway: ShellGateway, sid: string, cursor: Cu
   async function close() {
     if (exhausted) return;
     exhausted = true;
-    await gateway.closeCursor(sid, cursor.cursorId!);
+    await gateway.closeCursor(shell, cursor.cursorId!);
   }
 
   return { ns: cursor.ns, page, close };

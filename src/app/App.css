@@ -871,3 +871,174 @@ table.grid {
 .tab-body .check {
   margin-bottom: 12px;
 }
+
+/* ---------- shell tabs ---------- */
+
+[hidden] {
+  display: none !important;
+}
+.shell-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 6px 0;
+  background: var(--bg-side);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex: none;
+}
+.tab-bar .tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: default;
+}
+.tab-bar button.tab {
+  padding-right: 12px;
+}
+.tab-bar .tab:hover {
+  color: var(--text);
+}
+.tab-bar .tab.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+.tab-title {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-rename {
+  width: 140px;
+  height: 20px;
+  padding: 0 4px;
+}
+.tab-close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  line-height: 1;
+}
+.tab-close:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.shell-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.details-tab {
+  flex: 1;
+  overflow: auto;
+}
+.shell-tab {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.shell-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.shell-where {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.query-editor {
+  flex: 0 0 38%;
+  min-height: 80px;
+  border-bottom: 1px solid #111;
+  overflow: hidden;
+}
+.script-output {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: text;
+}
+.script-output.center {
+  align-items: center;
+  justify-content: center;
+}
+.output-print {
+  margin: 0;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.output-error {
+  color: #ff9c9c;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.cursor-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cursor-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- logs ---------- */
+
+.log-panel {
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #111;
+  background: var(--bg-side);
+}
+.log-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.log-list {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 10px;
+  list-style: none;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+.log-time {
+  color: var(--muted);
+}
+.log-error {
+  color: #ff9c9c;
+}
