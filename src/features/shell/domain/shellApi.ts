@@ -62,6 +62,8 @@ export const COLLECTION_METHODS = [
   "getIndexes",
   "dropIndex",
   "stats",
+  "getShardVersion",
+  "getShardDistribution",
   "drop",
   "getName",
   "getFullName",

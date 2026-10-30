@@ -52,6 +52,7 @@ export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {
 
     createIndex: (sid, db, coll, spec) => exec(sid, db, { createIndexes: coll, indexes: [spec] }),
     dropIndex: (sid, db, coll, name) => exec(sid, db, { dropIndexes: coll, index: name }),
+    rebuildIndexes: (sid, db, coll) => exec(sid, db, { reIndex: coll }),
 
     runPipeline: (sid, db, coll, pipeline) => exec(sid, db, { aggregate: coll, pipeline, cursor: {} }),
 

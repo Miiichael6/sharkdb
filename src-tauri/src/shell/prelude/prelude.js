@@ -276,6 +276,26 @@
     dropIndex(name) { return this._run({ dropIndexes: this._name, index: name }); }
     stats() { return this._run({ collStats: this._name }); }
 
+    // Solo responde un mongos; en un servidor sin sharding el error del servidor lo dice.
+    getShardVersion() { return this._db.adminCommand({ getShardVersion: this.getFullName() }); }
+
+    // Documentos y tamaño por shard, como `getShardDistribution()` de mongosh pero devuelto como datos.
+    getShardDistribution() {
+      const ns = this.getFullName();
+      const sharded = this._db.getSiblingDB('config').getCollection('collections').findOne({ _id: ns });
+      if (!sharded) failWith('ShardingError', `La colección ${ns} no está fragmentada (sharded)`);
+      const shards = this.aggregate([{ $collStats: { storageStats: {} } }]).toArray();
+      const total = shards.reduce((sum, s) => sum + num(s.storageStats.count), 0);
+      return shards.map(({ shard, host, storageStats }) => ({
+        shard,
+        host,
+        count: num(storageStats.count),
+        size: num(storageStats.size),
+        avgObjSize: num(storageStats.avgObjSize ?? 0),
+        percentOfDocuments: total ? (100 * num(storageStats.count)) / total : 0,
+      }));
+    }
+
     drop() {
       this._run({ drop: this._name });
       return true;

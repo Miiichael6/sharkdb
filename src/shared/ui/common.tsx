@@ -45,34 +45,6 @@ export function Modal({
   );
 }
 
-export function ConfirmDialog({
-  title,
-  message,
-  confirmLabel,
-  onConfirm,
-  onCancel,
-}: {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <Modal onClose={onCancel} className="confirm">
-      <h3>{title}</h3>
-      <p>{message}</p>
-      <div className="modal-footer">
-        <span className="spacer" />
-        <button onClick={onCancel}>Cancelar</button>
-        <button className="danger" onClick={onConfirm} autoFocus>
-          {confirmLabel}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
 export function Spinner() {
   return <span className="spinner" aria-label="Cargando" />;
 }

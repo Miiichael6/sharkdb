@@ -1,4 +1,12 @@
-import { copyPipeline, indexesToCopy, validateCopy, type CopyRequest } from "../domain/copySpec";
+import {
+  copyPipeline,
+  duplicateRequest,
+  indexesToCopy,
+  TARGET_EXISTS,
+  validateCopy,
+  type CollectionRef,
+  type CopyRequest,
+} from "../domain/copySpec";
 import { creatableSpec } from "../domain/indexSpec";
 import { SYSTEM_DATABASES, type CollectionEntry, type DatabaseEntry, type IndexSpec } from "../domain/mongo";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
@@ -68,9 +76,10 @@ export function createExplorerService(admin: MongoAdmin) {
    * does it (`$out`). Indexes are recreated afterwards if asked. Resolves with the documents in the target.
    */
   async function copyCollection(request: CopyRequest): Promise<number> {
-    const { source, target, copyIndexes } = validateCopy(request);
+    const valid = validateCopy(request);
+    const { source, target, copyIndexes } = valid;
     const { sid } = source;
-    await admin.runPipeline(sid, source.db, source.coll, copyPipeline(target));
+    await admin.runPipeline(sid, source.db, source.coll, copyPipeline(valid));
     const copied = (await admin.collStats(sid, target.db, target.coll)).count ?? 0;
     if (copyIndexes) {
       for (const ix of indexesToCopy(await admin.listIndexes(sid, source.db, source.coll))) {
@@ -80,5 +89,16 @@ export function createExplorerService(admin: MongoAdmin) {
     return copied;
   }
 
-  return { ...admin, loadChildren, replaceIndex, copyCollection };
+  /**
+   * Copy of a collection, with its indexes, under a new name in the same database. Unlike a copy it
+   * never replaces anything: an existing target is an error.
+   */
+  async function duplicateCollection(source: CollectionRef, name: string): Promise<number> {
+    const request = validateCopy(duplicateRequest(source, name));
+    const existing = await admin.listCollections(source.sid, source.db);
+    if (existing.some((c) => c.name === request.target.coll)) throw TARGET_EXISTS;
+    return copyCollection(request);
+  }
+
+  return { ...admin, loadChildren, replaceIndex, copyCollection, duplicateCollection };
 }

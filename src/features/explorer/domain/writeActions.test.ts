@@ -16,4 +16,15 @@ describe("writeActions", () => {
     expect(blockedInSafeMode("openMongosh")).toBe(true);
     expect(blockedInSafeMode("openShell")).toBe(false);
   });
+
+  it("blocks the collection menu entries that write, but not the read-only scripts", () => {
+    for (const action of ["updateDocuments", "removeDocuments", "duplicateCollection", "copyCollection"])
+      expect(blockedInSafeMode(action)).toBe(true);
+    for (const action of ["viewDocuments", "shardVersion", "shardDistribution"]) expect(blockedInSafeMode(action)).toBe(false);
+  });
+
+  it("blocks rebuilding indexes, but not viewing them or the server log", () => {
+    expect(blockedInSafeMode("rebuildIndexes")).toBe(true);
+    for (const action of ["viewIndexes", "showLog"]) expect(blockedInSafeMode(action)).toBe(false);
+  });
 });

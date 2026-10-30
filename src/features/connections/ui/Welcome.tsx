@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { displayName, hostLabel, type MongoConnection } from "../domain/connection";
-import { Avatar, ConfirmDialog, Logo, Spinner } from "../../../shared/ui/common";
+import { Avatar, Logo, Spinner } from "../../../shared/ui/common";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { MenuList } from "../../../shared/ui/MenuList";
 import { TagBadge } from "./TagBadge";
 
@@ -30,7 +31,14 @@ export function Welcome(props: Props) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
-  const [toDelete, setToDelete] = useState<MongoConnection | null>(null);
+  const confirmDelete = async (conn: MongoConnection) => {
+    const confirmed = await confirmInWindow({
+      title: "Eliminar conexión",
+      message: `¿Eliminar “${displayName(conn)}”? Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar",
+    });
+    if (confirmed) onDelete(conn);
+  };
   const searchRef = useRef<HTMLInputElement>(null);
 
   const visible = useMemo(() => {
@@ -62,12 +70,12 @@ export function Welcome(props: Props) {
       } else if (e.key === "Enter" && selected) {
         onConnect(selected);
       } else if (e.key === "Delete" && selected && document.activeElement !== searchRef.current) {
-        setToDelete(selected);
+        void confirmDelete(selected);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [visible, selected, selectedId, onNew, onConnect]);
+  }, [visible, selected, selectedId, onNew, onConnect, onDelete]);
 
   useEffect(() => {
     if (!menu) return;
@@ -172,24 +180,12 @@ export function Welcome(props: Props) {
           <li onClick={() => onEdit(menu.conn)}>Editar</li>
           <li onClick={() => onDuplicate(menu.conn)}>Duplicar</li>
           <li className="sep" />
-          <li className="danger" onClick={() => setToDelete(menu.conn)}>
+          <li className="danger" onClick={() => void confirmDelete(menu.conn)}>
             Eliminar
           </li>
         </MenuList>
       )}
 
-      {toDelete && (
-        <ConfirmDialog
-          title="Eliminar conexión"
-          message={`¿Eliminar “${displayName(toDelete)}”? Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
-          onCancel={() => setToDelete(null)}
-          onConfirm={() => {
-            onDelete(toDelete);
-            setToDelete(null);
-          }}
-        />
-      )}
     </div>
   );
 }

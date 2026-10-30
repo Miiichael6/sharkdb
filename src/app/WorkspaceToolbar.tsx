@@ -15,7 +15,7 @@ import { QuickOpen } from "../features/workspace/ui/QuickOpen";
 import { Toolbar } from "../features/workspace/ui/Toolbar";
 import type { PanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { useToolbarShortcuts, type ToolbarHandlers } from "../features/workspace/ui/useToolbarShortcuts";
-import { ConfirmDialog } from "../shared/ui/common";
+import { confirmInWindow } from "../shared/ui/confirmInWindow";
 import { openModalWindow } from "../shared/ui/modalWindow";
 import { useLog } from "../shared/ui/useLog";
 import { OPEN_DATABASE_VIEW } from "./ModalWindow";
@@ -43,7 +43,6 @@ export function WorkspaceToolbar(props: Props) {
     props;
   const [aboutOpen, setAboutOpen] = useState(false);
   // Turning safe mode off on a protected connection asks first.
-  const [unprotect, setUnprotect] = useState<Session | null>(null);
   const log = useLog();
 
   const target = useCurrentTarget(tabs.active, controls.selected);
@@ -88,8 +87,17 @@ export function WorkspaceToolbar(props: Props) {
 
   const toggleSafeMode = () => {
     if (!session) return;
-    if (session.safeMode && session.conn.protected) setUnprotect(session);
+    if (session.safeMode && session.conn.protected) void confirmUnprotect(session);
     else onSetSafeMode(session.conn.id, !session.safeMode);
+  };
+
+  const confirmUnprotect = async (protectedSession: Session) => {
+    const allowed = await confirmInWindow({
+      title: "Desactivar safe mode",
+      message: `“${displayName(protectedSession.conn)}” es una conexión protegida. ¿Permitir escrituras en esta sesión?`,
+      confirmLabel: "Permitir escrituras",
+    });
+    if (allowed) onSetSafeMode(protectedSession.conn.id, false);
   };
 
   const handlers: ToolbarHandlers = {
@@ -129,18 +137,6 @@ export function WorkspaceToolbar(props: Props) {
         status={status}
       />
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
-      {unprotect && (
-        <ConfirmDialog
-          title="Desactivar safe mode"
-          message={`“${displayName(unprotect.conn)}” es una conexión protegida. ¿Permitir escrituras en esta sesión?`}
-          confirmLabel="Permitir escrituras"
-          onCancel={() => setUnprotect(null)}
-          onConfirm={() => {
-            onSetSafeMode(unprotect.conn.id, false);
-            setUnprotect(null);
-          }}
-        />
-      )}
       {quickOpen.mode && (
         <QuickOpen key={quickOpen.mode} mode={quickOpen.mode} context={quickOpen.context} items={quickOpen.items} onPick={quickOpen.pick} onClose={quickOpen.close} />
       )}

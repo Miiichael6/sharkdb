@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
+import type { MenuScriptKind } from "../../shell/domain/menuScripts";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import { Spinner } from "../../../shared/ui/common";
 import { MenuList } from "../../../shared/ui/MenuList";
@@ -28,12 +29,15 @@ export type Action =
   | "dropCollection"
   | "editIndex"
   | "dropIndex"
+  | "rebuildIndexes"
   | "view"
   | "addUser"
   | "editUser"
   | "dropUser"
   | "copyCollection"
-  | "removeFunction";
+  | "duplicateCollection"
+  | "removeFunction"
+  | MenuScriptKind;
 
 type MenuItem = { label: string; action: Action; danger?: boolean; disabled?: boolean } | "sep";
 
@@ -51,6 +55,7 @@ function menuFor(n: TreeNode): MenuItem[] {
         { label: "Info del host", action: "hostInfo" },
         { label: "Versión de MongoDB", action: "buildInfo" },
         "sep",
+        { label: "Ver log", action: "showLog" },
         { label: "Desconectar", action: "disconnect" },
       ];
     case "systemDbs":
@@ -79,19 +84,30 @@ function menuFor(n: TreeNode): MenuItem[] {
         ];
       }
       return [
-        { label: "Abrir shell", action: "openShell" },
-        { label: "Estadísticas", action: "collStats" },
+        { label: "Ver documentos", action: "viewDocuments" },
+        "sep",
         { label: "Insertar documento…", action: "insertDocument" },
-        { label: "Añadir índice…", action: "addIndex" },
+        { label: "Actualizar documentos…", action: "updateDocuments" },
+        { label: "Eliminar documentos…", action: "removeDocuments" },
+        { label: "Eliminar todos los documentos…", action: "removeAllDocuments", danger: true },
         "sep",
         { label: "Renombrar colección…", action: "renameCollection" },
+        { label: "Duplicar colección…", action: "duplicateCollection" },
         { label: "Copiar colección a base de datos…", action: "copyCollection" },
-        { label: "Eliminar todos los documentos…", action: "removeAllDocuments", danger: true },
         { label: "Eliminar colección…", action: "dropCollection", danger: true },
+        "sep",
+        { label: "Estadísticas", action: "collStats" },
+        { label: "Añadir índice…", action: "addIndex" },
+        "sep",
+        { label: "Versión de shard", action: "shardVersion" },
+        { label: "Distribución de shards", action: "shardDistribution" },
       ];
     case "indexes":
       return [
+        { label: "Ver índices", action: "viewIndexes" },
         { label: "Añadir índice…", action: "addIndex" },
+        { label: "Reconstruir índices…", action: "rebuildIndexes" },
+        "sep",
         { label: "Refrescar", action: "refresh" },
       ];
     case "index": {

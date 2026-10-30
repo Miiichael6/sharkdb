@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
 import { useServices } from "../../../app/services";
-import type { TreeNode } from "../../explorer/domain/tree";
+import type { NodeKind, TreeNode } from "../../explorer/domain/tree";
 import {
   activateTab,
   closeSessionTabs,
   closeTab,
   DEFAULT_SHELL_DB,
-  defaultQuery,
   duplicateTab,
   EMPTY_TABS,
   markSaved,
@@ -17,19 +16,24 @@ import {
   type NewTab,
   type ShellTab,
 } from "../domain/tabs";
+import { menuScript, type MenuScriptKind } from "../domain/menuScripts";
 
 export type ShellTabs = ReturnType<typeof useShellTabs>;
 
+/** Nodes whose shell tab works on their collection. */
+const COLLECTION_NODES: NodeKind[] = ["collection", "indexes"];
+
 /**
- * New tab for a tree node: on its database (or the default one). On a collection it starts with the
- * default query and, when `run`, runs it right away (opening a collection from the explorer).
+ * New tab for a tree node: on its database (or the default one). It starts with `script` (the
+ * default query unless told otherwise) when the node has what it needs (a collection, or nothing for
+ * a server script) and, when `run` and the script allows it, runs it right away.
  */
-export function tabForNode(node: TreeNode, serverLabel: string, run = false): NewTab {
+export function tabForNode(node: TreeNode, serverLabel: string, run = false, script: MenuScriptKind = "viewDocuments"): NewTab {
   const db = node.db ?? DEFAULT_SHELL_DB;
-  if (node.kind === "collection" && node.coll) {
-    return { sid: node.sid, serverLabel, db, coll: node.coll, code: defaultQuery(node.coll), runOnOpen: run };
-  }
-  return { sid: node.sid, serverLabel, db };
+  const coll = COLLECTION_NODES.includes(node.kind) ? node.coll : undefined;
+  const found = menuScript(script, coll);
+  if (!found) return { sid: node.sid, serverLabel, db };
+  return { sid: node.sid, serverLabel, db, coll, code: found.code, runOnOpen: run && found.run };
 }
 
 /**

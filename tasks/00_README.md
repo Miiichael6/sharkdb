@@ -88,6 +88,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 14 | [Backup y restore de base de datos](pending/14_backup_restore.md) | 9 Operaciones de BD | 12, 13 | ⬜ Pendiente |
 | 15 | [Sincronizar entre entornos](pending/15_sincronizar_bd.md) | 9 Operaciones de BD | 09, 14 | ⬜ Pendiente |
 | 16 | [Servidor MCP y actividad MCP](pending/16_servidor_mcp.md) | 10 MCP | 13 | ⛔ Bloqueada (D8, pospuesta) |
+| 17 | [Menú contextual completo de colección](done/17_menu_coleccion.md) | 7 Administración | 09, 13 | ✅ Terminada (prueba manual pendiente en la UI) |
+| 18 | [Confirmaciones en ventanas modales](done/18_ventanas_confirmacion.md) | 8 Barra de herramientas | 12 | ✅ Terminada (prueba manual pendiente) |
+| 19 | [Menús de índices y conexión como Robo 3T](done/19_menus_indices_conexion.md) | 7 Administración | 17, 18 | ✅ Terminada (prueba manual pendiente) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -130,6 +133,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R32 Actividad MCP | 16 |
 | R33 Botón de ajustes (settings) | 08 |
 | R34 Píldora de estado en la barra: entorno (color de la etiqueta) · versión · conexión : BD : colección | 11 |
+| R35 Menú de colección como Robo 3T: ver/actualizar/eliminar documentos, duplicar, versión y distribución de shards | 17 |
+| R36 Confirmaciones como sub-ventanas modales (solo X, bloquean la principal) | 18 |
+| R37 Menús de índices (ver, reconstruir) y conexión (ver log) como Robo 3T | 19 |
 
 ## Diagrama de dependencias
 
@@ -142,4 +148,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
          ├→ 08          │
 06 ──────┴→ 13 ─┬───────┴→ 14 → 15 (+09)
                 └→ 16
+09, 13 → 17
+12 → 18
+17, 18 → 19
 ```
