@@ -1,6 +1,6 @@
 # 12 · Apertura rápida y acciones rápidas de base de datos
 
-**Estado:** 🔄 En progreso (falta la prueba manual en la app)
+**Estado:** ✅ Terminada (prueba manual con 3 conexiones pendiente en la UI)
 **Fase:** 8 Barra de herramientas · **Depende de:** 11 · **Doc:** R25, R26
 
 ## Objetivo
@@ -19,7 +19,7 @@ Una paleta para abrir una conexión o una base de datos escribiendo su nombre, y
 - [ ] Prueba real: con 3 conexiones y varias BDs, abrir cada una solo con teclado; lanzar "Nueva colección" y "Abrir en mongosh" desde acciones rápidas
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test`, `npm run build` pasan
-- [ ] Commit: `feat(workspace): paleta de apertura rápida y acciones de BD` (propuesto, pendiente del usuario)
+- [x] Commit: `feat(workspace): paleta de apertura rápida y acciones de BD`
 
 ## Criterios de aceptación
 - [ ] Se abre cualquier conexión o BD sin usar el ratón
@@ -33,3 +33,4 @@ Una paleta para abrir una conexión o una base de datos escribiendo su nombre, y
 - 2026-10-30: Fuera de alcance, a petición del usuario: menús contextuales sin scroll (se abren arriba/abajo según el sitio) y menú de resultados completo como Robo 3T (expandir/colapsar recursivo, copiar nombre/JSON, iconos).
 - 2026-10-30: Revisión: los atajos válidos en el editor se capturan antes que CodeMirror (Ctrl+Shift+K borraba la línea); el contexto vuelve a la pestaña al hacer clic o enfocarla.
 - 2026-10-30: Prueba manual con 3 conexiones pendiente del usuario (no hay MongoDB ni UI interactiva en este entorno); verificado con tests, `tsc` y build.
+- 2026-10-30: Cerrada a petición del usuario y unida a `main` (antes `master`); la prueba manual queda pendiente en la UI, como en 06.

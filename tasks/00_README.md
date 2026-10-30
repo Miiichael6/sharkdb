@@ -83,7 +83,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 09 | [Administración: usuarios y copia de colecciones](pending/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ⬜ Pendiente |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |
 | 11 | [Barra de herramientas del workspace](done/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | ✅ Terminada |
-| 12 | [Apertura rápida y acciones rápidas de BD](in_progress/12_apertura_rapida_y_acciones.md) | 8 Barra de herramientas | 11 | 🔄 En progreso (falta prueba manual) |
+| 12 | [Apertura rápida y acciones rápidas de BD](done/12_apertura_rapida_y_acciones.md) | 8 Barra de herramientas | 11 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 13 | [Safe mode y centro de notificaciones](pending/13_safe_mode_notificaciones.md) | 8 Barra de herramientas | 06, 11 | ⬜ Pendiente |
 | 14 | [Backup y restore de base de datos](pending/14_backup_restore.md) | 9 Operaciones de BD | 12, 13 | ⬜ Pendiente |
 | 15 | [Sincronizar entre entornos](pending/15_sincronizar_bd.md) | 9 Operaciones de BD | 09, 14 | ⬜ Pendiente |
