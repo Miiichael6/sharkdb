@@ -3,7 +3,7 @@ import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { useLog } from "../../../shared/ui/useLog";
 import type { CursorPager } from "../application/cursorPager";
-import type { ScriptOutcome } from "../domain/outcome";
+import { elapsedText, type ScriptOutcome } from "../domain/outcome";
 import type { ShellTab } from "../domain/tabs";
 
 export interface RunState {
@@ -45,7 +45,7 @@ export function useShellRun(tab: ShellTab) {
           const at = outcome.error.line ? ` (línea ${outcome.error.line})` : "";
           log.error(`Error en ${where}${at}: ${outcome.error.message}`);
         } else {
-          log.info(`Script ejecutado en ${where} (${outcome.elapsedMs} ms)`);
+          log.info(`Script ejecutado en ${where} (${elapsedText(outcome.elapsedMs)})`);
         }
       } catch (e) {
         setState({ ...IDLE, failure: errorMessage(e) });

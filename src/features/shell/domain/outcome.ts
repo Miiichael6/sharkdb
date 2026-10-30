@@ -54,6 +54,11 @@ export function pageOf(buffer: Doc[], skip: number, limit: number, exhausted: bo
   return { documents: buffer.slice(skip, end), hasMore: buffer.length > end || !exhausted };
 }
 
+/** How long a run took, in seconds like Robo 3T: `0.012 s`, `2.350 s`. */
+export function elapsedText(ms: number): string {
+  return `${(ms / 1000).toFixed(3)} s`;
+}
+
 const ERROR_TITLE: Record<ScriptErrorKind, string> = {
   script: "Error",
   timeout: "Tiempo agotado",

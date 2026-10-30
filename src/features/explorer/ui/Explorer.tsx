@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Spinner } from "../../../shared/ui/common";
 import { MenuList } from "../../../shared/ui/MenuList";
-import { FOLDER_KINDS, isLeaf, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
+import { FOLDER_KINDS, isLeaf, parentKey, type TreeNode } from "../domain/tree";
+import { NodeIcon } from "./NodeIcon";
 import type { Tree } from "./useTree";
 
 export type Action =
@@ -253,68 +254,4 @@ export function Explorer({ tree, onAction }: Props) {
 /** Folders that hold preset children (System) count as their contents, like Robo 3T. */
 function countOf(kids: TreeNode[]): number {
   return kids.reduce((n, k) => n + (k.data?.children ? k.data.children.length : 1), 0);
-}
-
-function NodeIcon({ kind, view, open }: { kind: NodeKind; view: boolean; open: boolean }) {
-  const p = { width: 15, height: 15, viewBox: "0 0 16 16", "aria-hidden": true, className: `icon icon-${kind}` };
-  switch (kind) {
-    case "server":
-      return (
-        <svg {...p}>
-          <rect x="1.5" y="2.5" width="13" height="8.5" rx="1.2" fill="none" stroke="currentColor" />
-          <path d="M5 14h6M8 11v3" stroke="currentColor" />
-        </svg>
-      );
-    case "database":
-      return (
-        <svg {...p}>
-          <ellipse cx="8" cy="3.5" rx="5.5" ry="2" fill="none" stroke="currentColor" />
-          <path d="M2.5 3.5v9c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2v-9M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2" fill="none" stroke="currentColor" />
-        </svg>
-      );
-    case "collection":
-      return view ? (
-        <svg {...p}>
-          <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8Z" fill="none" stroke="currentColor" />
-          <circle cx="8" cy="8" r="2" fill="currentColor" />
-        </svg>
-      ) : (
-        <svg {...p}>
-          <rect x="2" y="2" width="12" height="12" rx="1.2" fill="none" stroke="currentColor" />
-          <path d="M2 6h12M2 10h12M6 6v8" stroke="currentColor" />
-        </svg>
-      );
-    case "index":
-      return (
-        <svg {...p}>
-          <circle cx="5" cy="8" r="3" fill="none" stroke="currentColor" />
-          <path d="M8 8h7M12.5 8v3M14.5 8v2" stroke="currentColor" />
-        </svg>
-      );
-    case "user":
-      return (
-        <svg {...p}>
-          <circle cx="8" cy="5" r="3" fill="none" stroke="currentColor" />
-          <path d="M2.5 15c0-3 2.5-5 5.5-5s5.5 2 5.5 5" fill="none" stroke="currentColor" />
-        </svg>
-      );
-    case "function":
-      return (
-        <svg {...p}>
-          <text x="3" y="13" fontSize="13" fontStyle="italic" fontFamily="serif" fill="currentColor">
-            f
-          </text>
-        </svg>
-      );
-    default:
-      return (
-        <svg {...p}>
-          {open ? (
-            <path d="M1.5 4V13h11l2.5-6H4L1.5 13M1.5 4V3h4.5l1.5 1.5H12V7" fill="none" stroke="currentColor" />
-          ) : (
-            <path d="M1.5 3h4.5l1.5 1.5h7v8.5h-13Z" fill="none" stroke="currentColor" />
-          )}
-        </svg>
-      );
-  }
 }

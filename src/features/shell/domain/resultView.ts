@@ -1,5 +1,5 @@
 // How a result's documents are laid out in the tree and table views.
-import { summarizeValue, type DateZone } from "./bsonFormat";
+import { formatValue, summarizeValue, type DateZone } from "./bsonFormat";
 import { BSON_TYPE_LABEL, bsonValue, childrenOf, isContainer, type BsonType } from "./bsonValue";
 
 export type ViewMode = "tree" | "table" | "text";
@@ -70,6 +70,20 @@ export function visibleTreeRows(docs: unknown[], firstNumber: number, expanded: 
   const rows: TreeRow[] = [];
   docs.forEach((doc, i) => pushRows(rows, doc, i, [], documentKey(doc, firstNumber + i, zone), expanded, zone));
   return rows;
+}
+
+export type TreeColumn = "key" | "value" | "type";
+
+/**
+ * What Ctrl+C copies from a tree cell, like Robo 3T: the field name, the value (strings as plain text,
+ * anything else as shell syntax: `ObjectId("…")`, a whole sub-document) or the type name. A document's
+ * own key copies the whole document.
+ */
+export function cellText(row: TreeRow, column: TreeColumn, doc: unknown, zone: DateZone): string {
+  if (column === "type") return row.typeLabel;
+  if (column === "key") return row.depth === 0 ? formatValue(doc, zone) : row.key;
+  const value = bsonValue(row.raw);
+  return value.type === "string" ? value.value : formatValue(row.raw, zone);
 }
 
 export function toggleExpanded(expanded: ReadonlySet<string>, id: string): Set<string> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingForPage, pageOf, scriptErrorText } from "./outcome";
+import { elapsedText, missingForPage, pageOf, scriptErrorText } from "./outcome";
 
 const docs = (n: number) => Array.from({ length: n }, (_, i) => ({ _id: i }));
 
@@ -36,5 +36,13 @@ describe("scriptErrorText", () => {
       "Error (línea 3, columna 5): x is not defined",
     );
     expect(scriptErrorText({ kind: "cancelled", message: "interrumpido", line: null, column: null })).toBe("Detenido: interrumpido");
+  });
+});
+
+describe("elapsedText", () => {
+  it("shows the time in seconds with millisecond precision", () => {
+    expect(elapsedText(12)).toBe("0.012 s");
+    expect(elapsedText(2350)).toBe("2.350 s");
+    expect(elapsedText(0)).toBe("0.000 s");
   });
 });

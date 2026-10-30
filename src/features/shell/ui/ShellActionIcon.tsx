@@ -1,4 +1,4 @@
-export type ShellAction = "run" | "stop" | "open" | "save" | "format" | "hideEditor" | "showEditor";
+export type ShellAction = "run" | "stop" | "open" | "save" | "format" | "hideEditor" | "showEditor" | "time";
 
 // Lucide-style outlines: 24-unit grid drawn at 16px, rounded joins.
 const props = {
@@ -46,6 +46,15 @@ export function ShellActionIcon({ action }: { action: ShellAction }) {
         <svg {...props}>
           <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1" />
           <path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
+        </svg>
+      );
+    case "time":
+      return (
+        <svg {...props} stroke="none" fill="currentColor">
+          <path
+            fillRule="evenodd"
+            d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm1.2 5.5a1.2 1.2 0 0 0-2.4 0V12c0 .4.2.8.5 1l3.2 2.2a1.2 1.2 0 1 0 1.4-2l-2.7-1.8Z"
+          />
         </svg>
       );
     case "hideEditor":

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServices } from "../../../app/services";
 import { StackSplit, type TopFit } from "../../../shared/ui/StackSplit";
+import { NodeIcon } from "../../explorer/ui/NodeIcon";
 import { formatScript } from "../domain/formatScript";
+import { elapsedText } from "../domain/outcome";
 import type { ShellTab as Tab } from "../domain/tabs";
 import { shellCompletionSource } from "./completionSource";
 import { QueryEditor } from "./QueryEditor";
@@ -96,8 +98,26 @@ export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Prop
     <section className="shell-tab" hidden={!active} aria-label={`Shell ${tab.title}`}>
       <header className="shell-head">
         <span className="shell-where">
-          <strong>{tab.serverLabel}</strong> · {tab.db}
-          {run.outcome && <span className="muted"> · {run.outcome.elapsedMs} ms</span>}
+          <span className="where-part" title="Servidor">
+            <NodeIcon kind="server" size={14} />
+            <strong>{tab.serverLabel}</strong>
+          </span>
+          <span className="where-part" title="Base de datos">
+            <NodeIcon kind="database" size={14} />
+            {tab.db}
+          </span>
+          {tab.coll && (
+            <span className="where-part" title="Colección">
+              <NodeIcon kind="collection" size={14} />
+              {tab.coll}
+            </span>
+          )}
+          {run.outcome && (
+            <span className="where-part muted" title="Tiempo de la consulta">
+              <ShellActionIcon action="time" />
+              {elapsedText(run.outcome.elapsedMs)}
+            </span>
+          )}
         </span>
         <span className="spacer" />
         {run.running ? (

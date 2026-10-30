@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cellText,
   documentKey,
   documentsOf,
   lookup,
@@ -86,5 +87,22 @@ describe("documentsOf", () => {
     expect(documentsOf({ $numberLong: "5" })).toBeNull();
     expect(documentsOf([1, { a: 1 }])).toBeNull();
     expect(documentsOf([])).toBeNull();
+  });
+});
+
+describe("cellText", () => {
+  const rows = visibleTreeRows(docs, 1, new Set([rowId(0, [])]), "utc");
+  const row = (key: string) => rows.find((r) => r.key === key)!;
+
+  it("copies the field name, the type name, or the whole document from its own row", () => {
+    expect(cellText(row("name"), "key", docs[0], "utc")).toBe("name");
+    expect(cellText(row("_id"), "type", docs[0], "utc")).toBe("ObjectId");
+    expect(cellText(rows[0], "key", docs[0], "utc")).toContain('"name" : "Lima"');
+  });
+
+  it("copies strings as plain text and other values in shell syntax", () => {
+    expect(cellText(row("name"), "value", docs[0], "utc")).toBe("Lima");
+    expect(cellText(row("_id"), "value", docs[0], "utc")).toBe('ObjectId("5f1d7a3c9b1e8a0012345678")');
+    expect(cellText(row("tags"), "value", docs[0], "utc")).toContain('"a"');
   });
 });

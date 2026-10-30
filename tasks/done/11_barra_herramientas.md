@@ -1,6 +1,6 @@
 # 11 · Barra de herramientas del workspace
 
-**Estado:** 🔄 En progreso
+**Estado:** ✅ Terminada
 **Fase:** 8 Barra de herramientas · **Depende de:** 04 · **Doc:** R21, R22, R23, R24, R34
 
 ## Objetivo
@@ -46,4 +46,4 @@ El `ws-header` actual se sustituye por una barra de herramientas estilo TablePlu
 - 2026-10-30: Safe mode, notificaciones y acciones rápidas no entran en la barra todavía: dependen de 12 y 13, que añadirán sus botones a `TOOLBAR_LAYOUT`.
 - 2026-10-30: La barra se compone en `src/app/WorkspaceToolbar.tsx` vía el slot `renderToolbar` de `Workspace`, para no importar UI de shell desde explorer.
 - 2026-10-30: mongosh recibe la URI guardada en la sesión (con `authSource` y túnel SSH reescritos); en Windows usa `wt` si existe y, si no, su propia consola sin pasar por `cmd` (evita interpretar `&`/`%` de la URI).
-- 2026-10-30: Prueba real en la app pendiente del usuario (tsc, vitest 130, build y cargo test 59 en verde); la tarea sigue en curso hasta hacerla.
+- 2026-10-30: Cerrada tras la prueba del usuario; se añadieron además árbol de resultados (iconos, Ctrl+C como Robo 3T) y tema Monokai Vibrant en la shell.

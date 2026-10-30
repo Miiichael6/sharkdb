@@ -1,9 +1,9 @@
 import { javascript } from "@codemirror/lang-javascript";
 import { EditorState, type Extension } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
+import { monokaiVibrant } from "./monokaiVibrant";
 
 interface Props {
   value: string;
@@ -17,7 +17,7 @@ interface Props {
   className: string;
 }
 
-const fillParent = EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { fontFamily: '"Cascadia Mono", Consolas, monospace' } });
+const fillParent = EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { fontFamily: '"Fira Code", "Cascadia Mono", Consolas, monospace', fontVariantLigatures: "contextual" } });
 
 const readOnlySetup = [EditorState.readOnly.of(true), EditorView.editable.of(false)];
 
@@ -41,7 +41,7 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
           ...extensions,
           basicSetup,
           javascript(),
-          oneDark,
+          monokaiVibrant,
           fillParent,
           readOnly ? readOnlySetup : [],
           EditorView.updateListener.of((u) => u.docChanged && changed.current?.(u.state.doc.toString())),
