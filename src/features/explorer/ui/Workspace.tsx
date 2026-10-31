@@ -5,6 +5,9 @@ import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
 import { useNotify } from "../../../shared/ui/useNotifications";
+import { backupSummary, restoreSummary } from "../../backup/domain/backupSpec";
+import { BackupDialog } from "../../backup/ui/BackupDialog";
+import { RestoreDialog } from "../../backup/ui/RestoreDialog";
 import { displayName } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
@@ -56,6 +59,8 @@ export function Workspace(props: Props) {
   const { explorer, terminal } = useServices();
   const tree = useTree(roots, explorer.loadChildren);
   const [panel, setPanel] = useState<{ key: string; mode: PanelMode } | null>(null);
+  // Backup and restore run in their own dialogs, open while the job runs.
+  const [operation, setOperation] = useState<{ kind: "backup" | "restore"; node: TreeNode } | null>(null);
   const { ok, fail } = useNotify();
   const isReadOnly = useReadOnly();
   const log = useLog();
@@ -88,8 +93,12 @@ export function Workspace(props: Props) {
     else if (action === "openShell") onOpenShell(n);
     else if (isMenuScript(action)) onOpenShell(n, action);
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
+    else if ((action === "backupDatabase" || action === "restoreDatabase") && n.db)
+      setOperation({ kind: action === "backupDatabase" ? "backup" : "restore", node: n });
     else actions.onAction(action, n);
   };
+
+  const connectionName = (sid: string) => roots.find((r) => r.sid === sid)?.label ?? sid;
 
   const selected = tree.node(tree.selected) ?? roots[0];
   const controls: WorkspaceControls = {
@@ -135,6 +144,32 @@ export function Workspace(props: Props) {
         onSubmitUser={actions.submitUser}
         onCopy={actions.submitCopy}
       />
+
+      {operation?.kind === "backup" && (
+        <BackupDialog
+          sid={operation.node.sid}
+          db={operation.node.db!}
+          connection={connectionName(operation.node.sid)}
+          onDone={(results) => {
+            setOperation(null);
+            ok(backupSummary(operation.node.db!, results));
+          }}
+          onClose={() => setOperation(null)}
+        />
+      )}
+      {operation?.kind === "restore" && (
+        <RestoreDialog
+          sessions={sessions}
+          initial={{ sid: operation.node.sid, db: operation.node.db! }}
+          onDone={(results, target) => {
+            setOperation(null);
+            // The destination may be a new database or have new collections.
+            actions.refreshAll();
+            ok(`${restoreSummary(target.db, results)} · ${connectionName(target.sid)}`);
+          }}
+          onClose={() => setOperation(null)}
+        />
+      )}
     </div>
   );
 }

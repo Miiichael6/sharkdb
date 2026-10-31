@@ -29,12 +29,15 @@ const DB_NAME_FORBIDDEN = /[/\\. "$*<>:|?]/;
 const COLL_NAME_FORBIDDEN = /\$/;
 const SYSTEM_PREFIX = "system.";
 
+/** Whether MongoDB accepts `db` as a database name (on every platform). */
+export const isValidDbName = (db: string) => !DB_NAME_FORBIDDEN.test(db);
+
 /** Checks the destination and trims its names. Throws the message to show. */
 export function validateCopy(r: CopyRequest): CopyRequest {
   const target = { db: r.target.db.trim(), coll: r.target.coll.trim() };
   if (!target.db) throw TARGET_DB_REQUIRED;
   if (!target.coll) throw TARGET_COLL_REQUIRED;
-  if (DB_NAME_FORBIDDEN.test(target.db)) throw INVALID_DB_NAME;
+  if (!isValidDbName(target.db)) throw INVALID_DB_NAME;
   if (COLL_NAME_FORBIDDEN.test(target.coll) || target.coll.startsWith(SYSTEM_PREFIX)) throw INVALID_COLL_NAME;
   if (r.source.db === target.db && r.source.coll === target.coll) throw TARGET_IS_SOURCE;
   return { ...r, target };

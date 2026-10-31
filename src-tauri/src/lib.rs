@@ -1,3 +1,4 @@
+mod backup;
 mod files;
 mod mongo;
 mod safe_mode;
@@ -14,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(mongo::Sessions::default())
         .manage(shell::ShellSessions::default())
+        .manage(backup::BackupJobs::default())
         .invoke_handler(tauri::generate_handler![
             store::load_connections,
             store::save_connections,
@@ -33,6 +35,10 @@ pub fn run() {
             shell::commands::close_shell,
             shell::commands::eval_document,
             terminal::open_mongosh,
+            backup::commands::backup_database,
+            backup::commands::restore_database,
+            backup::commands::read_backup_folder,
+            backup::commands::cancel_backup_job,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

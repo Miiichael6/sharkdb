@@ -99,8 +99,8 @@ export const QUICK_DB_ACTIONS: QuickAction[] = [
   { id: "dbStats", label: "Estadísticas" },
   { id: "refresh", label: "Refrescar" },
   { id: "openMongosh", label: "Abrir en mongosh" },
-  { id: "backup", label: "Backup…", pending: "Disponible con la tarea de backup y restore" },
-  { id: "restore", label: "Restore…", pending: "Disponible con la tarea de backup y restore" },
+  { id: "backup", label: "Backup…" },
+  { id: "restore", label: "Restore…" },
   { id: "sync", label: "Sincronizar con otro entorno…", pending: "Disponible con la tarea de sincronización" },
 ];
 

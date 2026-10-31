@@ -67,6 +67,7 @@ export function WorkspaceToolbar(props: Props) {
     layout.showSidebar();
     controls.reveal(node);
   };
+  const targetDatabase = databaseNodes.find((n) => n.db === target?.db);
   const newDatabase = () =>
     session && controls.runAction("createDatabase", serverNode(session.conn.id, displayName(session.conn)));
   const showDatabases = async () => {
@@ -122,6 +123,16 @@ export function WorkspaceToolbar(props: Props) {
       hint: "Ctrl+S",
       disabled: !tabs.active,
       onSelect: () => tabs.active && files.save(tabs.active),
+    },
+    {
+      label: "Backup de base de datos…",
+      disabled: !targetDatabase,
+      onSelect: () => targetDatabase && controls.runAction("backupDatabase", targetDatabase),
+    },
+    {
+      label: "Restaurar base de datos…",
+      disabled: !targetDatabase,
+      onSelect: () => targetDatabase && controls.runAction("restoreDatabase", targetDatabase),
     },
     { label: layout.logsOpen ? "Ocultar logs" : "Mostrar logs", onSelect: layout.toggleLogs },
     { label: "Acerca de Robo3B", onSelect: () => setAboutOpen(true) },

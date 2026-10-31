@@ -1857,3 +1857,76 @@ table.grid {
   color: var(--muted);
   cursor: default;
 }
+
+/* ---------- backup / restore ---------- */
+
+.modal.backup-dialog {
+  width: 520px;
+}
+.backup-path {
+  margin: -6px 0 12px;
+  word-break: break-all;
+}
+.backup-target .stack {
+  flex: 1;
+  min-width: 0;
+}
+.backup-target select {
+  width: 100%;
+}
+.checklist {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 12px;
+}
+.checklist-all {
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+}
+.checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.checklist-items .check {
+  display: flex;
+}
+.restore-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  background: rgb(245 176 65 / 0.1);
+}
+.restore-banner.blocked {
+  border-color: var(--danger);
+  background: rgb(240 82 82 / 0.1);
+}
+.job-progress {
+  margin: 12px 0 0;
+}
+.job-progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.job-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.job-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
