@@ -12,11 +12,10 @@ interface Props {
   targetName: string;
   /** Opened from a collection: its database starts expanded. */
   initiallyExpanded?: string;
-  disabled: boolean;
 }
 
 /** "Qué copiar": the source's databases, whole or by collection, across several databases. */
-export function DatabasePicker({ catalog, loading, selection, onChange, targetName, initiallyExpanded, disabled }: Props) {
+export function DatabasePicker({ catalog, loading, selection, onChange, targetName, initiallyExpanded }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(initiallyExpanded ? [initiallyExpanded] : []));
   const toggleExpanded = (db: string) =>
     setExpanded((current) => {
@@ -31,10 +30,10 @@ export function DatabasePicker({ catalog, loading, selection, onChange, targetNa
         <b>Qué copiar{targetName && ` a ${targetName}`}</b>
         {loading && <Spinner />}
         <span className="spacer" />
-        <button type="button" onClick={() => onChange(selectEverything(catalog))} disabled={disabled || !catalog.length}>
+        <button type="button" onClick={() => onChange(selectEverything(catalog))} disabled={!catalog.length}>
           Todas completas
         </button>
-        <button type="button" className="link" onClick={() => onChange({})} disabled={disabled || !Object.keys(selection).length}>
+        <button type="button" className="link" onClick={() => onChange({})} disabled={!Object.keys(selection).length}>
           Limpiar
         </button>
       </header>
@@ -49,7 +48,6 @@ export function DatabasePicker({ catalog, loading, selection, onChange, targetNa
             onChange={onChange}
             expanded={expanded.has(database.name)}
             onToggleExpanded={() => toggleExpanded(database.name)}
-            disabled={disabled}
           />
         ))}
       </div>

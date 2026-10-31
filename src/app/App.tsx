@@ -22,6 +22,7 @@ import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
 import { useNotify } from "../shared/ui/useNotifications";
+import { WithOperationsPanel } from "./operations/WithOperationsPanel";
 import { useServices } from "./services";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
@@ -151,7 +152,9 @@ function App() {
             />
           )}
           renderMain={(details, selected) => (
-            <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
+            <WithOperationsPanel>
+              <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
+            </WithOperationsPanel>
           )}
         />
       )}

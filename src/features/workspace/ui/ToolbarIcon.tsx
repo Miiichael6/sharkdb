@@ -71,6 +71,13 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
           <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
         </svg>
       );
+    case "operations":
+      return (
+        <svg {...props} strokeLinecap="round">
+          <path d="M2.5 4.5h8M2.5 8h5M2.5 11.5h7" />
+          <path d="M12 6.5v5M10 9.5l2 2 2-2" strokeLinejoin="round" />
+        </svg>
+      );
     case "notifications":
       return (
         <svg {...props} strokeLinecap="round" strokeLinejoin="round">

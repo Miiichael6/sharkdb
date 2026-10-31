@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import { ModalWindow } from "./app/ModalWindow";
+import { OperationsProvider } from "./app/operations/useOperations";
 import { createServices, ServicesProvider } from "./app/services";
 import { DocumentActionsProvider } from "./features/documents/ui/DocumentActionsProvider";
 import { currentModalView } from "./shared/ui/modalWindow";
@@ -18,9 +19,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <ServicesProvider services={createServices()}>
         <LogProvider>
           <NotificationsProvider>
-            <DocumentActionsProvider>
-              <App />
-            </DocumentActionsProvider>
+            <OperationsProvider>
+              <DocumentActionsProvider>
+                <App />
+              </DocumentActionsProvider>
+            </OperationsProvider>
           </NotificationsProvider>
         </LogProvider>
       </ServicesProvider>

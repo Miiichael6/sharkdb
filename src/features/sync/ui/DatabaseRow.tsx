@@ -10,11 +10,10 @@ interface Props {
   onChange: (selection: Selection) => void;
   expanded: boolean;
   onToggleExpanded: () => void;
-  disabled: boolean;
 }
 
 /** One database of the source: its checkbox copies it whole; expanded, single collections are chosen. */
-export function DatabaseRow({ database, selection, onChange, expanded, onToggleExpanded, disabled }: Props) {
+export function DatabaseRow({ database, selection, onChange, expanded, onToggleExpanded }: Props) {
   const [query, setQuery] = useState("");
   const state = databaseState(selection, database);
   const chosen = selection[database.name] ?? [];
@@ -26,10 +25,10 @@ export function DatabaseRow({ database, selection, onChange, expanded, onToggleE
         <TriStateCheckbox
           state={state}
           onChange={() => onChange(toggleDatabase(selection, database))}
-          disabled={disabled || empty}
+          disabled={empty}
           aria-label={`Copiar ${database.name} completa`}
         />
-        <b className="sync-db-name" onClick={() => !disabled && !empty && onChange(toggleDatabase(selection, database))}>
+        <b className="sync-db-name" onClick={() => !empty && onChange(toggleDatabase(selection, database))}>
           {database.name}
         </b>
         <span className="muted small">
@@ -58,7 +57,6 @@ export function DatabaseRow({ database, selection, onChange, expanded, onToggleE
                   type="checkbox"
                   checked={chosen.includes(name)}
                   onChange={() => onChange(toggleCollection(selection, database, name))}
-                  disabled={disabled}
                 />
                 <span>{name}</span>
               </label>

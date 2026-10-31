@@ -22,14 +22,16 @@ interface Props {
   disabled: Partial<Record<ToolbarActionId, boolean>>;
   menuItems: ContextMenuItem[];
   status: StatusContext | null;
+  /** Counters over other buttons than the notifications one (e.g. running operations). */
+  badges?: Partial<Record<ToolbarActionId, string>>;
 }
 
 /** Workspace toolbar in the style of TablePlus: button groups around the status pill. */
-export function Toolbar({ handlers, pressed, disabled, menuItems, status }: Props) {
+export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges: extraBadges }: Props) {
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
   const { unread } = useNotifications();
-  const badges: Partial<Record<ToolbarActionId, string>> = { notifications: unread ? badgeText(unread) : undefined };
+  const badges: Partial<Record<ToolbarActionId, string>> = { ...extraBadges, notifications: unread ? badgeText(unread) : undefined };
 
   const onButton = (id: ToolbarActionId, e: MouseEvent<HTMLButtonElement>) => {
     if (!isPopup(id)) return handlers[id]?.();

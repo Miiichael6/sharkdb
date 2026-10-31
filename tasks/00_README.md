@@ -67,7 +67,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D6** Backup/restore → **nativo en Rust con formato compatible con `mongodump`** (`<colección>.bson` + `<colección>.metadata.json`): sin dependencias que instalar, usa la misma conexión de la app (SSH/TLS de 07), progreso y cancelación propios, restaurable también con `mongorestore` (2026-10-30) → afecta 14
 - [x] **D7** Sync database → **restaurar entre entornos (p. ej. prod → QA) una BD completa o colecciones sueltas** (reemplaza el contenido del destino). Las conexiones se pueden marcar **protegidas** (prod): nunca son destino de restore/sync y abren con safe mode activo. El diálogo muestra siempre, de forma destacada, cuál es el origen y cuál el destino que se va a modificar (2026-10-30) → afecta 13, 15
 - [x] **D9** Flujo de operaciones de datos (aprobado por el usuario, 2026-10-30) → afecta 20, 21, 22:
-  - Sync, backup y restore usan **las mismas piezas**: sub-ventana de selección (origen → destino, selector multi-BD) → **Continuar** → sub-ventana "Se va a MODIFICAR" donde se escribe **`confirmo`** (solo si se modifica una BD; el backup no la pide).
+  - Sync, backup y restore usan **las mismas piezas**: sub-ventana de selección (origen → destino, selector multi-BD) → **Continuar** → sub-ventana "Se va a MODIFICAR" donde se escribe **`confirmo`**. Las tres la piden, también el backup (cambio del usuario, 2026-10-30).
   - El trabajo corre en **segundo plano** en un **panel lateral derecho "Operaciones"** con secciones Sync, Backup y Restore, con %. Cancelar se confirma en una sub-ventana.
   - Origen y destino salen de **todas las conexiones registradas** (todas MongoDB); las cerradas se conectan al elegirlas. Producción/protegidas nunca son destino, y la conexión elegida en un select se quita del otro.
   - "Clonar" no es una operación aparte: entre conexiones es el sync; dentro de la misma conexión es "Copiar colección" (09).
@@ -96,7 +96,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 17 | [Menú contextual completo de colección](done/17_menu_coleccion.md) | 7 Administración | 09, 13 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 18 | [Confirmaciones en ventanas modales](done/18_ventanas_confirmacion.md) | 8 Barra de herramientas | 12 | ✅ Terminada (prueba manual pendiente) |
 | 19 | [Menús de índices y conexión como Robo 3T](done/19_menus_indices_conexion.md) | 7 Administración | 17, 18 | ✅ Terminada (prueba manual pendiente) |
-| 20 | [Panel de operaciones en segundo plano](pending/20_panel_operaciones.md) | 9 Operaciones de BD | 15 | ⬜ Pendiente |
+| 20 | [Panel de operaciones en segundo plano](done/20_panel_operaciones.md) | 9 Operaciones de BD | 15 | ✅ Terminada |
 | 21 | [Sync en dos pasos: selección y confirmación](pending/21_sync_dos_pasos.md) | 9 Operaciones de BD | 20 | ⬜ Pendiente |
 | 22 | [Backup y restore con el mismo flujo que el sync](pending/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ⬜ Pendiente |
 

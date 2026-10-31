@@ -2,28 +2,21 @@ import { useState, type FormEvent } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { formatBytes } from "../../../shared/format";
-import type { CollectionResult } from "../../../shared/domain/jobs";
 import { CollectionChecklist } from "../../../shared/ui/CollectionChecklist";
-import { Modal, Spinner } from "../../../shared/ui/common";
+import { Modal } from "../../../shared/ui/common";
 import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
-import { JobProgressBar } from "../../../shared/ui/JobProgressBar";
-import { useJob } from "../../../shared/ui/useJob";
 import type { Session } from "../../connections/domain/session";
 import { TagBadge } from "../../connections/ui/TagBadge";
 import { Field } from "../../../shared/ui/Field";
-import { folderName, restoreTargets, type BackupEntry } from "../domain/backupSpec";
+import { folderName, restoreTargets, validateRestore, type BackupEntry, type RestoreRequest } from "../domain/backupSpec";
 import { FolderField } from "./FolderField";
-
-export interface RestoreTarget {
-  sid: string;
-  db: string;
-}
 
 interface Props {
   sessions: Session[];
   /** Where the dialog was opened from: the default destination. */
-  initial: RestoreTarget;
-  onDone: (results: CollectionResult[], target: RestoreTarget) => void;
+  initial: { sid: string; db: string };
+  /** The chosen restore, for the operations panel to run it. */
+  onDone: (request: RestoreRequest) => void;
   onClose: () => void;
 }
 
@@ -39,12 +32,12 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
   const [entries, setEntries] = useState<BackupEntry[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [dropBefore, setDropBefore] = useState(false);
-  const job = useJob();
+  const [error, setError] = useState("");
   const target = targets.find((t) => t.sid === sid);
 
   const readFolder = async (folder: string) => {
     if (!folder.trim()) return;
-    job.setError("");
+    setError("");
     try {
       const found = await backup.readFolder(folder);
       setEntries(found);
@@ -53,7 +46,7 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
     } catch (e) {
       setEntries([]);
       setSelected([]);
-      job.setError(errorMessage(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -73,16 +66,19 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (target?.blocked) return job.setError(target.blocked);
+    if (target?.blocked) return setError(target.blocked);
+    let request: RestoreRequest;
+    try {
+      request = validateRestore({ sid, db, dir, collections: selected, dropBefore });
+    } catch (err) {
+      return setError(errorMessage(err));
+    }
     if (dropBefore && !(await confirmDrop())) return;
-    const request = { sid, db, dir, collections: selected, dropBefore };
-    const results = await job.run((onProgress) => backup.restore(request, onProgress));
-    if (results) onDone(results, { sid, db: db.trim() });
+    onDone(request);
   };
-  const close = job.busy ? () => {} : onClose;
 
   return (
-    <Modal onClose={close} className="dialog backup-dialog">
+    <Modal onClose={onClose} className="dialog backup-dialog">
       <h3>Restaurar base de datos</h3>
       <form onSubmit={submit}>
         <FolderField
@@ -91,20 +87,20 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
           onChange={setDir}
           onBlur={() => void readFolder(dir)}
           onBrowse={browse}
-          disabled={job.busy}
+         
         />
         {entries.length > 0 && (
           <CollectionChecklist
             items={entries.map((e) => ({ name: e.collection, detail: formatBytes(e.bytes) }))}
             selected={selected}
             onChange={setSelected}
-            disabled={job.busy}
+           
           />
         )}
 
         <div className="inline backup-target">
           <Field label="Conexión de destino">
-            <select value={sid} onChange={(e) => setSid(e.target.value)} disabled={job.busy}>
+            <select value={sid} onChange={(e) => setSid(e.target.value)}>
               {targets.map((t) => (
                 <option key={t.sid} value={t.sid} disabled={!!t.blocked}>
                   {t.blocked ? `${t.name} — ${t.blocked}` : t.name}
@@ -113,11 +109,11 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
             </select>
           </Field>
           <Field label="Base de datos de destino">
-            <input value={db} onChange={(e) => setDb(e.target.value)} disabled={job.busy} spellCheck={false} />
+            <input value={db} onChange={(e) => setDb(e.target.value)} spellCheck={false} />
           </Field>
         </div>
         <label className="check">
-          <input type="checkbox" checked={dropBefore} onChange={(e) => setDropBefore(e.target.checked)} disabled={job.busy} />
+          <input type="checkbox" checked={dropBefore} onChange={(e) => setDropBefore(e.target.checked)} />
           Eliminar cada colección antes de restaurarla
         </label>
         <p className="muted small">Sin eliminar, los documentos cuyo _id ya existe se saltan.</p>
@@ -136,21 +132,14 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
           </div>
         )}
 
-        {job.busy && <JobProgressBar progress={job.progress} />}
-        {job.error && <p className="test error">{job.error}</p>}
+        {error && <p className="test error">{error}</p>}
         <div className="modal-footer">
           <span className="spacer" />
-          {job.busy ? (
-            <button type="button" onClick={job.cancel}>
-              Cancelar restore
-            </button>
-          ) : (
-            <button type="button" onClick={onClose}>
-              Cerrar
-            </button>
-          )}
-          <button type="submit" className={dropBefore ? "danger" : "primary"} disabled={job.busy || !!target?.blocked}>
-            {job.busy && <Spinner />} Restaurar
+          <button type="button" onClick={onClose}>
+            Cerrar
+          </button>
+          <button type="submit" className={dropBefore ? "danger" : "primary"} disabled={!!target?.blocked}>
+            Restaurar
           </button>
         </div>
       </form>

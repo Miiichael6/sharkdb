@@ -1,13 +1,8 @@
-import { useEffect, type FormEvent } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useServices } from "../../../app/services";
-import type { CollectionResult } from "../../../shared/domain/jobs";
-import { Spinner } from "../../../shared/ui/common";
+import { useEffect, useState, type FormEvent } from "react";
+import { errorMessage } from "../../../shared/errors";
 import { Field } from "../../../shared/ui/Field";
-import { JobProgressBar } from "../../../shared/ui/JobProgressBar";
-import { useJob } from "../../../shared/ui/useJob";
 import type { Session } from "../../connections/domain/session";
-import { confirmationMatches, originSelection, planLabel, syncPlan, syncRequest } from "../domain/syncPlan";
+import { confirmationMatches, originSelection, planLabel, syncPlan, syncRequest, validateSync, type SyncRequest } from "../domain/syncPlan";
 import { DatabasePicker } from "./DatabasePicker";
 import { SyncEndpoint } from "./SyncEndpoint";
 import { SyncPlanSummary } from "./SyncPlanSummary";
@@ -17,17 +12,17 @@ import { useSyncForm, type SyncOrigin } from "./useSyncForm";
 interface Props {
   sessions: Session[];
   origin: SyncOrigin;
-  onDone: (results: CollectionResult[], target: { sid: string; databases: number }) => void;
+  /** The confirmed sync, for the main window to run it in the background. */
+  onDone: (request: SyncRequest) => void;
   onClose: () => void;
 }
 
 /**
  * "Sincronizar con otro entorno…", the content of its own window: replaces whole databases, or some of
- * their collections, in another connection (R30). The window can't be closed while the sync runs.
+ * their collections, in another connection (R30). It only chooses: the operations panel runs the sync.
  */
 export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
-  const { sync } = useServices();
-  const job = useJob();
+  const [submitError, setSubmitError] = useState("");
   const form = useSyncForm(sessions, origin);
   const source = useSourceCatalog(form.sourceSid);
   const { setSelection } = form;
@@ -42,29 +37,25 @@ export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
   const targetName = form.target?.name ?? "";
   const blocked = form.target?.blocked;
   const confirmed = confirmationMatches(form.confirmation, targetName);
-  const canSync = !job.busy && !blocked && confirmed && plan.length > 0;
-  const error = job.error || source.error;
+  const canSync = !blocked && confirmed && plan.length > 0;
+  const error = submitError || source.error;
 
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (blocked) return job.setError(blocked);
+    if (blocked) return setSubmitError(blocked);
     if (!canSync) return;
-    const request = syncRequest(form.sourceSid, form.targetSid, plan);
-    const results = await job.run((onProgress) => sync.sync(request, onProgress));
-    if (results) onDone(results, { sid: form.targetSid, databases: plan.length });
+    try {
+      onDone(validateSync(syncRequest(form.sourceSid, form.targetSid, plan)));
+    } catch (err) {
+      setSubmitError(errorMessage(err));
+    }
   };
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !job.busy && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    const stop = getCurrentWindow().onCloseRequested((e) => {
-      if (job.busy) e.preventDefault();
-    });
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      void stop.then((unlisten) => unlisten());
-    };
-  }, [job.busy, onClose]);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   return (
     <form className="sync-window" onSubmit={submit}>
@@ -72,7 +63,7 @@ export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
         <div className="sync-endpoints">
           <SyncEndpoint role="source" tag={form.source?.tag}>
             <Field label="Conexión">
-              <select value={form.sourceSid} onChange={(e) => form.changeSource(e.target.value)} disabled={job.busy}>
+              <select value={form.sourceSid} onChange={(e) => form.changeSource(e.target.value)}>
                 {form.sources.map((s) => (
                   <option key={s.sid} value={s.sid}>
                     {s.name}
@@ -86,7 +77,7 @@ export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
           </div>
           <SyncEndpoint role="target" tag={form.target?.tag}>
             <Field label="Conexión">
-              <select value={form.targetSid} onChange={(e) => form.changeTarget(e.target.value)} disabled={job.busy}>
+              <select value={form.targetSid} onChange={(e) => form.changeTarget(e.target.value)}>
                 {!form.target && <option value="">Sin conexiones que se puedan modificar</option>}
                 {form.targets.map((t) => (
                   <option key={t.sid} value={t.sid} disabled={!!t.blocked || t.sid === form.sourceSid}>
@@ -109,7 +100,7 @@ export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
           onChange={form.setSelection}
           targetName={targetName}
           initiallyExpanded={form.sourceSid === origin.sid && origin.collection ? origin.db : undefined}
-          disabled={job.busy}
+         
         />
 
         {blocked ? (
@@ -126,30 +117,23 @@ export function SyncDialog({ sessions, origin, onDone, onClose }: Props) {
             className={confirmed ? "confirmed" : ""}
             value={form.confirmation}
             onChange={(e) => form.setConfirmation(e.target.value)}
-            disabled={job.busy || !!blocked || !form.target}
+            disabled={!!blocked || !form.target}
             spellCheck={false}
             autoComplete="off"
           />
         </label>
 
-        {job.busy && <JobProgressBar progress={job.progress} />}
         {error && <p className="test error">{error}</p>}
       </div>
 
       <div className="modal-footer sync-footer">
         <span className="muted small">{plan.length > 0 && planLabel(plan)}</span>
         <span className="spacer" />
-        {job.busy ? (
-          <button type="button" onClick={job.cancel}>
-            Cancelar sincronización
-          </button>
-        ) : (
-          <button type="button" onClick={onClose}>
-            Cerrar
-          </button>
-        )}
+        <button type="button" onClick={onClose}>
+          Cerrar
+        </button>
         <button type="submit" className="danger" disabled={!canSync}>
-          {job.busy && <Spinner />} Sincronizar
+          Sincronizar
         </button>
       </div>
     </form>

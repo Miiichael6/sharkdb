@@ -18,7 +18,9 @@ import { useToolbarShortcuts, type ToolbarHandlers } from "../features/workspace
 import { confirmInWindow } from "../shared/ui/confirmInWindow";
 import { openModalWindow } from "../shared/ui/modalWindow";
 import { useLog } from "../shared/ui/useLog";
+import { operationsBadge } from "../shared/domain/operations";
 import { OPEN_DATABASE_VIEW } from "./ModalWindow";
+import { useOperations } from "./operations/useOperations";
 import { useCurrentTarget } from "./useCurrentTarget";
 import { useQuickOpen } from "./useQuickOpen";
 
@@ -101,6 +103,7 @@ export function WorkspaceToolbar(props: Props) {
     if (allowed) onSetSafeMode(protectedSession.conn.id, false);
   };
 
+  const operations = useOperations();
   const handlers: ToolbarHandlers = {
     toggleSidebar: layout.toggleSidebar,
     connections: onShowConnections,
@@ -111,6 +114,7 @@ export function WorkspaceToolbar(props: Props) {
     quickActions: () => target && quickOpen.open("action"),
     refresh: controls.refreshAll,
     safeMode: toggleSafeMode,
+    operations: operations.togglePanel,
     logs: layout.toggleLogs,
   };
   useToolbarShortcuts(handlers);
@@ -148,9 +152,15 @@ export function WorkspaceToolbar(props: Props) {
     <>
       <Toolbar
         handlers={handlers}
-        pressed={{ toggleSidebar: !layout.sidebarHidden, logs: layout.logsOpen, safeMode: !!session?.safeMode }}
+        pressed={{
+          toggleSidebar: !layout.sidebarHidden,
+          logs: layout.logsOpen,
+          safeMode: !!session?.safeMode,
+          operations: operations.panelOpen,
+        }}
         disabled={{ databases: !target, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
         menuItems={menuItems}
+        badges={{ operations: operationsBadge(operations.operations) }}
         status={status}
       />
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}

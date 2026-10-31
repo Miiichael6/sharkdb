@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useDataOperations } from "../../../app/operations/useDataOperations";
 import { useServices } from "../../../app/services";
 import { LogPanel } from "../../../shared/ui/LogPanel";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
@@ -6,13 +7,12 @@ import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
 import { useNotify } from "../../../shared/ui/useNotifications";
-import { backupSummary, restoreSummary } from "../../backup/domain/backupSpec";
 import { BackupDialog } from "../../backup/ui/BackupDialog";
 import { RestoreDialog } from "../../backup/ui/RestoreDialog";
 import { displayName } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
-import { syncSummary } from "../../sync/domain/syncPlan";
-import { SYNC_VIEW, SYNC_WINDOW, type SyncWindowData, type SyncWindowResult } from "../../sync/ui/SyncWindow";
+import type { SyncRequest } from "../../sync/domain/syncPlan";
+import { SYNC_VIEW, SYNC_WINDOW, type SyncWindowData } from "../../sync/ui/SyncWindow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
@@ -62,7 +62,7 @@ export function Workspace(props: Props) {
   const { explorer, terminal } = useServices();
   const tree = useTree(roots, explorer.loadChildren);
   const [panel, setPanel] = useState<{ key: string; mode: PanelMode } | null>(null);
-  // Backup and restore run in their own dialogs, open while the job runs.
+  // Backup and restore are chosen in their own dialogs; the operations panel runs them.
   const [operation, setOperation] = useState<{ kind: "backup" | "restore"; node: TreeNode } | null>(null);
   const { ok, fail } = useNotify();
   const isReadOnly = useReadOnly();
@@ -77,6 +77,7 @@ export function Workspace(props: Props) {
     notify: ok,
     fail,
   });
+  const data = useDataOperations(sessions, actions.refreshAll);
 
   const openMongosh = useCallback(
     (sid: string, db?: string) =>
@@ -90,19 +91,17 @@ export function Workspace(props: Props) {
     [terminal, fail, log],
   );
 
-  /** The sync runs in its own window, which keeps this one disabled until it closes. */
+  /** The sync is chosen in its own window (this one stays disabled meanwhile) and runs in the operations panel. */
   const openSync = async (n: TreeNode) => {
-    const data: SyncWindowData = { sessions, origin: { sid: n.sid, db: n.db, collection: n.coll } };
-    let result: SyncWindowResult | null;
+    const windowData: SyncWindowData = { sessions, origin: { sid: n.sid, db: n.db, collection: n.coll } };
+    let request: SyncRequest | null;
     try {
-      result = await openModalWindow<SyncWindowResult>(SYNC_VIEW, data, SYNC_WINDOW);
+      request = await openModalWindow<SyncRequest>(SYNC_VIEW, windowData, SYNC_WINDOW);
     } catch (e) {
       log.error("No se pudo abrir la ventana de sincronización", e);
       return;
     }
-    // Refreshed even without a result: a cancelled sync may have replaced some collections.
-    actions.refreshAll();
-    if (result) ok(syncSummary(connectionName(result.target.sid), result.target.databases, result.results));
+    if (request) data.sync(request);
   };
 
   const onAction = (action: Action, n: TreeNode) => {
@@ -169,9 +168,9 @@ export function Workspace(props: Props) {
           sid={operation.node.sid}
           db={operation.node.db!}
           connection={connectionName(operation.node.sid)}
-          onDone={(results) => {
+          onDone={(request) => {
             setOperation(null);
-            ok(backupSummary(operation.node.db!, results));
+            data.backup(request);
           }}
           onClose={() => setOperation(null)}
         />
@@ -180,11 +179,9 @@ export function Workspace(props: Props) {
         <RestoreDialog
           sessions={sessions}
           initial={{ sid: operation.node.sid, db: operation.node.db! }}
-          onDone={(results, target) => {
+          onDone={(request) => {
             setOperation(null);
-            // The destination may be a new database or have new collections.
-            actions.refreshAll();
-            ok(`${restoreSummary(target.db, results)} · ${connectionName(target.sid)}`);
+            data.restore(request);
           }}
           onClose={() => setOperation(null)}
         />

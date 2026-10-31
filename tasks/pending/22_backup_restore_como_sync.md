@@ -11,7 +11,7 @@ Backup y restore dejan de ser diálogos dentro de la ventana principal y pasan a
 - Un selector multi-BD (`DatabasePicker`).
 - Origen → destino.
 - Continuar.
-- Confirmación con `confirmo`, solo cuando se modifica una BD.
+- Confirmación en sub-ventana con `confirmo` en las tres operaciones (también el backup, decisión del usuario 2026-10-30).
 - El trabajo en el panel de operaciones.
 
 Las tres operaciones solo se diferencian en los extremos:
@@ -19,7 +19,7 @@ Las tres operaciones solo se diferencian en los extremos:
 | Operación | Origen | Destino | Confirmación |
 |---|---|---|---|
 | Sync | conexión | conexión | sí |
-| Backup | conexión | carpeta | no (no toca Mongo) |
+| Backup | conexión | carpeta | sí: "Se va a GUARDAR en {carpeta}" |
 | Restore | carpeta | conexión | sí |
 
 ## Pasos
@@ -45,7 +45,8 @@ Las tres operaciones solo se diferencian en los extremos:
 - [ ] `BackupWindow.tsx` (nuevo):
   - Origen: conexión registrada (se conecta si está cerrada) y `DatabasePicker`.
   - Destino: carpeta con `FolderField`.
-  - **Hacer backup** arranca la operación directamente, sin confirmación.
+  - **Continuar** abre `DangerConfirmWindow` (21) con el plan (BDs y colecciones elegidas) y la carpeta de destino; con `confirmo` y **Hacer backup** sale la operación.
+  - El banner de `DangerConfirmWindow` es configurable: "Se va a GUARDAR en {carpeta}" para el backup y "Se va a MODIFICAR" para sync y restore.
 - [ ] `RestoreWindow.tsx` (nuevo):
   - Origen: carpeta, que se lee al elegirla, y `DatabasePicker` con su catálogo.
   - Destino: conexión registrada; nunca producción o protegida.
@@ -58,7 +59,7 @@ Las tres operaciones solo se diferencian en los extremos:
 ### Paso 4: Verificación
 - [ ] `npx tsc --noEmit`, `npx vitest run`, `cargo clippy`, `cargo test`, los tests reales (**solo local**) y `npm run build` en verde.
 - [ ] Prueba manual **solo local y QA**:
-  - Backup de 2 BDs de QA a una carpeta.
+  - Backup de 2 BDs de QA (una completa y colecciones sueltas de otra) a una carpeta, pasando por la confirmación con `confirmo`.
   - La carpeta se restaura con `mongorestore` en local y da los mismos conteos.
   - Restore de esa carpeta en local desde la app, con `confirmo`.
   - Restore de una carpeta antigua de una sola BD (tarea 14).
@@ -69,7 +70,8 @@ Las tres operaciones solo se diferencian en los extremos:
 
 - [ ] Backup, restore y sync se ven y se usan igual: sub-ventana, origen → destino, selector multi-BD y progreso en el panel.
 - [ ] Un backup de varias BDs se puede restaurar con `mongorestore`, y las carpetas de la tarea 14 se siguen restaurando.
-- [ ] El restore exige escribir `confirmo` y nunca ofrece ni acepta un destino de producción/protegido.
+- [ ] Backup y restore permiten elegir varias BDs y colecciones sueltas de cada una.
+- [ ] Backup y restore exigen escribir `confirmo` en su sub-ventana de confirmación; el restore nunca ofrece ni acepta un destino de producción/protegido.
 
 ## Bitácora
 

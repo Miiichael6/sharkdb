@@ -1,5 +1,5 @@
-import type { CollectionResult } from "../../../shared/domain/jobs";
 import type { Session } from "../../connections/domain/session";
+import type { SyncRequest } from "../domain/syncPlan";
 import { SyncDialog } from "./SyncDialog";
 import type { SyncOrigin } from "./useSyncForm";
 
@@ -13,21 +13,7 @@ export interface SyncWindowData {
   origin: SyncOrigin;
 }
 
-/** What the sync window hands back once a sync finished. */
-export interface SyncWindowResult {
-  results: CollectionResult[];
-  /** The destination connection and how many of its databases were synced. */
-  target: { sid: string; databases: number };
-}
-
-/** The sync window: runs the sync itself and reports the outcome to the window that opened it. */
-export function SyncWindow({ data, onDone }: { data: SyncWindowData; onDone: (result: SyncWindowResult | null) => void }) {
-  return (
-    <SyncDialog
-      sessions={data.sessions}
-      origin={data.origin}
-      onDone={(results, target) => onDone({ results, target })}
-      onClose={() => onDone(null)}
-    />
-  );
+/** The sync window: chooses what to sync and hands the request back to the main window, which runs it. */
+export function SyncWindow({ data, onDone }: { data: SyncWindowData; onDone: (request: SyncRequest | null) => void }) {
+  return <SyncDialog sessions={data.sessions} origin={data.origin} onDone={onDone} onClose={() => onDone(null)} />;
 }

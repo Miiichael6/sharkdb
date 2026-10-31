@@ -4,9 +4,13 @@ export interface ConfirmRequest {
   /** Title of the window. */
   title: string;
   message: string;
-  /** Label of the button that goes ahead (the other one is always "Cancelar"). */
+  /** Label of the button that goes ahead. */
   confirmLabel: string;
+  /** Label of the button that backs out (`DISMISS_LABEL` by default). */
+  dismissLabel?: string;
 }
+
+export const DISMISS_LABEL = "Cancelar";
 
 export const CONFIRM_WINDOW_WIDTH = 440;
 

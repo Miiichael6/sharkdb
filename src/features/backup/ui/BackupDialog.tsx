@@ -1,12 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
-import type { CollectionResult } from "../../../shared/domain/jobs";
 import { CollectionChecklist } from "../../../shared/ui/CollectionChecklist";
 import { Modal, Spinner } from "../../../shared/ui/common";
-import { JobProgressBar } from "../../../shared/ui/JobProgressBar";
-import { useJob } from "../../../shared/ui/useJob";
-import { backupDir } from "../domain/backupSpec";
+import { backupDir, validateBackup, type BackupRequest } from "../domain/backupSpec";
 import { FolderField } from "./FolderField";
 
 const SYSTEM_PREFIX = "system.";
@@ -16,7 +13,8 @@ interface Props {
   db: string;
   /** Name of the source connection, for the title. */
   connection: string;
-  onDone: (results: CollectionResult[]) => void;
+  /** The chosen backup, for the operations panel to run it. */
+  onDone: (request: BackupRequest) => void;
   onClose: () => void;
 }
 
@@ -26,8 +24,7 @@ export function BackupDialog({ sid, db, connection, onDone, onClose }: Props) {
   const [collections, setCollections] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [parent, setParent] = useState("");
-  const job = useJob();
-  const { setError } = job;
+  const [error, setError] = useState("");
 
   useEffect(() => {
     explorer.listCollections(sid, db).then(
@@ -50,20 +47,22 @@ export function BackupDialog({ sid, db, connection, onDone, onClose }: Props) {
   };
 
   const dir = parent.trim() ? backupDir(parent, db) : "";
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
-    const results = await job.run((onProgress) => backup.backup({ sid, db, collections: selected, dir }, onProgress));
-    if (results) onDone(results);
+    try {
+      onDone(validateBackup({ sid, db, collections: selected, dir }));
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   };
-  const close = job.busy ? () => {} : onClose;
 
   return (
-    <Modal onClose={close} className="dialog backup-dialog">
+    <Modal onClose={onClose} className="dialog backup-dialog">
       <h3>
         Backup de {db} <span className="muted">· {connection}</span>
       </h3>
       <form onSubmit={submit}>
-        <FolderField label="Carpeta de destino" value={parent} onChange={setParent} onBrowse={browse} disabled={job.busy} />
+        <FolderField label="Carpeta de destino" value={parent} onChange={setParent} onBrowse={browse} />
         {dir && <p className="muted small backup-path">Se guarda en {dir}</p>}
 
         {collections === null ? (
@@ -71,24 +70,17 @@ export function BackupDialog({ sid, db, connection, onDone, onClose }: Props) {
             <Spinner /> Cargando colecciones…
           </p>
         ) : (
-          <CollectionChecklist items={collections.map((name) => ({ name }))} selected={selected} onChange={setSelected} disabled={job.busy} />
+          <CollectionChecklist items={collections.map((name) => ({ name }))} selected={selected} onChange={setSelected} />
         )}
 
-        {job.busy && <JobProgressBar progress={job.progress} />}
-        {job.error && <p className="test error">{job.error}</p>}
+        {error && <p className="test error">{error}</p>}
         <div className="modal-footer">
           <span className="spacer" />
-          {job.busy ? (
-            <button type="button" onClick={job.cancel}>
-              Cancelar backup
-            </button>
-          ) : (
-            <button type="button" onClick={onClose}>
-              Cerrar
-            </button>
-          )}
-          <button type="submit" className="primary" disabled={job.busy || !collections}>
-            {job.busy && <Spinner />} Hacer backup
+          <button type="button" onClick={onClose}>
+            Cerrar
+          </button>
+          <button type="submit" className="primary" disabled={!collections}>
+            Hacer backup
           </button>
         </div>
       </form>
