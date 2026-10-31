@@ -2057,8 +2057,13 @@ button.shell-action {
 .grid-row:hover {
   background: var(--surface);
 }
-.grid-row.selected {
+.grid-row.selected,
+.grid-row.picked {
   background: var(--select);
+}
+/* Dragging over the rows picks documents instead of selecting text. */
+.result-grid .grid-row {
+  user-select: none;
 }
 .virtual-list:focus-visible .grid-row.selected {
   outline: 1px solid var(--accent);
@@ -2792,6 +2797,51 @@ button.link:hover:not(:disabled) {
 }
 .danger-confirm input.confirmed {
   border-color: var(--ok);
+}
+
+/* ---------- "Se va a ELIMINAR" (its own window, D12): the whole window in red ---------- */
+
+.delete-window {
+  border-top: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}
+.delete-window .danger-footer {
+  border-top-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.delete-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.delete-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--danger);
+}
+.delete-heading .icon {
+  flex: none;
+}
+.delete-heading b {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.delete-where {
+  font-size: 12px;
+}
+.delete-loses {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.delete-window .danger-confirm input:focus:not(.confirmed) {
+  border-color: var(--danger);
 }
 
 /* ---------- operations panel (background sync, backup and restore) ---------- */

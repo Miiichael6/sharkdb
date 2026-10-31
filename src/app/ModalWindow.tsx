@@ -21,9 +21,11 @@ import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
 import { OpenDatabaseDialog } from "../features/workspace/ui/OpenDatabaseDialog";
 import type { ConfirmRequest, DangerConfirmRequest } from "../shared/domain/confirmation";
-import { CONFIRM_VIEW, DANGER_CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
+import type { DeleteConfirmRequest } from "../shared/domain/destructiveActions";
+import { CONFIRM_VIEW, DANGER_CONFIRM_VIEW, DELETE_CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
 import { ConfirmWindow } from "../shared/ui/ConfirmWindow";
 import { DangerConfirmWindow } from "../shared/ui/DangerConfirmWindow";
+import { DeleteConfirmWindow } from "../shared/ui/DeleteConfirmWindow";
 import { ModalTitleBar } from "../shared/ui/ModalTitleBar";
 import {
   askOpener,
@@ -32,16 +34,30 @@ import {
   currentModalTitle,
   finishModalWindow,
   receiveModalData,
+  showModalWindow,
 } from "../shared/ui/modalWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
 
 export const OPEN_DATABASE_VIEW = "open-database";
 
-/** The modal's own title bar over its view; the bar shows right away, the view once its data arrives. */
+/** If the data never comes, the hidden window shows anyway so it can be closed (the opener stays disabled). */
+const SHOW_ANYWAY_MS = 2000;
+
+/** The modal's own title bar over its view; the window opens hidden and shows once the view is drawn. */
 export function ModalWindow({ view }: { view: string }) {
   const [data, setData] = useState<unknown>();
   useEffect(() => receiveModalData(view, (d) => setData(() => d)), [view]);
+  useEffect(() => {
+    const timer = setTimeout(() => void showModalWindow(), SHOW_ANYWAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (data === undefined) return;
+    // After the browser has painted the view, so the window appears already laid out.
+    let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => void showModalWindow())));
+    return () => cancelAnimationFrame(frame);
+  }, [data]);
   const done = useCallback((result: unknown) => void finishModalWindow(view, result), [view]);
 
   return (
@@ -79,6 +95,11 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <DocumentEditorWindow data={data as DocumentEditorData} onDone={done} />
         </ServicesProvider>
       );
+    case DELETE_CONFIRM_VIEW: {
+      const request = data as DeleteConfirmRequest;
+      const where = <WhereBar where={request.where} className="delete-where" />;
+      return <DeleteConfirmWindow request={request} where={where} onDone={done} />;
+    }
     case DANGER_CONFIRM_VIEW: {
       const request = data as DangerConfirmRequest;
       const tag = TAGS.find((t) => t === request.target.tag);

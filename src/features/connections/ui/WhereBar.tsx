@@ -24,7 +24,8 @@ export function WhereBar({
   className = "",
   children,
 }: {
-  where: TargetWhere;
+  /** Without `db` it shows only the connection (e.g. deleting a saved connection). */
+  where: Omit<TargetWhere, "db"> & { db?: string };
   className?: string;
   children?: ReactNode;
 }) {
@@ -43,10 +44,12 @@ export function WhereBar({
           </span>
         )}
       </span>
-      <span className="where-part" title="Base de datos">
-        <NodeIcon kind="database" size={14} />
-        {db}
-      </span>
+      {db && (
+        <span className="where-part" title="Base de datos">
+          <NodeIcon kind="database" size={14} />
+          {db}
+        </span>
+      )}
       {coll && (
         <span className="where-part" title="Colección">
           <NodeIcon kind="collection" size={14} />

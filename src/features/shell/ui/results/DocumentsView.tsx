@@ -13,17 +13,19 @@ interface Props {
   zone: DateZone;
   /** Entries added to the copy menu for the clicked document. */
   documentMenu?: (target: ResultTarget) => DocumentEntries;
+  /** Delete key on the picked documents (tree and table views). */
+  onDeleteDocuments?: (docs: unknown[]) => void;
 }
 
 /** A page of documents in the chosen view, with the result menu on right click. */
-export function DocumentsView({ docs, firstNumber, mode, zone, documentMenu }: Props) {
+export function DocumentsView({ docs, firstNumber, mode, zone, documentMenu, onDeleteDocuments }: Props) {
   const copyMenu = useResultMenu(zone, documentMenu);
   const props = { docs, firstNumber, zone };
 
   return (
     <div className="documents-view">
-      {mode === "tree" && <TreeView {...props} onContextMenu={copyMenu.open} />}
-      {mode === "table" && <TableView {...props} onContextMenu={copyMenu.open} />}
+      {mode === "tree" && <TreeView {...props} onContextMenu={copyMenu.open} onDeleteDocuments={onDeleteDocuments} />}
+      {mode === "table" && <TableView {...props} onContextMenu={copyMenu.open} onDeleteDocuments={onDeleteDocuments} />}
       {mode === "text" && <TextView {...props} />}
       {copyMenu.menu && <ContextMenu {...copyMenu.menu} onClose={copyMenu.close} />}
     </div>

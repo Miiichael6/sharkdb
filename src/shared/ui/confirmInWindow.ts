@@ -6,6 +6,7 @@ import {
   type DangerAnswer,
   type DangerConfirmRequest,
 } from "../domain/confirmation";
+import { DELETE_WINDOW_WIDTH, deleteWindowHeight, type DeleteConfirmRequest } from "../domain/destructiveActions";
 import { openModalWindow } from "./modalWindow";
 
 export const CONFIRM_VIEW = "confirm";
@@ -19,6 +20,19 @@ export async function confirmInWindow(request: ConfirmRequest): Promise<boolean>
     title: request.title,
     width: request.where ? CONFIRM_WHERE_WINDOW_WIDTH : CONFIRM_WINDOW_WIDTH,
     height: confirmWindowHeight(request),
+    resizable: false,
+  });
+  return answer === true;
+}
+
+export const DELETE_CONFIRM_VIEW = "delete-confirm";
+
+/** Asks for a manual deletion in its own red window (D12). Resolves true when confirmed; closing it cancels. */
+export async function confirmDeleteInWindow(request: DeleteConfirmRequest): Promise<boolean> {
+  const answer = await openModalWindow<boolean>(DELETE_CONFIRM_VIEW, request, {
+    title: request.title,
+    width: DELETE_WINDOW_WIDTH,
+    height: deleteWindowHeight(request.level),
     resizable: false,
   });
   return answer === true;

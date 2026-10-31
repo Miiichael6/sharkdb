@@ -111,7 +111,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 22 | [Backup y restore con el mismo flujo que el sync](done/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ✅ Terminada (prueba manual en QA pendiente) |
 | 23 | [Bases favoritas y temporales por conexión](done/23_bases_favoritas.md) | 11 Bases fijadas | 12, 22 | ✅ Terminada (prueba manual pendiente) |
 | 24 | [Título de ventana y color de la conexión activa](done/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ✅ Terminada (prueba manual pendiente) |
-| 25 | [Confirmación roja con `confirmo` para borrados manuales](pending/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ⬜ Pendiente |
+| 25 | [Confirmación roja con `confirmo` para borrados manuales](done/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ✅ Terminada |
 | 26 | [Dos consultas del shell en paralelo (pestaña dividida)](done/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ✅ Terminada |
 | 27 | [Validación de documentos por colección (`$jsonSchema`)](pending/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ⬜ Pendiente |
 

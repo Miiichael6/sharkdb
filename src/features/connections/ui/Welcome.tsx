@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { displayName, hostLabel, type MongoConnection } from "../domain/connection";
+import { destructiveRequest } from "../../../shared/domain/destructiveActions";
+import { displayName, hostLabel, targetServerOf, type MongoConnection } from "../domain/connection";
 import { Avatar, Logo, Spinner } from "../../../shared/ui/common";
-import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { confirmDeleteInWindow } from "../../../shared/ui/confirmInWindow";
 import { ContextMenu } from "../../../shared/ui/ContextMenu";
 import { MenuList } from "../../../shared/ui/MenuList";
 import { GearIcon, useSettingsItems } from "../../../shared/ui/settingsMenu";
@@ -37,12 +38,8 @@ export function Welcome(props: Props) {
   const [settingsAt, setSettingsAt] = useState<{ x: number; y: number } | null>(null);
   const settingsItems = useSettingsItems();
   const confirmDelete = async (conn: MongoConnection) => {
-    const confirmed = await confirmInWindow({
-      title: "Eliminar conexión",
-      message: `¿Eliminar “${displayName(conn)}”? Esta acción no se puede deshacer.`,
-      confirmLabel: "Eliminar",
-    });
-    if (confirmed) onDelete(conn);
+    const request = destructiveRequest("deleteConnection", { server: targetServerOf(conn) });
+    if (await confirmDeleteInWindow(request)) onDelete(conn);
   };
   const searchRef = useRef<HTMLInputElement>(null);
 

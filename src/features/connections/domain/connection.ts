@@ -6,6 +6,7 @@ import {
   takeAdvancedParams,
   type AdvancedOptions,
 } from "./advancedOptions";
+import type { TargetServer } from "../../../shared/domain/documentTarget";
 import { newSshSettings, type SshSettings } from "./ssh";
 
 export type Tag = "local" | "development" | "testing" | "staging" | "production";
@@ -88,6 +89,9 @@ export function newConnection(): MongoConnection {
 export function displayName(c: MongoConnection): string {
   return c.name.trim() || hostLabel(c) || "Sin nombre";
 }
+
+/** The connection as the user knows it: name, address and environment tag. */
+export const targetServerOf = (c: MongoConnection): TargetServer => ({ name: displayName(c), host: hostLabel(c), tag: c.tag });
 
 /** Short `host:port` line shown under the connection name. */
 export function hostLabel(c: MongoConnection): string {

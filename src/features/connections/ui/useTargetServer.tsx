@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react";
 import type { TargetServer } from "../../../shared/domain/documentTarget";
-import { displayName, hostLabel } from "../domain/connection";
+import { targetServerOf } from "../domain/connection";
 import type { Session } from "../domain/session";
 
 type ServerOf = (sid: string) => TargetServer;
@@ -14,7 +14,7 @@ export function TargetServerProvider({ sessions, children }: { sessions: Session
   const serverOf = useCallback<ServerOf>(
     (sid) => {
       const conn = sessions.find((s) => s.conn.id === sid)?.conn;
-      return conn ? { name: displayName(conn), host: hostLabel(conn), tag: conn.tag } : unknownServer(sid);
+      return conn ? targetServerOf(conn) : unknownServer(sid);
     },
     [sessions],
   );
