@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   displayName,
   duplicateConnection,
   newConnection,
   removeConnection,
-  upsertConnection,
   type MongoConnection,
 } from "../features/connections/domain/connection";
 import type { BorrowedSession, Session } from "../features/connections/domain/session";
@@ -24,6 +23,9 @@ import { useLog } from "../shared/ui/useLog";
 import { useNotify } from "../shared/ui/useNotifications";
 import { WithOperationsPanel } from "./operations/WithOperationsPanel";
 import { useServices } from "./services";
+import { useDatabaseWindow } from "./useDatabaseWindow";
+import { useSavedConnections } from "./useSavedConnections";
+import { useWindowSizeForView } from "./useWindowSizeForView";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
 
@@ -33,34 +35,41 @@ type Dialog =
   | { kind: "form"; conn: MongoConnection; isNew: boolean };
 
 function App() {
-  const { connections: service } = useServices();
-  const [connections, setConnections] = useState<MongoConnection[]>([]);
+  const { connections: service, explorer } = useServices();
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
   // Several servers can be open at once, each one a root in the explorer (like Robo 3T).
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const { connections, persist, upsert, saveFavorites, removeFromList } = useSavedConnections(setError);
+  const chooseDatabases = useDatabaseWindow(saveFavorites);
+  useWindowSizeForView(!showWelcome && sessions.length > 0);
   const tabs = useShellTabs();
   const files = useScriptFileActions(tabs);
   const layout = usePanelLayout();
   const log = useLog();
   const notify = useNotify();
 
-  useEffect(() => {
-    service.list().then(setConnections, (e) => setError(errorMessage(e)));
-  }, []);
-
-  const persist = (next: MongoConnection[]) => {
-    setConnections(next);
-    service.save(next).catch((e) => setError(`No se pudo guardar: ${errorMessage(e)}`));
-  };
-
-  const upsert = (conn: MongoConnection) => persist(upsertConnection(connections, conn));
-
-  /** Opens `conn` and adds it to the explorer; throws when it can't connect. */
+  /**
+   * Opens `conn` and adds it to the explorer; throws when it can't connect. A connection with nothing
+   * to show asks for its databases first, and isn't added (it closes) when that is cancelled.
+   */
   const openSession = async (conn: MongoConnection) => {
     const session = await service.open(conn);
+    explorer.setFavorites(conn.id, conn.favoriteDatabases);
+    if (!explorer.hasPinned(conn.id)) {
+      const chosen = await chooseDatabases(session, true).catch(async (e) => {
+        await service.close(conn.id).catch(() => {});
+        throw e;
+      });
+      if (!chosen) {
+        await service.close(conn.id).catch(() => {});
+        log.info(`Conexión a ${displayName(conn)} cancelada`);
+        return null;
+      }
+      explorer.openTemporary(conn.id, chosen);
+    }
     // Reconnecting an open connection (e.g. after editing it) replaces its session.
     setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
     log.info(`Conectado a ${displayName(conn)}`);
@@ -72,8 +81,7 @@ function App() {
     setError("");
     setConnectingId(conn.id);
     try {
-      await openSession(conn);
-      setShowWelcome(false);
+      if (await openSession(conn)) setShowWelcome(false);
     } catch (e) {
       setError(`${displayName(conn)}: ${errorMessage(e)}`);
       log.error(`No se pudo conectar a ${displayName(conn)}`, e);
@@ -155,6 +163,7 @@ function App() {
           sessions={sessions}
           connections={connections}
           onBorrowSession={borrowSession}
+          onRemoveFromList={removeFromList}
           sidebarHidden={layout.sidebarHidden}
           logsOpen={layout.logsOpen}
           onCloseLogs={layout.closeLogs}
@@ -174,6 +183,7 @@ function App() {
               onShowConnections={() => setShowWelcome(true)}
               onConnect={connect}
               onSetSafeMode={setSafeMode}
+              onChooseDatabases={chooseDatabases}
             />
           )}
           renderMain={(details, selected) => (

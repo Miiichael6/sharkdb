@@ -1,95 +1,117 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { NodeIcon } from "../../explorer/ui/NodeIcon";
-
-export interface DatabaseChoice {
-  key: string;
-  name: string;
-  current: boolean;
-}
-
-/** What the dialog ended with: a database to open, or "Nueva…". */
-export type OpenDatabaseResult = { kind: "open"; key: string } | { kind: "new" };
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { errorMessage } from "../../../shared/errors";
+import {
+  EMPTY_SERVER_NOTE,
+  MANDATORY_NOTE,
+  type OpenDatabaseData,
+  type OpenDatabaseResult,
+} from "../domain/databaseChoice";
+import { CreateDatabaseForm } from "./CreateDatabaseForm";
+import { DatabaseChoiceRow } from "./DatabaseChoiceRow";
+import { useOpenDatabaseForm } from "./useOpenDatabaseForm";
 
 interface Props {
-  databases: DatabaseChoice[];
+  data: OpenDatabaseData;
+  onFavorites: (favorites: string[]) => Promise<void>;
+  onCreate: (db: string, coll: string) => Promise<void>;
   onDone: (result: OpenDatabaseResult | null) => void;
 }
 
 /**
- * "Bases de datos", the content of its own window: searchable list of the active session's
- * databases, the current one selected. The arrows move, Enter or a double click opens, Escape closes.
+ * "Bases de datos", the content of its own window: every database of one connection, with a star
+ * that makes it a favorite and a multiple selection that opens the chosen ones as temporary. The
+ * arrows move, Space toggles, Enter or a double click opens; Escape closes unless the choice is mandatory.
  */
-export function OpenDatabaseDialog({ databases, onDone }: Props) {
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(() => databases.find((d) => d.current)?.key);
+export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Props) {
+  const [error, setError] = useState("");
+  const form = useOpenDatabaseForm({ data, onFavorites, onError: (e) => setError(errorMessage(e)) });
+  const [creating, setCreating] = useState(form.emptyServer);
   const listRef = useRef<HTMLUListElement>(null);
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? databases.filter((d) => d.name.toLowerCase().includes(q)) : databases;
-  }, [databases, query]);
-  // The selection follows the filter: it stays when still visible, else falls on the first match.
-  const current = visible.find((d) => d.key === selected) ?? visible[0];
+  const { selected, anchor } = form.selection;
 
   useEffect(() => {
-    listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
-  }, [current?.key]);
+    listRef.current?.querySelector(".anchor")?.scrollIntoView({ block: "nearest" });
+  }, [anchor]);
 
   useEffect(() => {
+    if (data.mandatory) return;
     const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onDone(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
+  }, [onDone, data.mandatory]);
 
-  const open = (key = current?.key) => key && onDone({ kind: "open", key });
+  const open = (databases = selected) => onDone({ databases });
+  const canOpen = selected.length > 0 || form.favorites.length > 0;
+
+  const create = async (db: string, coll: string) => {
+    await onCreate(db, coll);
+    open([db]);
+  };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    const i = current ? visible.indexOf(current) : -1;
-    if (e.key === "ArrowDown") setSelected(visible[Math.min(i + 1, visible.length - 1)]?.key);
-    else if (e.key === "ArrowUp") setSelected(visible[Math.max(i - 1, 0)]?.key);
-    else if (e.key === "Enter") open();
+    if (e.key === "ArrowDown") form.move(1);
+    else if (e.key === "ArrowUp") form.move(-1);
+    else if (e.key === " " && anchor && !form.query) form.toggle(anchor);
+    else if (e.key === "Enter" && canOpen) open();
     else return;
     e.preventDefault();
   };
 
   return (
     <div className="db-dialog">
-      <input
-        autoFocus
-        className="search"
-        placeholder="Buscar base de datos…"
-        aria-label="Buscar base de datos"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      <ul className="db-dialog-list" role="listbox" aria-label="Bases de datos" ref={listRef}>
-        {visible.map((d) => (
-          <li
-            key={d.key}
-            role="option"
-            aria-selected={d === current}
-            className={d === current ? "active" : ""}
-            onClick={() => setSelected(d.key)}
-            onDoubleClick={() => open(d.key)}
-          >
-            <NodeIcon kind="database" />
-            <span>{d.name}</span>
-          </li>
-        ))}
-        {!visible.length && (
-          <li className="db-dialog-empty">
-            {databases.length ? "No hay bases de datos que coincidan" : "No hay bases de datos cargadas"}
-          </li>
-        )}
-      </ul>
+      <p className="db-dialog-connection">
+        Conexión: <b>{data.connection}</b>
+      </p>
+      {data.mandatory && <p className="db-dialog-note">{MANDATORY_NOTE}</p>}
+      {creating ? (
+        <>
+          {form.emptyServer && <p className="db-dialog-note">{EMPTY_SERVER_NOTE}</p>}
+          <CreateDatabaseForm onCreate={create} onCancel={() => setCreating(false)} />
+        </>
+      ) : (
+        <>
+          <input
+            autoFocus
+            className="search"
+            placeholder="Buscar base de datos…"
+            aria-label="Buscar base de datos"
+            value={form.query}
+            onChange={(e) => form.setQuery(e.target.value)}
+            onKeyDown={onKeyDown}
+          />
+          <ul className="db-dialog-list" role="listbox" aria-label="Bases de datos" aria-multiselectable ref={listRef}>
+            {form.rows.map((name) => (
+              <DatabaseChoiceRow
+                key={name}
+                name={name}
+                favorite={form.favorites.includes(name)}
+                selected={selected.includes(name)}
+                anchor={name === anchor}
+                missing={form.isMissing(name)}
+                onClick={(e) => form.click(name, e)}
+                onToggle={() => form.toggle(name)}
+                onToggleStar={() => form.toggleStar(name)}
+                onOpen={() => open([name])}
+              />
+            ))}
+            {!form.rows.length && (
+              <li className="db-dialog-empty">
+                {form.emptyServer ? EMPTY_SERVER_NOTE : "No hay bases de datos que coincidan"}
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+      {error && <p className="danger-text">{error}</p>}
       <div className="modal-footer">
-        <button onClick={() => onDone(null)}>Cerrar</button>
+        <button onClick={() => onDone(null)}>{data.mandatory ? "Cancelar" : "Cerrar"}</button>
         <span className="spacer" />
-        <button onClick={() => onDone({ kind: "new" })}>Nueva…</button>
-        <button className="primary" onClick={() => open()} disabled={!current}>
-          Abrir
-        </button>
+        {!creating && <button onClick={() => setCreating(true)}>Crear base de datos…</button>}
+        {!creating && (
+          <button className="primary" onClick={() => open()} disabled={!canOpen}>
+            {selected.length ? `Abrir (${selected.length})` : "Abrir"}
+          </button>
+        )}
       </div>
     </div>
   );

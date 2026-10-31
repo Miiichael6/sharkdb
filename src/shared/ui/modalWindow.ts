@@ -7,6 +7,10 @@ import { errorMessage } from "../errors";
 const MODAL_VIEW_PARAM = "view";
 /** Query parameter with the title the modal draws in its own title bar (see `currentModalTitle`). */
 const MODAL_TITLE_PARAM = "title";
+/** Query parameter set when the modal's title bar has no close button (see `currentModalClosable`). */
+const MODAL_UNCLOSABLE_PARAM = "unclosable";
+/** Query parameter set when the modal's title bar has a maximize button (see `currentModalMaximizable`). */
+const MODAL_MAXIMIZABLE_PARAM = "maximizable";
 
 // One modal window per view at a time (the opener is disabled meanwhile), so the view names its events.
 const readyEvent = (view: string) => `modal-ready:${view}`;
@@ -26,10 +30,12 @@ interface Options {
   title: string;
   width: number;
   height: number;
-  /** Lets the window be maximized. */
+  /** Lets the window be maximized, with a maximize / restore button in its title bar. */
   maximizable?: boolean;
   /** Lets the window be resized (default). */
   resizable?: boolean;
+  /** Shows the close button of its title bar (default); without it, only the view's own buttons close it. */
+  closable?: boolean;
   /** Answers what the child asks with `askOpener` while it's open (e.g. connecting a connection). */
   onRequest?: (body: unknown) => Promise<unknown>;
 }
@@ -40,7 +46,7 @@ interface Options {
  * what it sent through `finishModalWindow`, or null when it was closed without an answer.
  */
 export async function openModalWindow<T>(view: string, data: unknown, options: Options): Promise<T | null> {
-  const { title, width, height, maximizable = false, resizable = true, onRequest } = options;
+  const { title, width, height, maximizable = false, resizable = true, closable = true, onRequest } = options;
   const parent = getCurrentWindow();
   const scale = await parent.scaleFactor();
   const pos = (await parent.outerPosition()).toLogical(scale);
@@ -62,7 +68,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
   try {
     await parent.setEnabled(false);
     const child = new WebviewWindow(`modal-${view}`, {
-      url: `index.html?${new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title })}`,
+      url: `index.html?${modalQuery(view, title, closable, maximizable)}`,
       title,
       width,
       height,
@@ -86,6 +92,13 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
     await parent.setFocus();
   }
   return result;
+}
+
+function modalQuery(view: string, title: string, closable: boolean, maximizable: boolean): URLSearchParams {
+  const query = new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title });
+  if (!closable) query.set(MODAL_UNCLOSABLE_PARAM, "1");
+  if (maximizable) query.set(MODAL_MAXIMIZABLE_PARAM, "1");
+  return query;
 }
 
 /**
@@ -138,4 +151,14 @@ export function currentModalView(): string | null {
 /** The title this modal window was opened with. */
 export function currentModalTitle(): string {
   return new URLSearchParams(window.location.search).get(MODAL_TITLE_PARAM) ?? "";
+}
+
+/** Whether this modal window's title bar has its close button. */
+export function currentModalClosable(): boolean {
+  return !new URLSearchParams(window.location.search).has(MODAL_UNCLOSABLE_PARAM);
+}
+
+/** Whether this modal window's title bar has its maximize / restore button. */
+export function currentModalMaximizable(): boolean {
+  return new URLSearchParams(window.location.search).has(MODAL_MAXIMIZABLE_PARAM);
 }

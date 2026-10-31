@@ -70,11 +70,12 @@ export const TOOLBAR_ACTIONS: Record<ToolbarActionId, ToolbarAction> = {
 /** Button groups left and right of the status pill, as in TablePlus. */
 export const TOOLBAR_LAYOUT: { left: ToolbarActionId[][]; right: ToolbarActionId[][] } = {
   left: [
+    ["settings"],
     ["toggleSidebar", "menu", "connections"],
     ["databases", "openMongosh"],
     ["openConnection", "openDatabase", "quickActions"],
   ],
-  right: [["refresh"], ["safeMode"], ["operations", "notifications", "logs"], ["settings"]],
+  right: [["refresh"], ["safeMode"], ["operations", "notifications", "logs"]],
 };
 
 export const shortcutLabel = (s: Shortcut) =>

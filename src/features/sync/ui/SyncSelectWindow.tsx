@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
 import { planLabel, replacePlan } from "../../../shared/domain/databasePlan";
-import { initiallyExpanded } from "../../../shared/domain/selection";
+import { catalogFavoritesFirst, initiallyExpanded } from "../../../shared/domain/selection";
 import { errorMessage } from "../../../shared/errors";
 import { DatabasePicker } from "../../../shared/ui/DatabasePicker";
 import { Endpoint } from "../../../shared/ui/Endpoint";
@@ -9,6 +9,7 @@ import { PlanSummary } from "../../../shared/ui/PlanSummary";
 import { SelectionWindow } from "../../../shared/ui/SelectionWindow";
 import { useCatalog } from "../../../shared/ui/useCatalog";
 import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
+import { favoritesOf } from "../../connections/domain/connection";
 import { ConnectionField } from "../../connections/ui/ConnectionField";
 import { TagBadge } from "../../connections/ui/TagBadge";
 import { syncRequest, validateSync } from "../domain/syncPlan";
@@ -64,7 +65,7 @@ export function SyncSelectWindow({ data, onDone, onClose }: Props) {
     >
       <DatabasePicker
         key={form.sourceId}
-        catalog={source.catalog}
+        catalog={catalogFavoritesFirst(source.catalog, favoritesOf(data.connections, form.sourceId))}
         loading={source.loading || form.sourceStatus.connecting}
         selection={form.selection}
         onChange={form.setSelection}

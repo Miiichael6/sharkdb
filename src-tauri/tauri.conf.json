@@ -13,11 +13,12 @@
     "windows": [
       {
         "title": "Robo3B",
-        "width": 1000,
-        "height": 660,
-        "minWidth": 760,
-        "minHeight": 480,
-        "center": true
+        "width": 760,
+        "height": 500,
+        "minWidth": 640,
+        "minHeight": 420,
+        "center": true,
+        "decorations": false
       }
     ],
     "security": {

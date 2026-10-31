@@ -6,6 +6,8 @@ interface Props {
   action: ToolbarAction;
   pressed?: boolean;
   disabled?: boolean;
+  /** Why it's disabled, added to its tooltip. */
+  disabledReason?: string;
   /** Opens a menu or a popover dialog instead of acting right away. */
   popup?: "menu" | "dialog";
   /** Small counter over the icon (e.g. unread notifications). */
@@ -13,13 +15,14 @@ interface Props {
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
-export function ToolbarButton({ action, pressed, disabled, popup, badge, onClick }: Props) {
+export function ToolbarButton({ action, pressed, disabled, disabledReason, popup, badge, onClick }: Props) {
+  const title = disabled && disabledReason ? `${actionTitle(action)}: ${disabledReason}` : actionTitle(action);
   return (
     <button
       type="button"
       className={`tb-btn ${pressed ? "pressed" : ""}`}
       data-action={action.id}
-      title={actionTitle(action)}
+      title={title}
       aria-label={badge ? `${action.label} (${badge})` : action.label}
       aria-pressed={action.toggle ? !!pressed : undefined}
       aria-haspopup={popup}

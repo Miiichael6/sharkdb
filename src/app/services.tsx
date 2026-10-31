@@ -23,7 +23,9 @@ import { tauriShellGateway } from "../features/shell/infrastructure/tauriShellGa
 import { createSyncService, type SyncService } from "../features/sync/application/syncService";
 import { tauriSyncGateway } from "../features/sync/infrastructure/tauriSyncGateway";
 import { createTerminalService, type TerminalService } from "../features/workspace/application/terminalService";
+import { createWindowTitleService, type WindowTitleService } from "../features/workspace/application/windowTitleService";
 import { tauriTerminalGateway } from "../features/workspace/infrastructure/tauriTerminalGateway";
+import { tauriWindowGateway } from "../features/workspace/infrastructure/tauriWindowGateway";
 import { createJobRunner } from "../shared/application/jobRunner";
 import { createOperationsService, type OperationsService } from "../shared/application/operationsService";
 import { tauriCommandRunner } from "../shared/infrastructure/commandRunner";
@@ -38,6 +40,7 @@ export interface Services {
   scriptFiles: ScriptFileService;
   documents: DocumentService;
   terminal: TerminalService;
+  windowTitle: WindowTitleService;
   backup: BackupService;
   sync: SyncService;
   operations: OperationsService;
@@ -54,6 +57,7 @@ export function createServices(): Services {
     scriptFiles: createScriptFileService(tauriScriptFiles),
     documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner)),
     terminal: createTerminalService(tauriTerminalGateway),
+    windowTitle: createWindowTitleService(tauriWindowGateway),
     backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),
     sync: createSyncService(tauriSyncGateway, startJob),
     operations: createOperationsService(),

@@ -17,13 +17,21 @@ import {
 } from "../features/documents/ui/DocumentEditorWindow";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
-import { OpenDatabaseDialog, type DatabaseChoice } from "../features/workspace/ui/OpenDatabaseDialog";
+import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
+import { OpenDatabaseDialog } from "../features/workspace/ui/OpenDatabaseDialog";
 import type { ConfirmRequest, DangerConfirmRequest } from "../shared/domain/confirmation";
 import { CONFIRM_VIEW, DANGER_CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
 import { ConfirmWindow } from "../shared/ui/ConfirmWindow";
 import { DangerConfirmWindow } from "../shared/ui/DangerConfirmWindow";
 import { ModalTitleBar } from "../shared/ui/ModalTitleBar";
-import { currentModalTitle, finishModalWindow, receiveModalData } from "../shared/ui/modalWindow";
+import {
+  askOpener,
+  currentModalClosable,
+  currentModalMaximizable,
+  currentModalTitle,
+  finishModalWindow,
+  receiveModalData,
+} from "../shared/ui/modalWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
 
@@ -37,7 +45,7 @@ export function ModalWindow({ view }: { view: string }) {
 
   return (
     <div className="modal-window">
-      <ModalTitleBar title={currentModalTitle()} />
+      <ModalTitleBar title={currentModalTitle()} closable={currentModalClosable()} maximizable={currentModalMaximizable()} />
       <div className="modal-window-body">{data !== undefined && <ModalView view={view} data={data} done={done} />}</div>
     </div>
   );
@@ -49,8 +57,18 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
       return <ConfirmWindow request={data as ConfirmRequest} onDone={done} />;
     case OPEN_CONNECTION_VIEW:
       return <OpenConnectionDialog data={data as OpenConnectionData} onDone={done} />;
-    case OPEN_DATABASE_VIEW:
-      return <OpenDatabaseDialog databases={data as DatabaseChoice[]} onDone={done} />;
+    case OPEN_DATABASE_VIEW: {
+      // Stars and new databases are saved by the opener, which owns the connections and sessions.
+      const ask = (request: OpenDatabaseRequest) => askOpener<void>(OPEN_DATABASE_VIEW, request);
+      return (
+        <OpenDatabaseDialog
+          data={data as OpenDatabaseData}
+          onFavorites={(favorites) => ask({ kind: "favorites", favorites })}
+          onCreate={(db, coll) => ask({ kind: "create", db, coll })}
+          onDone={done}
+        />
+      );
+    }
     case DOCUMENT_EDITOR_VIEW:
       return (
         <ServicesProvider services={createServices()}>

@@ -32,6 +32,10 @@ describe("migrateConnection", () => {
     expect(c).toMatchObject({ replicaSet: "", readPreference: "primary", connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS });
   });
 
+  it("starts a connection saved before favorites existed with none", () => {
+    expect(migrateConnection(legacy).favoriteDatabases).toEqual([]);
+  });
+
   it("builds the same URI as before the migration", () => {
     expect(buildUri(migrateConnection(legacy))).toBe("mongodb://ana:pw@db.local:27018/?authSource=admin&tls=true&w=majority");
   });

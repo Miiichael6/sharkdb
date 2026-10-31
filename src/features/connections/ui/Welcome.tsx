@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { displayName, hostLabel, type MongoConnection } from "../domain/connection";
 import { Avatar, Logo, Spinner } from "../../../shared/ui/common";
 import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { ContextMenu } from "../../../shared/ui/ContextMenu";
 import { MenuList } from "../../../shared/ui/MenuList";
+import { GearIcon, useSettingsItems } from "../../../shared/ui/settingsMenu";
+import { WindowControls } from "../../../shared/ui/WindowControls";
 import { TagBadge } from "./TagBadge";
 
 interface Props {
@@ -31,6 +34,8 @@ export function Welcome(props: Props) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [settingsAt, setSettingsAt] = useState<{ x: number; y: number } | null>(null);
+  const settingsItems = useSettingsItems();
   const confirmDelete = async (conn: MongoConnection) => {
     const confirmed = await confirmInWindow({
       title: "Eliminar conexión",
@@ -90,15 +95,30 @@ export function Welcome(props: Props) {
 
   return (
     <div className="welcome">
-      <aside className="welcome-side">
-        <Logo size={116} />
+      <aside className="welcome-side" data-tauri-drag-region>
+        <Logo size={190} />
         <h1>Robo3B</h1>
         <span className="muted">Versión 0.1.0</span>
         <p className="side-hint">Cliente de escritorio para MongoDB</p>
       </aside>
 
       <section className="welcome-main">
-        <div className="toolbar">
+        {/* Also the window's title bar (the window has no OS one here): drag it from its empty space. */}
+        <div className="toolbar welcome-titlebar" data-tauri-drag-region>
+          <button
+            className="icon-btn"
+            title="Ajustes"
+            aria-label="Ajustes"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              // The menu closes on any window click; this one must not reach the window and close it again.
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setSettingsAt((at) => (at ? null : { x: rect.left, y: rect.bottom + 4 }));
+            }}
+          >
+            <GearIcon />
+          </button>
           <button className="icon-btn" onClick={onNew} title="Nueva conexión (Ctrl+N)" aria-label="Nueva conexión">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
               <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -112,12 +132,13 @@ export function Welcome(props: Props) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setQuery("")}
           />
-          <span className="spacer" />
+          <span className="spacer" data-tauri-drag-region />
           {props.onBack && (
             <button onClick={props.onBack}>
               Volver al explorador ({openIds.length})
             </button>
           )}
+          <WindowControls />
         </div>
 
         <ul className="conn-list" onClick={() => setSelectedId(null)}>
@@ -185,7 +206,9 @@ export function Welcome(props: Props) {
           </li>
         </MenuList>
       )}
-
+      {settingsAt && (
+        <ContextMenu x={settingsAt.x} y={settingsAt.y} items={settingsItems} onClose={() => setSettingsAt(null)} label="Ajustes" />
+      )}
     </div>
   );
 }

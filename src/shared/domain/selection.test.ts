@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  catalogFavoritesFirst,
   COLLECTIONS_REQUIRED,
   databaseState,
   filterCollections,
@@ -68,5 +69,12 @@ describe("selection", () => {
     expect(() => requireCollections([])).toThrow(COLLECTIONS_REQUIRED);
     expect(() => requireCollections([{ db: "shop", collections: [] }])).toThrow(COLLECTIONS_REQUIRED);
     expect(() => requireCollections([{ db: "shop", collections: ["orders"] }])).not.toThrow();
+  });
+});
+
+describe("catalogFavoritesFirst", () => {
+  it("lists the favorites first without hiding the rest", () => {
+    const catalog = ["shop", "logs", "crm"].map((name) => ({ name, sizeOnDisk: 0, collections: [] }));
+    expect(catalogFavoritesFirst(catalog, ["shop", "gone"]).map((d) => d.name)).toEqual(["shop", "crm", "logs"]);
   });
 });

@@ -15,7 +15,7 @@ import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
-import { databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
+import { databaseNode, databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
 import { blockedInSafeMode } from "../domain/writeActions";
 import { useTree } from "./useTree";
 import { DetailPanel, type PanelMode } from "./DetailPanel";
@@ -27,11 +27,15 @@ import { useExplorerActions } from "./useExplorerActions";
 export interface WorkspaceControls {
   /** The tree's selection (the first server when nothing is selected). */
   selected: TreeNode | undefined;
+  /** The connection clicked in the tree, only while the selection is that connection itself. */
+  selectedConnection: string | undefined;
   refreshAll: () => void;
   /** Database nodes of a server session, as loaded in the tree. */
   databases: (sid: string) => TreeNode[];
   /** Selects `node` in the tree, opening it and its ancestors. */
   reveal: (node: TreeNode) => void;
+  /** Adds `names` (maybe none) to the connection's list as temporary, reloads it and selects the first one. */
+  openDatabases: (sid: string, names: string[]) => void;
   openMongosh: (sid: string, db?: string) => void;
   /** Runs a context-menu action on `node`, exactly as the tree does. */
   runAction: (action: Action, node: TreeNode) => void;
@@ -49,6 +53,8 @@ interface Props {
   connections: MongoConnection[];
   /** Opens a registered connection by id (or returns its session when it's already open). */
   onBorrowSession: (id: string) => Promise<BorrowedSession>;
+  /** Takes a database out of its connection's list (temporary or favorite). */
+  onRemoveFromList: (sid: string, db: string) => Promise<void>;
   sidebarHidden: boolean;
   logsOpen: boolean;
   onCloseLogs: () => void;
@@ -77,6 +83,7 @@ export function Workspace(props: Props) {
   const actions = useExplorerActions({
     tree,
     onDisconnect,
+    onRemoveFromList: props.onRemoveFromList,
     showPanel: (key, mode) => {
       setPanel(mode ? { key, mode } : null);
       onShowDetails();
@@ -120,12 +127,22 @@ export function Workspace(props: Props) {
     else actions.onAction(action, n);
   };
 
+  const openDatabases = (sid: string, names: string[]) => {
+    const server = tree.node(serverKey(sid));
+    if (!server) return;
+    explorer.openTemporary(sid, names);
+    tree.refresh(server);
+    if (names.length) tree.reveal(databaseNode(server, names[0]));
+  };
+
   const selected = tree.node(tree.selected) ?? roots[0];
   const controls: WorkspaceControls = {
     selected,
+    selectedConnection: tree.node(tree.selected)?.kind === "server" ? selected.sid : undefined,
     refreshAll: actions.refreshAll,
     databases: (sid) => databaseNodes(tree.children.get(serverKey(sid)) ?? []),
     reveal: tree.reveal,
+    openDatabases,
     openMongosh,
     runAction: onAction,
   };

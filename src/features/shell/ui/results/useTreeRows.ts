@@ -15,12 +15,17 @@ interface TreeState {
   selected: number;
 }
 
-const fresh = (docs: unknown[]): TreeState => ({ docs, expanded: new Set(), selected: 0 });
+// A lone result comes in open, like Robo 3T; several start closed.
+const fresh = (docs: unknown[]): TreeState => ({
+  docs,
+  expanded: new Set(docs.length === 1 ? [rowId(0, [])] : []),
+  selected: 0,
+});
 
 /** Visible rows of the result tree, which ones are open and the selected one, with arrow-key moves. */
 export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone) {
   const [state, setState] = useState(() => fresh(docs));
-  // A new page starts over, every document closed.
+  // A new page starts over.
   const current = state.docs === docs ? state : fresh(docs);
   if (current !== state) setState(current);
 

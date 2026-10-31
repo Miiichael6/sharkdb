@@ -80,19 +80,33 @@ describe("tableColumns", () => {
 });
 
 describe("documentsOf", () => {
-  it("shows documents and arrays of documents as documents", () => {
-    expect(documentsOf({ acknowledged: true })).toEqual([{ acknowledged: true }]);
-    expect(documentsOf([{ a: 1 }, { a: 2 }])).toHaveLength(2);
+  it("shows a document on its own", () => {
+    expect(documentsOf({ acknowledged: true }, "tree")).toEqual([{ acknowledged: true }]);
   });
 
-  it("leaves scalars and mixed arrays as plain values", () => {
-    expect(documentsOf({ $numberLong: "5" })).toBeNull();
-    expect(documentsOf([1, { a: 1 }])).toBeNull();
-    expect(documentsOf([])).toBeNull();
+  it("shows any array as a single root row in the tree and text views", () => {
+    expect(documentsOf([{ a: 1 }, { a: 2 }], "tree")).toEqual([[{ a: 1 }, { a: 2 }]]);
+    expect(documentsOf(["a", "b"], "text")).toEqual([["a", "b"]]);
+    expect(documentsOf([], "tree")).toEqual([[]]);
+  });
+
+  it("spreads an array of documents into rows in the table", () => {
+    expect(documentsOf([{ a: 1 }, { a: 2 }], "table")).toHaveLength(2);
+    expect(documentsOf([1, { a: 1 }], "table")).toEqual([[1, { a: 1 }]]);
+  });
+
+  it("leaves scalars as plain values", () => {
+    expect(documentsOf({ $numberLong: "5" }, "tree")).toBeNull();
+    expect(documentsOf("a", "tree")).toBeNull();
   });
 });
 
 describe("cellText", () => {
+  it("copies an empty string as empty text", () => {
+    const [root, empty] = visibleTreeRows([{ s: "" }], 1, new Set([rowId(0, [])]), "utc");
+    expect(cellText(empty, "value", root.raw, "utc")).toBe("");
+  });
+
   const rows = visibleTreeRows(docs, 1, new Set([rowId(0, [])]), "utc");
   const row = (key: string) => rows.find((r) => r.key === key)!;
 

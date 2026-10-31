@@ -1,4 +1,5 @@
 // What sync, backup and restore choose: whole databases or some of their collections, across several databases.
+import { favoritesFirst } from "./favoritesFirst";
 
 /** A database offered to choose from (of a server or a backup folder): system databases and collections never appear. */
 export interface DatabaseCatalog {
@@ -60,6 +61,12 @@ export function originSelection(catalog: DatabaseCatalog[], db?: string, collect
   if (!database) return {};
   if (collection) return database.collections.includes(collection) ? { [database.name]: [collection] } : {};
   return toggleDatabase({}, database);
+}
+
+/** The catalog with the `favorites` first and the rest below, none hidden (R46). */
+export function catalogFavoritesFirst(catalog: DatabaseCatalog[], favorites: string[]): DatabaseCatalog[] {
+  const compare = favoritesFirst(favorites);
+  return [...catalog].sort((a, b) => compare(a.name, b.name));
 }
 
 /** Collections whose name contains `query`, ignoring case. */

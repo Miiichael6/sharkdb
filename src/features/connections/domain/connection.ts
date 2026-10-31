@@ -32,6 +32,8 @@ export interface MongoConnection extends AdvancedOptions {
   ssh: SshSettings;
   /** Production-like: never modified, so its sessions open in safe mode (read-only). */
   protected: boolean;
+  /** Databases the explorer always shows for this connection, alphabetical. */
+  favoriteDatabases: string[];
 }
 
 export const TAGS: Tag[] = ["local", "development", "testing", "staging", "production"];
@@ -79,6 +81,7 @@ export function newConnection(): MongoConnection {
     options: "",
     ssh: newSshSettings(),
     protected: false,
+    favoriteDatabases: [],
   };
 }
 
@@ -194,5 +197,12 @@ export const duplicateConnection = (conn: MongoConnection): MongoConnection => (
   id: crypto.randomUUID(),
   name: `${displayName(conn)} (copia)`,
 });
+
+/** `list` with the favorite databases of connection `id` replaced. */
+export const withFavorites = (list: MongoConnection[], id: string, favoriteDatabases: string[]) =>
+  list.map((c) => (c.id === id ? { ...c, favoriteDatabases } : c));
+
+/** The favorite databases of connection `id`, none when it isn't registered. */
+export const favoritesOf = (list: MongoConnection[], id: string) => list.find((c) => c.id === id)?.favoriteDatabases ?? [];
 
 export const removeConnection = (list: MongoConnection[], id: string) => list.filter((c) => c.id !== id);

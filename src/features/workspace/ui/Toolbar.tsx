@@ -2,10 +2,11 @@ import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { badgeText } from "../../../shared/domain/notifications";
 import { ContextMenu, type ContextMenuItem } from "../../../shared/ui/ContextMenu";
 import { NotificationCenter } from "../../../shared/ui/NotificationCenter";
-import { THEME_CHOICES, useThemeChoice } from "../../../shared/ui/theme";
+import { useSettingsItems } from "../../../shared/ui/settingsMenu";
 import { useNotifications } from "../../../shared/ui/useNotifications";
 import type { StatusContext } from "../domain/statusLabel";
 import { TOOLBAR_ACTIONS, TOOLBAR_LAYOUT, type ToolbarActionId } from "../domain/toolbarActions";
+import { WindowControls } from "../../../shared/ui/WindowControls";
 import { StatusPill } from "./StatusPill";
 import { ToolbarButton } from "./ToolbarButton";
 import type { ToolbarHandlers } from "./useToolbarShortcuts";
@@ -21,6 +22,8 @@ interface Props {
   handlers: ToolbarHandlers;
   pressed: Partial<Record<ToolbarActionId, boolean>>;
   disabled: Partial<Record<ToolbarActionId, boolean>>;
+  /** Why a disabled button can't be used, shown in its tooltip. */
+  disabledReasons?: Partial<Record<ToolbarActionId, string>>;
   menuItems: ContextMenuItem[];
   status: StatusContext | null;
   /** Counters over other buttons than the notifications one (e.g. running operations). */
@@ -28,16 +31,11 @@ interface Props {
 }
 
 /** Workspace toolbar in the style of TablePlus: button groups around the status pill. */
-export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges: extraBadges }: Props) {
+export function Toolbar({ handlers, pressed, disabled, disabledReasons, menuItems, status, badges: extraBadges }: Props) {
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
   const { unread } = useNotifications();
-  const theme = useThemeChoice();
-  const settingsItems: ContextMenuItem[] = THEME_CHOICES.map(({ id, label }) => ({
-    label: `Tema ${label.toLowerCase()}`,
-    checked: theme.choice === id,
-    onSelect: () => theme.choose(id),
-  }));
+  const settingsItems = useSettingsItems();
   const badges: Partial<Record<ToolbarActionId, string>> = { ...extraBadges, notifications: unread ? badgeText(unread) : undefined };
 
   const onButton = (id: ToolbarActionId, e: MouseEvent<HTMLButtonElement>) => {
@@ -66,6 +64,7 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges
           action={TOOLBAR_ACTIONS[id]}
           pressed={pressed[id] || popup?.id === id}
           disabled={disabled[id]}
+          disabledReason={disabledReasons?.[id]}
           popup={isPopup(id) ? POPUPS[id] : undefined}
           badge={badges[id]}
           onClick={(e) => onButton(id, e)}
@@ -75,10 +74,12 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges
   );
 
   return (
-    <div className="ws-toolbar" role="toolbar" aria-label="Barra de herramientas" onKeyDown={onKeyDown}>
+    // Also the window's title bar (the window has no OS one): drag it from its empty space.
+    <div className="ws-toolbar" role="toolbar" aria-label="Barra de herramientas" onKeyDown={onKeyDown} data-tauri-drag-region>
       {TOOLBAR_LAYOUT.left.map(group)}
       <StatusPill status={status} />
       {TOOLBAR_LAYOUT.right.map(group)}
+      <WindowControls />
 
       {popup?.id === "menu" && (
         <ContextMenu x={popup.x} y={popup.y} items={menuItems} onClose={closePopup} label={TOOLBAR_ACTIONS.menu.label} />

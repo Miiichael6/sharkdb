@@ -15,7 +15,7 @@ interface Props {
 const MIN_MAIN_WIDTH = 360;
 
 /** Side panel + main area with a draggable vertical splitter between them. */
-export function SplitPane({ side, children, initialWidth = 320, minWidth = 200, maxWidth = 640, sideClassName = "", sideHidden = false }: Props) {
+export function SplitPane({ side, children, initialWidth = 245, minWidth = 200, maxWidth = 640, sideClassName = "", sideHidden = false }: Props) {
   const [width, setWidth] = useState(initialWidth);
   const dragging = useRef(false);
 
