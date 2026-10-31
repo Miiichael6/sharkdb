@@ -1,4 +1,5 @@
 // What a window opened with `openModalWindow` renders instead of the app.
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useState } from "react";
 import { BackupWindow } from "../features/backup/ui/BackupWindow";
 import { BACKUP_VIEW, RESTORE_VIEW, type BackupWindowData, type RestoreWindowData } from "../features/backup/ui/backupViews";
@@ -16,6 +17,7 @@ import {
   DocumentEditorWindow,
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
+import { VALIDATION_VIEW, ValidationWindow, type ValidationWindowData } from "../features/explorer/ui/ValidationWindow";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
@@ -34,6 +36,7 @@ import {
   currentModalTitle,
   finishModalWindow,
   receiveModalData,
+  releaseOpener,
   showModalWindow,
 } from "../shared/ui/modalWindow";
 import { createServices, ServicesProvider } from "./services";
@@ -48,6 +51,11 @@ const SHOW_ANYWAY_MS = 2000;
 export function ModalWindow({ view }: { view: string }) {
   const [data, setData] = useState<unknown>();
   useEffect(() => receiveModalData(view, (d) => setData(() => d)), [view]);
+  // Closed from its title bar or with Alt+F4: the opener is enabled again before the window is destroyed.
+  useEffect(() => {
+    const stop = getCurrentWindow().onCloseRequested(() => releaseOpener());
+    return () => void stop.then((unlisten) => unlisten());
+  }, []);
   useEffect(() => {
     const timer = setTimeout(() => void showModalWindow(), SHOW_ANYWAY_MS);
     return () => clearTimeout(timer);
@@ -121,6 +129,12 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
       return (
         <ServicesProvider services={createServices()}>
           <RestoreWindow data={data as RestoreWindowData} onDone={done} onClose={() => done(null)} />
+        </ServicesProvider>
+      );
+    case VALIDATION_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <ValidationWindow data={data as ValidationWindowData} onDone={done} />
         </ServicesProvider>
       );
     default:

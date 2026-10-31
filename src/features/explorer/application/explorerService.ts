@@ -8,9 +8,17 @@ import {
   type CopyRequest,
 } from "../domain/copySpec";
 import { creatableSpec } from "../domain/indexSpec";
-import { SYSTEM_DATABASES, type CollectionEntry, type IndexSpec } from "../domain/mongo";
+import { SYSTEM_DATABASES, type CollectionEntry, type Doc, type IndexSpec } from "../domain/mongo";
 import { hasUserDatabases, visibleDatabases, type VisibleDatabase } from "../domain/pinnedDatabases";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
+import {
+  collModCommand,
+  readValidation,
+  removeValidationCommand,
+  validatorFrom,
+  type CollectionValidation,
+  type ValidationSettings,
+} from "../domain/validation";
 import type { MongoAdmin } from "./ports";
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
@@ -122,8 +130,25 @@ export function createExplorerService(admin: MongoAdmin) {
     return copyCollection(request);
   }
 
+  /** The validation the collection has on the server, however it was set (robo3B, a script, another app). */
+  const validationOf = async (ref: CollectionRef): Promise<CollectionValidation> =>
+    readValidation(await admin.collectionOptions(ref.sid, ref.db, ref.coll));
+
+  /** Stores the edited rule (a `$jsonSchema`, or the whole validator) with these settings. */
+  const saveValidation = (ref: CollectionRef, rule: Doc, wholeValidator: boolean, settings: ValidationSettings) =>
+    admin.modifyCollection(
+      ref.sid,
+      ref.db,
+      collModCommand(ref.coll, validatorFrom(rule, wholeValidator, settings.extraFields), settings),
+    );
+
+  const removeValidation = (ref: CollectionRef) => admin.modifyCollection(ref.sid, ref.db, removeValidationCommand(ref.coll));
+
   return {
     ...admin,
+    validationOf,
+    saveValidation,
+    removeValidation,
     loadChildren,
     replaceIndex,
     copyCollection,

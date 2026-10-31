@@ -29,7 +29,7 @@ export function ToolbarButton({ action, pressed, disabled, disabledReason, popup
       disabled={disabled}
       onClick={onClick}
     >
-      <ToolbarIcon id={action.id} />
+      <ToolbarIcon id={action.id} pressed={pressed} />
       {badge && (
         <span className="tb-badge" aria-hidden>
           {badge}

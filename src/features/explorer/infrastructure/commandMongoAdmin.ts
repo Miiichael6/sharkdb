@@ -49,6 +49,11 @@ export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {
     dropDatabase: (sid, db) => exec(sid, db, { dropDatabase: 1 }),
     renameCollection: (sid, db, from, to) =>
       exec(sid, "admin", { renameCollection: `${db}.${from}`, to: `${db}.${to}` }),
+    async collectionOptions(sid, db, coll) {
+      const [entry] = firstBatch<CollectionEntry>(await run(sid, db, { listCollections: 1, filter: { name: coll } }));
+      return entry?.options ?? {};
+    },
+    modifyCollection: (sid, db, command) => exec(sid, db, command),
 
     createIndex: (sid, db, coll, spec) => exec(sid, db, { createIndexes: coll, indexes: [spec] }),
     dropIndex: (sid, db, coll, name) => exec(sid, db, { dropIndexes: coll, index: name }),

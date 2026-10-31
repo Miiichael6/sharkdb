@@ -1,5 +1,5 @@
 import { emit, listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { errorMessage } from "../errors";
 
@@ -11,6 +11,8 @@ const MODAL_TITLE_PARAM = "title";
 const MODAL_UNCLOSABLE_PARAM = "unclosable";
 /** Query parameter set when the modal's title bar has a maximize button (see `currentModalMaximizable`). */
 const MODAL_MAXIMIZABLE_PARAM = "maximizable";
+/** Query parameter with the label of the window that opened the modal (see `releaseOpener`). */
+const MODAL_OPENER_PARAM = "opener";
 
 // One modal window per view at a time (the opener is disabled meanwhile), so the view names its events.
 const readyEvent = (view: string) => `modal-ready:${view}`;
@@ -68,7 +70,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
   try {
     await parent.setEnabled(false);
     const child = new WebviewWindow(`modal-${view}`, {
-      url: `index.html?${modalQuery(view, title, closable, maximizable)}`,
+      url: `index.html?${modalQuery(view, title, parent.label, closable, maximizable)}`,
       title,
       width,
       height,
@@ -100,8 +102,8 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
 /** The page background of the current theme, so the new window is never white underneath. */
 const themeBackground = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || undefined;
 
-function modalQuery(view: string, title: string, closable: boolean, maximizable: boolean): URLSearchParams {
-  const query = new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title });
+function modalQuery(view: string, title: string, opener: string, closable: boolean, maximizable: boolean): URLSearchParams {
+  const query = new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title, [MODAL_OPENER_PARAM]: opener });
   if (!closable) query.set(MODAL_UNCLOSABLE_PARAM, "1");
   if (maximizable) query.set(MODAL_MAXIMIZABLE_PARAM, "1");
   return query;
@@ -153,10 +155,22 @@ export async function showModalWindow() {
 /** From inside a modal window: hands `result` to the window that opened it and closes this one. */
 export async function finishModalWindow(view: string, result: unknown) {
   if (result !== null) await emit(resultEvent(view), result);
+  await releaseOpener();
   const win = getCurrentWindow();
   // Hidden first, so it doesn't flash blank while the OS tears it down.
   await win.hide();
   await win.close();
+}
+
+/**
+ * From inside a modal window, right before it goes away: re-enables the window that opened it.
+ * Windows hands the activation of a closing owned window to its owner only if the owner is enabled;
+ * while it's still disabled, another app gets it and the opener flickers when it takes it back.
+ */
+export async function releaseOpener() {
+  const label = new URLSearchParams(window.location.search).get(MODAL_OPENER_PARAM);
+  const opener = label ? await Window.getByLabel(label) : null;
+  await opener?.setEnabled(true);
 }
 
 /** The view this window shows when it was opened by `openModalWindow`. */

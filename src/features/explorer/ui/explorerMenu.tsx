@@ -20,6 +20,7 @@ export type Action =
   | "removeFromList"
   | "collStats"
   | "addIndex"
+  | "editValidation"
   | "insertDocument"
   | "removeAllDocuments"
   | "renameCollection"
@@ -115,6 +116,7 @@ export function menuFor(n: TreeNode): MenuItem[] {
         "sep",
         { label: "Estadísticas", action: "collStats" },
         { label: "Añadir índice…", action: "addIndex" },
+        { label: "Validación…", action: "editValidation" },
         "sep",
         { label: "Versión de shard", action: "shardVersion" },
         { label: "Distribución de shards", action: "shardDistribution" },

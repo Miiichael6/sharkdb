@@ -36,8 +36,14 @@
     throw error;
   }
 
+  // Código de una escritura que el validador de la colección ($jsonSchema) rechazó.
+  const DOCUMENT_VALIDATION_FAILURE = 121;
+
   function checkWrite(reply) {
     const [first] = reply.writeErrors ?? [];
+    if (first && num(first.code) === DOCUMENT_VALIDATION_FAILURE) {
+      failWith('WriteError', `${first.errmsg}: el documento no cumple la validación de la colección`);
+    }
     if (first) failWith('WriteError', `${first.errmsg} (código ${num(first.code)})`);
     if (reply.writeConcernError) failWith('WriteConcernError', reply.writeConcernError.errmsg);
     return reply;
