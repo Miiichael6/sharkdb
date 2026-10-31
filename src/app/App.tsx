@@ -58,21 +58,41 @@ function App() {
 
   const upsert = (conn: MongoConnection) => persist(upsertConnection(connections, conn));
 
+  /** Opens `conn` and adds it to the explorer; throws when it can't connect. */
+  const openSession = async (conn: MongoConnection) => {
+    const session = await service.open(conn);
+    // Reconnecting an open connection (e.g. after editing it) replaces its session.
+    setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
+    log.info(`Conectado a ${displayName(conn)}`);
+    return session;
+  };
+
   const connect = async (conn: MongoConnection) => {
     setDialog({ kind: "none" });
     setError("");
     setConnectingId(conn.id);
     try {
-      const session = await service.open(conn);
-      // Reconnecting an open connection (e.g. after editing it) replaces its session.
-      setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
+      await openSession(conn);
       setShowWelcome(false);
-      log.info(`Conectado a ${displayName(conn)}`);
     } catch (e) {
       setError(`${displayName(conn)}: ${errorMessage(e)}`);
       log.error(`No se pudo conectar a ${displayName(conn)}`, e);
     } finally {
       setConnectingId(null);
+    }
+  };
+
+  /** A registered connection's session, opening it when it's closed (the sync's ends). */
+  const ensureSession = async (id: string) => {
+    const open = sessions.find((s) => s.conn.id === id);
+    if (open) return open;
+    const conn = connections.find((c) => c.id === id);
+    if (!conn) throw "La conexión ya no existe";
+    try {
+      return await openSession(conn);
+    } catch (e) {
+      log.error(`No se pudo conectar a ${displayName(conn)}`, e);
+      throw e;
     }
   };
 
@@ -130,6 +150,8 @@ function App() {
       ) : (
         <Workspace
           sessions={sessions}
+          connections={connections}
+          onEnsureSession={ensureSession}
           sidebarHidden={layout.sidebarHidden}
           logsOpen={layout.logsOpen}
           onCloseLogs={layout.closeLogs}

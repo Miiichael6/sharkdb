@@ -1,8 +1,9 @@
 // Sync between environments (R30, D7): replaces whole databases or some of their collections in
 // another connection, each database in the one with its same name.
+import type { DangerConfirmRequest } from "../../../shared/domain/confirmation";
 import { collectionsLabel, totalDocuments, type CollectionResult } from "../../../shared/domain/jobs";
-import { COLLECTIONS_REQUIRED, restoreTargets } from "../../backup/domain/backupSpec";
-import { neverModified } from "../../connections/domain/connection";
+import { COLLECTIONS_REQUIRED, restoreBlockReason } from "../../backup/domain/backupSpec";
+import { displayName, neverModified, type MongoConnection, type Tag } from "../../connections/domain/connection";
 import type { Session } from "../../connections/domain/session";
 
 /** A database of the source, as the backend lists it: system databases and collections never appear. */
@@ -31,7 +32,18 @@ export interface PlanDatabase {
   action: "replace" | "create";
 }
 
+/** A registered connection offered as one end of the sync; a closed one is connected when chosen. */
+export interface SyncConnection {
+  id: string;
+  name: string;
+  tag: Tag;
+  connected: boolean;
+  /** Why it can't be the destination now (safe mode on), shown next to it. */
+  blocked?: string;
+}
+
 export const TARGET_REQUIRED = "Elige la conexión de destino";
+export const NO_TARGET = "No hay otra conexión que se pueda modificar";
 export const TARGET_IS_SOURCE = "El destino no puede ser la conexión de origen";
 
 /** How much of a database is chosen, for its checkbox. */
@@ -104,19 +116,78 @@ export function validateSync(r: SyncRequest): SyncRequest {
   return r;
 }
 
-/** Connections offered as source: any open one, since it's only read. */
-export const syncSources = (sessions: Session[]) => restoreTargets(sessions).map(({ sid, name, tag }) => ({ sid, name, tag }));
+function syncConnections(connections: MongoConnection[], sessions: Session[], exceptId: string): SyncConnection[] {
+  return connections
+    .filter((conn) => conn.id !== exceptId)
+    .map((conn) => {
+      const session = sessions.find((s) => s.conn.id === conn.id);
+      return {
+        id: conn.id,
+        name: displayName(conn),
+        tag: conn.tag,
+        connected: !!session,
+        blocked: session && restoreBlockReason(session),
+      };
+    });
+}
 
 /**
- * Connections offered as destination: protected or production ones never appear (D7), so nothing is
- * ever copied into production; safe mode ones show why they can't.
+ * Connections offered as source: every registered one, since it's only read, except the chosen
+ * destination, so both ends are never the same connection.
  */
-export const syncTargets = (sessions: Session[]) => restoreTargets(sessions.filter((s) => !neverModified(s.conn)));
+export const syncSources = (connections: MongoConnection[], sessions: Session[], targetId = "") =>
+  syncConnections(connections, sessions, targetId).map(({ blocked: _, ...source }) => source);
 
-/** The typed confirmation must be the destination connection's name. */
-export const confirmationMatches = (typed: string, targetName: string) => !!targetName.trim() && typed.trim() === targetName.trim();
+/**
+ * Connections offered as destination: every registered one but the source; protected or production
+ * ones never appear (D7), open or closed, so nothing is ever copied into production.
+ */
+export const syncTargets = (connections: MongoConnection[], sessions: Session[], sourceId = "") =>
+  syncConnections(
+    connections.filter((conn) => !neverModified(conn)),
+    sessions,
+    sourceId,
+  );
+
+/** The chosen destination while it's still offered and usable; otherwise another one, or "" when none is. */
+export const pickTarget = (targets: SyncConnection[], currentId: string) =>
+  (targets.find((t) => t.id === currentId && !t.blocked) ?? targets.find((t) => !t.blocked))?.id ?? "";
+
+/** The chosen collections of a request, to choose them again when going back to the selection. */
+export const requestSelection = (request: SyncRequest): Selection =>
+  Object.fromEntries(request.databases.filter((d) => d.collections.length).map((d) => [d.db, d.collections]));
 
 const databasesLabel = (n: number) => `${n} ${n === 1 ? "base de datos" : "bases de datos"}`;
+
+const ACTION_LABELS: Record<PlanDatabase["action"], string> = { replace: "reemplaza", create: "nueva" };
+/** Collections listed by name for a partial database; beyond this, only the count. */
+const LISTED_COLLECTIONS = 4;
+
+/** "completa · 12 colecciones", or the chosen collections of a partial database. */
+export function databaseDetail(d: PlanDatabase): string {
+  if (d.complete) return `completa · ${collectionsLabel(d.collections.length)}`;
+  const names = d.collections.slice(0, LISTED_COLLECTIONS).join(", ");
+  const more = d.collections.length - LISTED_COLLECTIONS;
+  return more > 0 ? `${names} y ${more} más` : names;
+}
+
+export const actionLabel = (d: PlanDatabase) => ACTION_LABELS[d.action];
+
+/** The second window: what the destination loses, before typing the confirmation word (D9). */
+export const syncConfirmation = (
+  plan: PlanDatabase[],
+  source: string,
+  target: { name: string; tag?: string },
+  blocked?: string,
+): DangerConfirmRequest => ({
+  title: "Confirmar sincronización",
+  target,
+  intro: `con el contenido de ${source}; cada base de datos va a la de su mismo nombre.`,
+  items: plan.map((d) => ({ badge: actionLabel(d), kind: d.action, name: d.db, detail: databaseDetail(d) })),
+  note: "Las colecciones del destino que no elegiste se conservan sin tocar.",
+  confirmLabel: "Sincronizar",
+  blocked,
+});
 
 /** "2 bases de datos · 35 colecciones", for the footer. */
 export const planLabel = (plan: PlanDatabase[]) => `${databasesLabel(plan.length)} · ${collectionsLabel(planCollections(plan))}`;

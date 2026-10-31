@@ -10,13 +10,13 @@ interface Props {
   onChange: (selection: Selection) => void;
   /** Where the copy goes, for the heading. */
   targetName: string;
-  /** Opened from a collection: its database starts expanded. */
-  initiallyExpanded?: string;
+  /** Databases that start expanded (the one of the origin collection, or those chosen before "Volver"). */
+  initiallyExpanded?: string[];
 }
 
 /** "Qué copiar": the source's databases, whole or by collection, across several databases. */
 export function DatabasePicker({ catalog, loading, selection, onChange, targetName, initiallyExpanded }: Props) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(initiallyExpanded ? [initiallyExpanded] : []));
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(initiallyExpanded));
   const toggleExpanded = (db: string) =>
     setExpanded((current) => {
       const next = new Set(current);

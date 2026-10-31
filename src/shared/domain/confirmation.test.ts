@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmWindowHeight } from "./confirmation";
+import { CONFIRM_WORD, confirmWindowHeight, confirmationMatches } from "./confirmation";
 
 describe("confirmWindowHeight", () => {
   it("fits one line", () => {
@@ -14,5 +14,19 @@ describe("confirmWindowHeight", () => {
 
   it("caps very long messages", () => {
     expect(confirmWindowHeight("x".repeat(10_000))).toBe(120 + 12 * 20);
+  });
+});
+
+describe("confirmationMatches", () => {
+  it("accepts the word ignoring case and spaces at the ends", () => {
+    expect(confirmationMatches("Confirmo ")).toBe(true);
+    expect(confirmationMatches("CONFIRMO")).toBe(true);
+    expect(confirmationMatches(CONFIRM_WORD)).toBe(true);
+  });
+
+  it("rejects anything else", () => {
+    expect(confirmationMatches("confirmar")).toBe(false);
+    expect(confirmationMatches("con firmo")).toBe(false);
+    expect(confirmationMatches("")).toBe(false);
   });
 });

@@ -2,17 +2,15 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useDataOperations } from "../../../app/operations/useDataOperations";
 import { useServices } from "../../../app/services";
 import { LogPanel } from "../../../shared/ui/LogPanel";
-import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
 import { useNotify } from "../../../shared/ui/useNotifications";
 import { BackupDialog } from "../../backup/ui/BackupDialog";
 import { RestoreDialog } from "../../backup/ui/RestoreDialog";
-import { displayName } from "../../connections/domain/connection";
+import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
-import type { SyncRequest } from "../../sync/domain/syncPlan";
-import { SYNC_VIEW, SYNC_WINDOW, type SyncWindowData } from "../../sync/ui/SyncWindow";
+import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
@@ -40,6 +38,10 @@ export interface WorkspaceControls {
 
 interface Props {
   sessions: Session[];
+  /** Every registered connection: the sync can use closed ones too. */
+  connections: MongoConnection[];
+  /** Opens a registered connection by id (or returns its session when it's already open). */
+  onEnsureSession: (id: string) => Promise<Session>;
   sidebarHidden: boolean;
   logsOpen: boolean;
   onCloseLogs: () => void;
@@ -54,7 +56,7 @@ interface Props {
 }
 
 export function Workspace(props: Props) {
-  const { sessions, sidebarHidden, logsOpen, onCloseLogs, onDisconnect, onOpenShell, onShowDetails } = props;
+  const { sessions, connections, sidebarHidden, logsOpen, onCloseLogs, onDisconnect, onOpenShell, onShowDetails } = props;
   const roots = useMemo(
     () => sessions.map((s) => serverNode(s.conn.id, displayName(s.conn))),
     [sessions],
@@ -77,7 +79,14 @@ export function Workspace(props: Props) {
     notify: ok,
     fail,
   });
-  const data = useDataOperations(sessions, actions.refreshAll);
+  const data = useDataOperations(connections, actions.refreshAll);
+  const openSyncFlow = useSyncFlow({
+    connections,
+    sessions,
+    ensureSession: props.onEnsureSession,
+    busyReason: data.busyReason,
+    run: data.sync,
+  });
 
   const openMongosh = useCallback(
     (sid: string, db?: string) =>
@@ -91,18 +100,11 @@ export function Workspace(props: Props) {
     [terminal, fail, log],
   );
 
-  /** The sync is chosen in its own window (this one stays disabled meanwhile) and runs in the operations panel. */
-  const openSync = async (n: TreeNode) => {
-    const windowData: SyncWindowData = { sessions, origin: { sid: n.sid, db: n.db, collection: n.coll } };
-    let request: SyncRequest | null;
-    try {
-      request = await openModalWindow<SyncRequest>(SYNC_VIEW, windowData, SYNC_WINDOW);
-    } catch (e) {
-      log.error("No se pudo abrir la ventana de sincronización", e);
-      return;
-    }
-    if (request) data.sync(request);
-  };
+  /** The sync is chosen and confirmed in their own windows (this one stays disabled) and runs in the operations panel. */
+  const openSync = (n: TreeNode) =>
+    openSyncFlow({ sid: n.sid, db: n.db, collection: n.coll }).catch((e) =>
+      log.error("No se pudo abrir la ventana de sincronización", e),
+    );
 
   const onAction = (action: Action, n: TreeNode) => {
     // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.

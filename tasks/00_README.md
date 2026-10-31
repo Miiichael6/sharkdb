@@ -97,7 +97,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 18 | [Confirmaciones en ventanas modales](done/18_ventanas_confirmacion.md) | 8 Barra de herramientas | 12 | ✅ Terminada (prueba manual pendiente) |
 | 19 | [Menús de índices y conexión como Robo 3T](done/19_menus_indices_conexion.md) | 7 Administración | 17, 18 | ✅ Terminada (prueba manual pendiente) |
 | 20 | [Panel de operaciones en segundo plano](done/20_panel_operaciones.md) | 9 Operaciones de BD | 15 | ✅ Terminada |
-| 21 | [Sync en dos pasos: selección y confirmación](pending/21_sync_dos_pasos.md) | 9 Operaciones de BD | 20 | ⬜ Pendiente |
+| 21 | [Sync en dos pasos: selección y confirmación](done/21_sync_dos_pasos.md) | 9 Operaciones de BD | 20 | ✅ Terminada |
 | 22 | [Backup y restore con el mismo flujo que el sync](pending/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).

@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { COLLECTIONS_REQUIRED, SAFE_MODE_TARGET } from "../../backup/domain/backupSpec";
-import { newConnection, type Tag } from "../../connections/domain/connection";
+import { newConnection, type MongoConnection, type Tag } from "../../connections/domain/connection";
 import type { Session } from "../../connections/domain/session";
 import {
   TARGET_IS_SOURCE,
   TARGET_REQUIRED,
-  confirmationMatches,
   databaseState,
   filterCollections,
   originSelection,
+  pickTarget,
   planLabel,
+  requestSelection,
   selectEverything,
+  syncConfirmation,
   syncPlan,
   syncRequest,
   syncSources,
@@ -35,11 +37,27 @@ const request = (over: Partial<SyncRequest> = {}): SyncRequest => ({
   ...over,
 });
 
-const session = (id: string, over: { protected?: boolean; safeMode?: boolean; tag?: Tag } = {}): Session => ({
-  conn: { ...newConnection(), id, name: id, protected: !!over.protected, tag: over.tag ?? "development" },
-  info: { version: "7.0", databases: [] },
-  safeMode: !!over.safeMode,
+const connection = (id: string, over: { protected?: boolean; tag?: Tag } = {}): MongoConnection => ({
+  ...newConnection(),
+  id,
+  name: id,
+  protected: !!over.protected,
+  tag: over.tag ?? "development",
 });
+
+const session = (conn: MongoConnection, safeMode = false): Session => ({
+  conn,
+  info: { version: "7.0", databases: [] },
+  safeMode,
+});
+
+const PROD = connection("prod", { protected: true });
+const PROD2 = connection("prod2", { tag: "production" });
+const QA = connection("qa");
+const LOCAL = connection("local", { tag: "local" });
+const RO = connection("ro");
+const CONNECTIONS = [PROD, PROD2, QA, LOCAL, RO];
+const ids = (options: { id: string }[]) => options.map((o) => o.id);
 
 describe("syncPlan", () => {
   it("checks a whole database or clears it", () => {
@@ -95,24 +113,58 @@ describe("syncPlan", () => {
     expect(() => validateSync(request({ databases: [] }))).toThrow(COLLECTIONS_REQUIRED);
   });
 
-  it("never offers a protected or production connection as destination", () => {
-    const sessions = [
-      session("prod", { protected: true }),
-      session("prod2", { tag: "production" }),
-      session("qa"),
-      session("ro", { safeMode: true }),
-    ];
-    expect(syncTargets(sessions).map((t) => [t.sid, t.blocked])).toEqual([
-      ["qa", undefined],
-      ["ro", SAFE_MODE_TARGET],
+  it("offers closed connections as destination, never a protected or production one", () => {
+    const sessions = [session(PROD), session(QA), session(RO, true)];
+    const targets = syncTargets(CONNECTIONS, sessions, "prod");
+    expect(targets.map((t) => [t.id, t.connected, t.blocked])).toEqual([
+      ["qa", true, undefined],
+      ["local", false, undefined],
+      ["ro", true, SAFE_MODE_TARGET],
     ]);
-    expect(syncSources(sessions).map((s) => s.sid)).toEqual(["prod", "prod2", "qa", "ro"]);
+    // Closed or open, production never appears.
+    expect(ids(syncTargets(CONNECTIONS, [], "qa"))).toEqual(["local", "ro"]);
   });
 
-  it("asks to type the destination connection's name", () => {
-    expect(confirmationMatches(" QA ", "QA")).toBe(true);
-    expect(confirmationMatches("QA2", "QA")).toBe(false);
-    expect(confirmationMatches("", "")).toBe(false);
+  it("offers every registered connection as source, open or closed", () => {
+    expect(syncSources(CONNECTIONS, [session(PROD)]).map((s) => [s.id, s.connected])).toEqual([
+      ["prod", true],
+      ["prod2", false],
+      ["qa", false],
+      ["local", false],
+      ["ro", false],
+    ]);
+  });
+
+  it("never offers the same connection at both ends", () => {
+    expect(ids(syncTargets(CONNECTIONS, [], "qa"))).not.toContain("qa");
+    expect(ids(syncSources(CONNECTIONS, [], "local"))).not.toContain("local");
+  });
+
+  it("moves the destination when it becomes the source", () => {
+    // "local" was the destination; choosing it as source takes it out of the destinations.
+    const targets = syncTargets(CONNECTIONS, [session(RO, true)], "local");
+    expect(pickTarget(targets, "local")).toBe("qa");
+    expect(pickTarget(targets, "qa")).toBe("qa");
+    // Only a blocked one is left: no destination.
+    expect(pickTarget(syncTargets([QA, RO], [session(RO, true)], "qa"), "qa")).toBe("");
+    expect(pickTarget([], "qa")).toBe("");
+  });
+
+  it("chooses again what a request had, to go back to the selection", () => {
+    expect(requestSelection(request({ databases: [{ db: "shop", collections: ["orders"] }, { db: "log", collections: [] }] }))).toEqual({
+      shop: ["orders"],
+    });
+  });
+
+  it("describes what the destination loses for the confirmation window", () => {
+    const plan = syncPlan(CATALOG, { shop: ["orders"], log: ["events"] }, ["shop"]);
+    const confirm = syncConfirmation(plan, "QA", { name: "local", tag: "local" });
+    expect(confirm.target).toEqual({ name: "local", tag: "local" });
+    expect(confirm.items).toEqual([
+      { badge: "nueva", kind: "create", name: "log", detail: "completa · 1 colección" },
+      { badge: "reemplaza", kind: "replace", name: "shop", detail: "orders" },
+    ]);
+    expect(confirm.blocked).toBeUndefined();
   });
 
   it("summarizes the result", () => {

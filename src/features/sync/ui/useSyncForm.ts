@@ -1,51 +1,55 @@
-import { useState } from "react";
-import type { Session } from "../../connections/domain/session";
-import { syncSources, syncTargets, type Selection } from "../domain/syncPlan";
+import { useEffect, useState } from "react";
+import { pickTarget, requestSelection, syncSources, syncTargets, type Selection } from "../domain/syncPlan";
+import type { SyncWindowData } from "./syncViews";
+import { useSyncConnections } from "./useSyncConnections";
 
-/** Where the sync window was opened from: the default source, and what to preselect in it. */
-export interface SyncOrigin {
-  sid: string;
-  db?: string;
-  collection?: string;
-}
+/**
+ * State of the selection window: source, destination and the chosen collections. Each end is chosen
+ * among the registered connections, never the other end's, and gets connected when it's closed.
+ */
+export function useSyncForm({ connections, sessions: openSessions, origin, initial }: SyncWindowData) {
+  const { sessions, connecting, errors, ensureConnected, clearError } = useSyncConnections(openSessions);
+  const [sourceId, setSourceId] = useState(initial?.sourceSid ?? origin.sid);
+  const [chosenTargetId, setChosenTargetId] = useState(initial?.targetSid ?? "");
+  const [selection, setSelection] = useState<Selection>(() => (initial ? requestSelection(initial) : {}));
 
-/** State of the sync window: source, destination, the chosen collections and the typed confirmation. */
-export function useSyncForm(sessions: Session[], origin: SyncOrigin) {
-  const sources = syncSources(sessions);
-  const targets = syncTargets(sessions);
-  const [sourceSid, setSourceSid] = useState(origin.sid);
-  // By default, another connection that can be modified.
-  const [targetSid, setTargetSid] = useState(
-    () => (targets.find((t) => t.sid !== origin.sid && !t.blocked) ?? targets.find((t) => !t.blocked))?.sid ?? "",
-  );
-  const [selection, setSelection] = useState<Selection>({});
-  const [confirmation, setConfirmation] = useState("");
+  const targets = syncTargets(connections, sessions, sourceId);
+  // The chosen destination, or another one when it's no longer offered.
+  const targetId = pickTarget(targets, chosenTargetId);
+  const sources = syncSources(connections, sessions, targetId);
 
-  const changeSource = (sid: string) => {
-    setSourceSid(sid);
+  useEffect(() => ensureConnected(sourceId), [ensureConnected, sourceId]);
+  useEffect(() => ensureConnected(targetId), [ensureConnected, targetId]);
+
+  const changeSource = (id: string) => {
+    clearError(id);
+    setSourceId(id);
     setSelection({});
   };
-  // A new destination needs a new confirmation.
-  const changeTarget = (sid: string) => {
-    setTargetSid(sid);
-    setConfirmation("");
+  const changeTarget = (id: string) => {
+    clearError(id);
+    setChosenTargetId(id);
   };
 
-  const target = targets.find((t) => t.sid === targetSid);
+  const status = (id: string) => ({
+    connected: sessions.some((s) => s.conn.id === id),
+    connecting: connecting.has(id),
+    error: errors[id] ?? "",
+  });
   return {
     sources,
     targets,
-    source: sources.find((s) => s.sid === sourceSid),
-    target,
-    sourceSid,
-    targetSid,
+    source: sources.find((s) => s.id === sourceId),
+    target: targets.find((t) => t.id === targetId),
+    sourceId,
+    targetId,
+    sourceStatus: status(sourceId),
+    targetStatus: status(targetId),
     /** Databases the destination has now, to tell what is replaced from what is created. */
-    targetDatabases: sessions.find((s) => s.conn.id === targetSid)?.info.databases.map((d) => d.name) ?? [],
+    targetDatabases: sessions.find((s) => s.conn.id === targetId)?.info.databases.map((d) => d.name) ?? [],
     changeSource,
     changeTarget,
     selection,
     setSelection,
-    confirmation,
-    setConfirmation,
   };
 }
