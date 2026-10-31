@@ -25,3 +25,6 @@ dist-ssr
 
 # Worktrees temporales de los workflows de Claude Code
 .claude/worktrees/
+
+# Caché incremental de TypeScript
+*.tsbuildinfo

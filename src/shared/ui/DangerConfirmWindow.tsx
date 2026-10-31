@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   BACK_LABEL,
-  CONFIRM_WORD,
   DISMISS_LABEL,
   MODIFY_HEADING,
   confirmationMatches,
   type DangerAnswer,
   type DangerConfirmRequest,
 } from "../domain/confirmation";
+import { ConfirmWordField } from "./ConfirmWordField";
 
 interface Props {
   request: DangerConfirmRequest;
@@ -23,8 +23,7 @@ interface Props {
  */
 export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
   const [typed, setTyped] = useState("");
-  const confirmed = confirmationMatches(typed);
-  const canConfirm = confirmed && !request.blocked;
+  const canConfirm = confirmationMatches(typed) && !request.blocked;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDone(null);
@@ -61,20 +60,7 @@ export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
 
         {request.blocked && <div className="restore-banner blocked">{request.blocked}</div>}
 
-        <label className="stack danger-confirm">
-          <span className="muted">
-            Escribe <code>{CONFIRM_WORD}</code> para continuar
-          </span>
-          <input
-            className={confirmed ? "confirmed" : ""}
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            disabled={!!request.blocked}
-            spellCheck={false}
-            autoComplete="off"
-            autoFocus
-          />
-        </label>
+        <ConfirmWordField typed={typed} onChange={setTyped} disabled={!!request.blocked} />
       </div>
 
       <div className="modal-footer danger-footer">

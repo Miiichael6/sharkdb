@@ -28,7 +28,16 @@ export function CursorResult({ sid, pager, view }: Props) {
         <PagingBar paging={paging} shown={page?.documents.length ?? 0} hasMore={!!page?.hasMore} disabled={loading} onChange={setPaging} />
       </header>
       {error && <div className="output-error">{error}</div>}
-      {page && <DocumentsView docs={page.documents} firstNumber={paging.skip + 1} mode={view.mode} zone={view.zone} documentMenu={documentMenu} />}
+      {page && (
+        <DocumentsView
+          docs={page.documents}
+          firstNumber={paging.skip + 1}
+          mode={view.mode}
+          zone={view.zone}
+          documentMenu={documentMenu.entries}
+          onDeleteDocuments={documentMenu.removeDocuments}
+        />
+      )}
     </section>
   );
 }

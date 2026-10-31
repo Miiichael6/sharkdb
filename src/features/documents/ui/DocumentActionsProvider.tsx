@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
-import type { ConfirmRequest } from "../../../shared/domain/confirmation";
+import { destructiveRequest, type DestructiveAction } from "../../../shared/domain/destructiveActions";
 import { describeWhere, type DocumentTarget, type TargetWhere } from "../../../shared/domain/documentTarget";
-import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { confirmDeleteInWindow } from "../../../shared/ui/confirmInWindow";
 import { DocumentActionsContext, type DocumentActions } from "../../../shared/ui/documentActions";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { useLog } from "../../../shared/ui/useLog";
@@ -44,9 +44,15 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    /** Asks first, then deletes, logging how many documents it removed. */
-    const deletion = async (request: ConfirmRequest, target: DocumentTarget, remove: () => Promise<number>, onDone: () => void) => {
-      if (!(await confirmInWindow({ ...request, where: whereOf(target) }))) return;
+    /** Asks in the red window first, then deletes, logging how many documents it removed. */
+    const deletion = async (
+      action: DestructiveAction,
+      target: DocumentTarget,
+      count: number | undefined,
+      remove: () => Promise<number>,
+      onDone: () => void,
+    ) => {
+      if (!(await confirmDeleteInWindow(destructiveRequest(action, { ...whereOf(target), count })))) return;
       try {
         const n = await remove();
         log.info(`${plural(n, "documento eliminado", "documentos eliminados")} de ${describe(target)}`);
@@ -70,27 +76,9 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
         onDone();
       },
       remove: (target, docs, onDone) =>
-        void deletion(
-          {
-            title: docs.length === 1 ? "Eliminar documento" : "Eliminar documentos",
-            message: `¿Eliminar ${plural(docs.length, "documento", "documentos")}? No se puede deshacer.`,
-            confirmLabel: "Eliminar",
-          },
-          target,
-          () => documents.deleteDocuments(target, docs),
-          onDone,
-        ),
+        void deletion("removeDocuments", target, docs.length, () => documents.deleteDocuments(target, docs), onDone),
       removeAll: (target, onDone) =>
-        void deletion(
-          {
-            title: "Eliminar todos los documentos",
-            message: "¿Eliminar todos los documentos de la colección? La colección y sus índices se conservan. No se puede deshacer.",
-            confirmLabel: "Eliminar todos",
-          },
-          target,
-          () => documents.deleteAll(target),
-          onDone,
-        ),
+        void deletion("removeAllDocuments", target, undefined, () => documents.deleteAll(target), onDone),
     };
   }, [documents, log, serverOf]);
 

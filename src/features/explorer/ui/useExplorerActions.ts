@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
 import type { ConfirmRequest } from "../../../shared/domain/confirmation";
-import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import {
+  destructiveRequest,
+  type DestructiveAction,
+  type DestructiveTarget,
+} from "../../../shared/domain/destructiveActions";
+import { confirmDeleteInWindow, confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { useDocumentActions } from "../../../shared/ui/documentActions";
+import { useServerOf } from "../../connections/ui/useTargetServer";
 import { duplicateName, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
@@ -43,6 +49,7 @@ interface Options {
 export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showPanel, notify, fail }: Options) {
   const { explorer } = useServices();
   const documents = useDocumentActions();
+  const serverOf = useServerOf();
   const [dialog, setDialog] = useState<ExplorerDialog>(null);
   // Bumped after every change so the detail panel reloads what it shows.
   const [version, setVersion] = useState(0);
@@ -83,19 +90,34 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     if (await confirmInWindow(request)) await run().catch(fail);
   };
 
-  const dropIndex = (n: TreeNode, ix: IndexSpec) =>
-    void confirmThen(
-      { title: "Eliminar índice", message: `¿Eliminar el índice “${ix.name}” de ${n.coll}?`, confirmLabel: "Eliminar" },
-      async () => {
-        await explorer.dropIndex(n.sid, n.db!, n.coll!, ix.name);
-        refreshKey(indexesFolderKey(n));
-        notify(`Índice “${ix.name}” eliminado`);
-      },
-    );
+  /** Asks in the red window (D12) for deleting under `n` and, if confirmed, runs it, reporting its failure. */
+  const confirmDeletionThen = async (
+    action: DestructiveAction,
+    n: TreeNode,
+    item: Pick<DestructiveTarget, "name" | "view">,
+    run: () => Promise<void>,
+  ) => {
+    const request = destructiveRequest(action, { server: serverOf(n.sid), db: n.db, coll: n.coll, ...item });
+    if (await confirmDeleteInWindow(request)) await run().catch(fail);
+  };
 
-  /** Confirmation whose action removes `n` and leaves its parent selected and refreshed. */
-  const confirmRemoval = (n: TreeNode, title: string, message: string, refresh: string | null, run: () => Promise<void>, doneText: string) =>
-    void confirmThen({ title, message, confirmLabel: "Eliminar" }, async () => {
+  const dropIndex = (n: TreeNode, ix: IndexSpec) =>
+    void confirmDeletionThen("dropIndex", n, { name: ix.name }, async () => {
+      await explorer.dropIndex(n.sid, n.db!, n.coll!, ix.name);
+      refreshKey(indexesFolderKey(n));
+      notify(`Índice “${ix.name}” eliminado`);
+    });
+
+  /** Deletion that removes `n` and leaves its parent selected and refreshed. */
+  const confirmRemoval = (
+    action: DestructiveAction,
+    n: TreeNode,
+    item: Pick<DestructiveTarget, "name" | "view">,
+    refresh: string | null,
+    run: () => Promise<void>,
+    doneText: string,
+  ) =>
+    void confirmDeletionThen(action, n, item, async () => {
       await run();
       tree.select(parentKey(n.key));
       refreshKey(refresh);
@@ -186,20 +208,13 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         break;
       }
       case "dropDatabase":
-        void confirmThen(
-          {
-            title: "Eliminar base de datos",
-            message: `¿Eliminar “${n.db}” y TODAS sus colecciones? No se puede deshacer.`,
-            confirmLabel: "Eliminar base de datos",
-          },
-          async () => {
-            await explorer.dropDatabase(n.sid, n.db!);
-            await onRemoveFromList(n.sid, n.db!);
-            tree.select(serverKey(n.sid));
-            refreshKey(serverKey(n.sid));
-            notify(`Base de datos “${n.db}” eliminada`);
-          },
-        );
+        void confirmDeletionThen("dropDatabase", n, {}, async () => {
+          await explorer.dropDatabase(n.sid, n.db!);
+          await onRemoveFromList(n.sid, n.db!);
+          tree.select(serverKey(n.sid));
+          refreshKey(serverKey(n.sid));
+          notify(`Base de datos “${n.db}” eliminada`);
+        });
         break;
       case "removeFromList":
         onRemoveFromList(n.sid, n.db!).then(() => {
@@ -222,18 +237,16 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
           },
         });
         break;
-      case "dropCollection": {
-        const what = n.data?.type === "view" ? "la vista" : "la colección";
+      case "dropCollection":
         confirmRemoval(
+          "dropCollection",
           n,
-          `Eliminar ${what}`,
-          `¿Eliminar ${what} “${n.db}.${n.coll}” con todos sus documentos? No se puede deshacer.`,
+          { view: n.data?.type === "view" },
           collectionsFolderKey(n),
           () => explorer.dropCollection(n.sid, n.db!, n.coll!),
           `“${n.coll}” eliminada`,
         );
         break;
-      }
       case "insertDocument":
         documents.insert({ sid: n.sid, db: n.db!, coll: n.coll! }, () => refreshKey(null));
         break;
@@ -289,9 +302,9 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         break;
       case "dropUser":
         confirmRemoval(
+          "dropUser",
           n,
-          "Eliminar usuario",
-          `¿Eliminar el usuario “${n.label}” de ${n.db}?`,
+          { name: n.label },
           parentKey(n.key),
           () => explorer.dropUser(n.sid, n.db!, n.label),
           `Usuario “${n.label}” eliminado`,
@@ -299,9 +312,9 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         break;
       case "removeFunction":
         confirmRemoval(
+          "removeFunction",
           n,
-          "Eliminar función",
-          `¿Eliminar la función “${n.label}” de ${n.db}?`,
+          { name: n.label },
           parentKey(n.key),
           () => explorer.removeFunction(n.sid, n.db!, n.label),
           `Función “${n.label}” eliminada`,

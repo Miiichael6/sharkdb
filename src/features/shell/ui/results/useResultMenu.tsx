@@ -10,6 +10,8 @@ export interface ResultTarget {
   doc: unknown;
   path: KeyPath;
   value: unknown;
+  /** The documents a document action works on: the picked ones, or just `doc`. */
+  docs: unknown[];
   /** Only in the tree view: opens or closes the clicked row and everything below it. */
   tree?: { expandable: boolean; expand: () => void; collapse: () => void };
 }

@@ -81,6 +81,9 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       skipTaskbar: true,
       // The modal draws its own title bar (ModalTitleBar), without the OS one.
       decorations: false,
+      // Hidden, and in the theme's background, until its view is drawn (`showModalWindow`): no white flash.
+      visible: false,
+      backgroundColor: themeBackground(),
     });
     await new Promise<void>((resolve) => {
       void child.once("tauri://destroyed", () => resolve());
@@ -93,6 +96,9 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
   }
   return result;
 }
+
+/** The page background of the current theme, so the new window is never white underneath. */
+const themeBackground = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || undefined;
 
 function modalQuery(view: string, title: string, closable: boolean, maximizable: boolean): URLSearchParams {
   const query = new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title });
@@ -137,10 +143,20 @@ export async function askOpener<T>(view: string, body: unknown): Promise<T> {
   return answer.value as T;
 }
 
+/** From inside a modal window: shows it, once its view is drawn (it opens hidden). */
+export async function showModalWindow() {
+  const win = getCurrentWindow();
+  await win.show();
+  await win.setFocus();
+}
+
 /** From inside a modal window: hands `result` to the window that opened it and closes this one. */
 export async function finishModalWindow(view: string, result: unknown) {
   if (result !== null) await emit(resultEvent(view), result);
-  await getCurrentWindow().close();
+  const win = getCurrentWindow();
+  // Hidden first, so it doesn't flash blank while the OS tears it down.
+  await win.hide();
+  await win.close();
 }
 
 /** The view this window shows when it was opened by `openModalWindow`. */

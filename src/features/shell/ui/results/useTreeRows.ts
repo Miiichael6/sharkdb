@@ -22,8 +22,16 @@ const fresh = (docs: unknown[]): TreeState => ({
   selected: 0,
 });
 
-/** Visible rows of the result tree, which ones are open and the selected one, with arrow-key moves. */
-export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone) {
+/**
+ * Visible rows of the result tree, which ones are open and the selected one, with arrow-key moves;
+ * `onMove` hears each move, and whether Shift was held to stretch a pick.
+ */
+export function useTreeRows(
+  docs: unknown[],
+  firstNumber: number,
+  zone: DateZone,
+  onMove?: (row: TreeRow, extend: boolean) => void,
+) {
   const [state, setState] = useState(() => fresh(docs));
   // A new page starts over.
   const current = state.docs === docs ? state : fresh(docs);
@@ -34,7 +42,8 @@ export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone
     [docs, firstNumber, current.expanded, zone],
   );
 
-  const select = (selected: number) => setState((s) => ({ ...s, selected: Math.max(0, Math.min(rows.length - 1, selected)) }));
+  const clamp = (index: number) => Math.max(0, Math.min(rows.length - 1, index));
+  const select = (selected: number) => setState((s) => ({ ...s, selected: clamp(selected) }));
   const toggle = (id: string) => setState((s) => ({ ...s, expanded: toggleExpanded(s.expanded, id) }));
   const expandAll = (row: TreeRow) =>
     setState((s) => ({ ...s, expanded: expandRecursively(s.expanded, row.raw, row.docIndex, row.path) }));
@@ -44,15 +53,19 @@ export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone
   const onKeyDown = (e: KeyboardEvent) => {
     const row = rows[current.selected];
     if (!row) return;
+    const move = (index: number) => {
+      select(index);
+      onMove?.(rows[clamp(index)], e.shiftKey);
+    };
     const parentIndex = () => rows.findIndex((r) => r.id === rowId(row.docIndex, row.path.slice(0, -1)));
     const actions: Record<string, () => void> = {
-      ArrowDown: () => select(current.selected + 1),
-      ArrowUp: () => select(current.selected - 1),
-      Home: () => select(0),
-      End: () => select(rows.length - 1),
+      ArrowDown: () => move(current.selected + 1),
+      ArrowUp: () => move(current.selected - 1),
+      Home: () => move(0),
+      End: () => move(rows.length - 1),
       Enter: () => row.expandable && toggle(row.id),
-      ArrowRight: () => (row.expandable && !row.expanded ? toggle(row.id) : select(current.selected + 1)),
-      ArrowLeft: () => (row.expanded ? toggle(row.id) : row.depth > 0 && select(parentIndex())),
+      ArrowRight: () => (row.expandable && !row.expanded ? toggle(row.id) : move(current.selected + 1)),
+      ArrowLeft: () => (row.expanded ? toggle(row.id) : row.depth > 0 && move(parentIndex())),
     };
     const action = actions[e.key];
     // Ctrl+Enter is left to the shell tab, which runs the script.

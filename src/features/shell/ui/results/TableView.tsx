@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, type KeyboardEvent, type MouseEvent } from "react";
 import { ColumnHeader } from "../../../../shared/ui/ColumnHeader";
 import { useColumnWidths } from "../../../../shared/ui/useColumnWidths";
 import { VirtualList } from "../../../../shared/ui/VirtualList";
@@ -6,6 +6,8 @@ import { summarizeValue, type DateZone } from "../../domain/bsonFormat";
 import { bsonValue } from "../../domain/bsonValue";
 import { lookup, tableColumns } from "../../domain/resultView";
 import { ROW_HEIGHT } from "./layout";
+import { DELETE_DOCUMENT_KEY } from "./useDocumentMenu";
+import { useDocumentPick } from "./useDocumentPick";
 import type { ResultTarget } from "./useResultMenu";
 
 const NUMBER_COLUMN = { id: "#", label: "#" };
@@ -18,24 +20,42 @@ interface Props {
   firstNumber: number;
   zone: DateZone;
   onContextMenu: (e: MouseEvent, target: ResultTarget) => void;
+  /** Delete key: deletes the picked documents. */
+  onDeleteDocuments?: (docs: unknown[]) => void;
 }
 
-/** One row per document and one column per field (embedded documents spread as `a.b`). */
-export function TableView({ docs, firstNumber, zone, onContextMenu }: Props) {
+/**
+ * One row per document and one column per field (embedded documents spread as `a.b`). Rows are picked with
+ * click, Ctrl/Shift+click, dragging or Ctrl+A, and Delete deletes the picked ones.
+ */
+export function TableView({ docs, firstNumber, zone, onContextMenu, onDeleteDocuments }: Props) {
   const columns = useMemo(() => tableColumns(docs), [docs]);
   const { widthOf, startResize } = useColumnWidths(defaultWidth);
-  const [selected, setSelected] = useState(-1);
+  const docPick = useDocumentPick(docs);
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      docPick.pickAll();
+      return;
+    }
+    if (e.key !== DELETE_DOCUMENT_KEY || !onDeleteDocuments || !docPick.picked.size) return;
+    e.preventDefault();
+    onDeleteDocuments(docPick.pickedDocs());
+  };
 
   const renderRow = (index: number) => {
     const doc = docs[index];
+    const isPicked = docPick.picked.has(index);
     return (
       <div
         key={index}
         role="row"
-        aria-selected={index === selected}
-        className={`grid-row ${index === selected ? "selected" : ""}`}
+        aria-selected={isPicked}
+        className={`grid-row ${isPicked ? "selected" : ""}`}
         style={{ height: ROW_HEIGHT }}
-        onClick={() => setSelected(index)}
+        onMouseDown={(e) => docPick.press(index, e)}
+        onMouseEnter={() => docPick.dragOver(index)}
       >
         <div className="grid-cell muted" role="rowheader" style={{ width: widthOf(NUMBER_COLUMN.id) }}>
           {firstNumber + index}
@@ -51,8 +71,12 @@ export function TableView({ docs, firstNumber, zone, onContextMenu }: Props) {
               style={{ width: widthOf(c.id) }}
               title={text}
               onContextMenu={(e) => {
-                setSelected(index);
-                onContextMenu(e, { doc, path: found ? c.path : [], value: found ? found.value : doc });
+                onContextMenu(e, {
+                  doc,
+                  docs: docPick.targetsOf(index),
+                  path: found ? c.path : [],
+                  value: found ? found.value : doc,
+                });
               }}
             >
               {text}
@@ -71,6 +95,8 @@ export function TableView({ docs, firstNumber, zone, onContextMenu }: Props) {
       count={docs.length}
       rowHeight={ROW_HEIGHT}
       renderRow={renderRow}
+      activeIndex={docPick.anchor}
+      onKeyDown={onKeyDown}
       header={<ColumnHeader columns={[NUMBER_COLUMN, ...columns]} widthOf={widthOf} onResizeStart={startResize} />}
     />
   );
