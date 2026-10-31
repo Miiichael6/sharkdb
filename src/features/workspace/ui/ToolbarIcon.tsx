@@ -71,6 +71,13 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
           <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
         </svg>
       );
+    case "operations":
+      return (
+        <svg {...props} strokeLinecap="round">
+          <path d="M2.5 4.5h8M2.5 8h5M2.5 11.5h7" />
+          <path d="M12 6.5v5M10 9.5l2 2 2-2" strokeLinejoin="round" />
+        </svg>
+      );
     case "notifications":
       return (
         <svg {...props} strokeLinecap="round" strokeLinejoin="round">
@@ -82,6 +89,13 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
         <svg {...props} strokeLinecap="round">
           <rect x="2.5" y="1.5" width="11" height="13" rx="1.5" />
           <path d="M5 5h6M5 8h6M5 11h4" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...props} strokeLinejoin="round">
+          <circle cx="8" cy="8" r="2" />
+          <path d="M6.9 1.5h2.2l.4 1.8 1.2.7 1.8-.6 1.1 1.9-1.4 1.3v1.4l1.4 1.3-1.1 1.9-1.8-.6-1.2.7-.4 1.8H6.9l-.4-1.8-1.2-.7-1.8.6-1.1-1.9 1.4-1.3V7.3L2.4 6l1.1-1.9 1.8.6 1.2-.7z" />
         </svg>
       );
   }

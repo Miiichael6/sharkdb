@@ -91,14 +91,10 @@ export const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 export const NO_CONNECTION = "Abre una conexión primero";
-export const NO_DATABASE = "La conexión no tiene bases de datos";
 
-/**
- * The quick actions, enabled with just an open connection: sync chooses its databases in its own
- * window, and backup and restore fall back to the connection's first database when none is selected.
- */
-export const actionItems = (target: { connection: boolean; database: boolean }): QuickItem[] =>
+/** The quick actions, enabled with just an open connection: each one chooses its databases in its own window. */
+export const actionItems = (connection: boolean): QuickItem[] =>
   QUICK_ACTIONS.map((a) => {
-    const reason = !target.connection ? NO_CONNECTION : a.id !== "sync" && !target.database ? NO_DATABASE : undefined;
+    const reason = connection ? undefined : NO_CONNECTION;
     return { id: a.id, label: a.label, disabled: !!reason, title: reason };
   });

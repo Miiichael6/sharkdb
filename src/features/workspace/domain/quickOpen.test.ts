@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   NO_CONNECTION,
-  NO_DATABASE,
   actionItems,
   connectionItems,
   databaseItems,
@@ -57,12 +56,7 @@ describe("candidates", () => {
   });
 
   it("offers only sync, backup and restore, enabled with just an open connection", () => {
-    const enabled = (target: { connection: boolean; database: boolean }) =>
-      actionItems(target).filter((i) => !i.disabled).map((i) => i.id);
-    expect(enabled({ connection: true, database: true })).toEqual(["sync", "backup", "restore"]);
-    // A connection without databases can still be a sync source.
-    expect(enabled({ connection: true, database: false })).toEqual(["sync"]);
-    expect(actionItems({ connection: true, database: false })[1].title).toBe(NO_DATABASE);
-    expect(actionItems({ connection: false, database: false }).map((i) => i.title)).toEqual([NO_CONNECTION, NO_CONNECTION, NO_CONNECTION]);
+    expect(actionItems(true).filter((i) => !i.disabled).map((i) => i.id)).toEqual(["sync", "backup", "restore"]);
+    expect(actionItems(false).map((i) => i.title)).toEqual([NO_CONNECTION, NO_CONNECTION, NO_CONNECTION]);
   });
 });

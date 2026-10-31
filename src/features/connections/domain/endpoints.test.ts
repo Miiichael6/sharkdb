@@ -1,0 +1,91 @@
+import { describe, expect, it } from "vitest";
+import { newConnection, type MongoConnection, type Tag } from "./connection";
+import { PROTECTED_TARGET, SAFE_MODE_TARGET, connectionEndpoint, pickTarget, sourceOptions, targetOptions, writeBlockReason } from "./endpoints";
+import type { Session } from "./session";
+
+const connection = (id: string, over: { protected?: boolean; tag?: Tag } = {}): MongoConnection => ({
+  ...newConnection(),
+  id,
+  name: id,
+  protected: !!over.protected,
+  tag: over.tag ?? "development",
+});
+
+const session = (conn: MongoConnection, safeMode = false): Session => ({
+  conn,
+  info: { version: "7.0", databases: [] },
+  safeMode,
+});
+
+const PROD = connection("prod", { protected: true });
+const PROD2 = connection("prod2", { tag: "production" });
+const QA = connection("qa");
+const LOCAL = connection("local", { tag: "local" });
+const RO = connection("ro");
+const CONNECTIONS = [PROD, PROD2, QA, LOCAL, RO];
+const ids = (options: { id: string }[]) => options.map((o) => o.id);
+
+describe("endpoints", () => {
+  it("never writes to protected, production or safe-mode sessions", () => {
+    expect(writeBlockReason(session(QA))).toBeUndefined();
+    expect(writeBlockReason(session(PROD))).toBe(PROTECTED_TARGET);
+    expect(writeBlockReason(session(PROD2))).toBe(PROTECTED_TARGET);
+    expect(writeBlockReason(session(QA, true))).toBe(SAFE_MODE_TARGET);
+  });
+
+  it("offers closed connections as destination, never a protected or production one", () => {
+    const sessions = [session(PROD), session(QA), session(RO, true)];
+    expect(targetOptions(CONNECTIONS, sessions, "prod").map((t) => [t.id, t.connected, t.blocked])).toEqual([
+      ["qa", true, undefined],
+      ["local", false, undefined],
+      ["ro", true, SAFE_MODE_TARGET],
+    ]);
+    // Closed or open, production never appears.
+    expect(ids(targetOptions(CONNECTIONS, []))).toEqual(["qa", "local", "ro"]);
+  });
+
+  it("offers every registered connection as source, open or closed", () => {
+    expect(sourceOptions(CONNECTIONS, [session(PROD)]).map((s) => [s.id, s.connected])).toEqual([
+      ["prod", true],
+      ["prod2", false],
+      ["qa", false],
+      ["local", false],
+      ["ro", false],
+    ]);
+  });
+
+  it("never offers the source as destination", () => {
+    expect(ids(targetOptions(CONNECTIONS, [], "qa"))).not.toContain("qa");
+  });
+
+  it("swaps the ends when the destination is chosen as source, even with only two connections", () => {
+    const two = [QA, LOCAL];
+    // From local the destination is QA; QA stays offered as source.
+    expect(pickTarget(targetOptions(two, [], "local"), "")).toBe("qa");
+    expect(ids(sourceOptions(two, []))).toContain("qa");
+    // Choosing QA as source moves the destination to local.
+    expect(pickTarget(targetOptions(two, [], "qa"), "qa")).toBe("local");
+  });
+
+  it("moves the destination when it's no longer offered", () => {
+    const targets = targetOptions(CONNECTIONS, [session(RO, true)], "local");
+    expect(pickTarget(targets, "local")).toBe("qa");
+    expect(pickTarget(targets, "qa")).toBe("qa");
+    // A production origin is never kept as destination.
+    expect(pickTarget(targetOptions(CONNECTIONS, []), "prod")).toBe("qa");
+    // Only a blocked one is left: it isn't picked on its own.
+    expect(pickTarget(targetOptions([QA, RO], [session(RO, true)], "qa"), "qa")).toBe("");
+    expect(pickTarget([], "qa")).toBe("");
+  });
+
+  it("keeps a chosen destination in safe mode, blocked, instead of jumping to another one", () => {
+    const targets = targetOptions(CONNECTIONS, [session(RO, true)], "local");
+    expect(pickTarget(targets, "ro")).toBe("ro");
+    expect(targets.find((t) => t.id === "ro")?.blocked).toBe(SAFE_MODE_TARGET);
+  });
+
+  it("names a connection by its id when it's no longer registered", () => {
+    expect(connectionEndpoint(CONNECTIONS, "local")).toEqual({ name: "local", tag: "local" });
+    expect(connectionEndpoint(CONNECTIONS, "gone")).toEqual({ name: "gone" });
+  });
+});

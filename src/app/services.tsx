@@ -25,6 +25,7 @@ import { tauriSyncGateway } from "../features/sync/infrastructure/tauriSyncGatew
 import { createTerminalService, type TerminalService } from "../features/workspace/application/terminalService";
 import { tauriTerminalGateway } from "../features/workspace/infrastructure/tauriTerminalGateway";
 import { createJobRunner } from "../shared/application/jobRunner";
+import { createOperationsService, type OperationsService } from "../shared/application/operationsService";
 import { tauriCommandRunner } from "../shared/infrastructure/commandRunner";
 import { tauriJobEvents } from "../shared/infrastructure/tauriJobEvents";
 
@@ -39,6 +40,7 @@ export interface Services {
   terminal: TerminalService;
   backup: BackupService;
   sync: SyncService;
+  operations: OperationsService;
 }
 
 export function createServices(): Services {
@@ -54,6 +56,7 @@ export function createServices(): Services {
     terminal: createTerminalService(tauriTerminalGateway),
     backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),
     sync: createSyncService(tauriSyncGateway, startJob),
+    operations: createOperationsService(),
   };
 }
 

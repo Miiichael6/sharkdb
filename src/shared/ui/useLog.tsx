@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { appendLog, type LogEntry, type LogLevel } from "../domain/log";
 import { errorMessage } from "../errors";
+import { useNotify } from "./useNotifications";
 
 interface LogWriter {
   info: (text: string) => void;
@@ -16,17 +17,25 @@ interface LogView {
 const WriterContext = createContext<LogWriter | null>(null);
 const ViewContext = createContext<LogView | null>(null);
 
-/** Application-wide log (connections, scripts, errors) shown in the Logs panel. */
+/**
+ * Application-wide log (connections, scripts, errors) shown in the Logs panel. Every error is also
+ * raised as an alert, so it's seen without the panel open. Goes inside <NotificationsProvider>.
+ */
 export function LogProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const notify = useNotify();
 
   const writer = useMemo<LogWriter>(() => {
     const add = (level: LogLevel, text: string) => setEntries((e) => appendLog(e, { level, at: Date.now(), text }));
     return {
       info: (text) => add("info", text),
-      error: (text, cause) => add("error", cause === undefined ? text : `${text}: ${errorMessage(cause)}`),
+      error: (text, cause) => {
+        const line = cause === undefined ? text : `${text}: ${errorMessage(cause)}`;
+        add("error", line);
+        notify.fail(line);
+      },
     };
-  }, []);
+  }, [notify]);
   const clear = useCallback(() => setEntries([]), []);
   const view = useMemo(() => ({ entries, clear }), [entries, clear]);
 

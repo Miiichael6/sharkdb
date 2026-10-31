@@ -1,89 +1,89 @@
-// Backup and restore of a database in the mongodump format (one folder per database).
-import { collectionsLabel, totalDocuments, totalDuplicates, type CollectionResult } from "../../../shared/domain/jobs";
-import { displayName, neverModified } from "../../connections/domain/connection";
-import type { Session } from "../../connections/domain/session";
-import { INVALID_DB_NAME, isValidDbName } from "../../explorer/domain/copySpec";
+// Backup and restore of several databases in the `mongodump --out` format: one folder per database.
+import type { DangerConfirmRequest } from "../../../shared/domain/confirmation";
+import { databasePlan, databasesLabel, planItems, replacePlan, type PlanDatabase } from "../../../shared/domain/databasePlan";
+import { collectionsLabel, totalDocuments, type CollectionResult } from "../../../shared/domain/jobs";
+import { folderName } from "../../../shared/domain/operations";
+import { requireCollections, type DatabaseCatalog, type DatabaseSelection, type Selection } from "../../../shared/domain/selection";
 
 export interface BackupRequest {
   sid: string;
-  db: string;
-  collections: string[];
-  /** Folder of the database (`<output>/<db>`), as mongodump leaves it. */
+  /** Output folder: each database goes to `<dir>/<db>`. */
   dir: string;
+  databases: DatabaseSelection[];
 }
 
 export interface RestoreRequest {
-  /** Destination connection and database. */
-  sid: string;
-  db: string;
+  /** Backup folder: databases in subfolders, or a single one (task 14) with its `.bson` at the root. */
   dir: string;
-  collections: string[];
-  /** Drop each collection before restoring it; otherwise documents with an existing `_id` are skipped. */
-  dropBefore: boolean;
-}
-
-/** A collection found in a backup folder. */
-export interface BackupEntry {
-  collection: string;
-  bytes: number;
-  hasMetadata: boolean;
+  targetSid: string;
+  /** Each one goes to the database with its same name in the destination. */
+  databases: DatabaseSelection[];
 }
 
 export const FOLDER_REQUIRED = "Elige una carpeta";
-export const COLLECTIONS_REQUIRED = "Elige al menos una colección";
-export const TARGET_DB_REQUIRED = "Indica la base de datos de destino";
-export const PROTECTED_TARGET = "Conexión protegida o de producción: no se restaura sobre ella";
-export const SAFE_MODE_TARGET = "Safe mode activo: desactívalo para restaurar";
+export const SOURCE_REQUIRED = "Elige la conexión de origen";
+export const TARGET_REQUIRED = "Elige la conexión de destino";
 
-const SEPARATORS = /[\\/]+$/;
-
-/** Folder a database is saved in: `<parent>/<db>`, with the separator `parent` already uses. */
-export function backupDir(parent: string, db: string): string {
-  const base = parent.trim().replace(SEPARATORS, "");
-  const separator = base.includes("\\") ? "\\" : "/";
-  return `${base}${separator}${db}`;
-}
-
-/** Last segment of a folder: the database a mongodump folder was made from. */
-export const folderName = (dir: string) => dir.trim().replace(SEPARATORS, "").split(/[\\/]/).pop() ?? "";
-
-function requireCommon(dir: string, collections: string[]): string {
+function requireFolder(dir: string): string {
   const trimmed = dir.trim();
   if (!trimmed) throw FOLDER_REQUIRED;
-  if (!collections.length) throw COLLECTIONS_REQUIRED;
   return trimmed;
 }
 
 /** Checks a backup and trims its folder. Throws the message to show. */
 export function validateBackup(r: BackupRequest): BackupRequest {
-  return { ...r, dir: requireCommon(r.dir, r.collections) };
+  if (!r.sid) throw SOURCE_REQUIRED;
+  const dir = requireFolder(r.dir);
+  requireCollections(r.databases);
+  return { ...r, dir };
 }
 
-/** Checks a restore and trims its folder and database. Throws the message to show. */
+/** Checks a restore and trims its folder. Throws the message to show. */
 export function validateRestore(r: RestoreRequest): RestoreRequest {
-  const dir = requireCommon(r.dir, r.collections);
-  const db = r.db.trim();
-  if (!db) throw TARGET_DB_REQUIRED;
-  if (!isValidDbName(db)) throw INVALID_DB_NAME;
-  return { ...r, dir, db };
+  const dir = requireFolder(r.dir);
+  if (!r.targetSid) throw TARGET_REQUIRED;
+  requireCollections(r.databases);
+  return { ...r, dir };
 }
 
-/** Why a session can't be a restore destination (D5, D7), or undefined when it can. */
-export function restoreBlockReason(session: Session): string | undefined {
-  if (neverModified(session.conn)) return PROTECTED_TARGET;
-  if (session.safeMode) return SAFE_MODE_TARGET;
-  return undefined;
-}
+/** Every chosen database is saved to the folder. */
+export const backupPlan = (catalog: DatabaseCatalog[], selection: Selection) => databasePlan(catalog, selection, () => "save");
 
-/** Sessions offered as restore destination, with the reason when they can't be one. */
-export const restoreTargets = (sessions: Session[]) =>
-  sessions.map((s) => ({ sid: s.conn.id, name: displayName(s.conn), tag: s.conn.tag, blocked: restoreBlockReason(s) }));
+/** Each chosen database of the folder replaces (or creates) the one with its same name in the destination. */
+export const restorePlan = replacePlan;
 
-export const backupSummary = (db: string, results: CollectionResult[]) =>
-  `Backup de ${db}: ${collectionsLabel(results.length)}, ${totalDocuments(results).toLocaleString()} documentos`;
+/** "Se va a GUARDAR en {carpeta}": a backup only reads its connection, but may overwrite files of the folder. */
+export const backupConfirmation = (plan: PlanDatabase[], source: string, dir: string): DangerConfirmRequest => ({
+  title: "Confirmar backup",
+  heading: "Se va a GUARDAR en",
+  target: { name: dir },
+  intro: `el contenido de ${source}; cada base de datos en su propia carpeta, como mongodump.`,
+  items: planItems(plan),
+  note: "Si la carpeta ya tiene alguna de estas bases de datos, sus archivos se sobrescriben.",
+  confirmLabel: "Hacer backup",
+});
 
-export function restoreSummary(db: string, results: CollectionResult[]): string {
-  const duplicates = totalDuplicates(results);
-  const skipped = duplicates ? ` (${duplicates.toLocaleString()} saltados por _id repetido)` : "";
-  return `Restaurado en ${db}: ${collectionsLabel(results.length)}, ${totalDocuments(results).toLocaleString()} documentos${skipped}`;
-}
+/** "Se va a MODIFICAR {conexión}": what the destination loses, before typing the confirmation word. */
+export const restoreConfirmation = (
+  plan: PlanDatabase[],
+  dir: string,
+  target: { name: string; tag?: string },
+  blocked?: string,
+): DangerConfirmRequest => ({
+  title: "Confirmar restore",
+  target,
+  intro: `con el contenido de ${dir}; cada base de datos va a la de su mismo nombre.`,
+  items: planItems(plan),
+  note: "Las colecciones del destino que no elegiste se conservan sin tocar.",
+  confirmLabel: "Restaurar",
+  blocked,
+});
+
+const totals = (databases: number, results: CollectionResult[]) =>
+  `${databasesLabel(databases)}, ${collectionsLabel(results.length)}, ${totalDocuments(results).toLocaleString()} documentos`;
+
+export const backupSummary = (dir: string, databases: number, results: CollectionResult[]) =>
+  `Backup en ${folderName(dir)}: ${totals(databases, results)}`;
+
+export const restoreSummary = (target: string, databases: number, results: CollectionResult[]) =>
+  `Restaurado en ${target}: ${totals(databases, results)}`;

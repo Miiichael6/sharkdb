@@ -3,8 +3,9 @@
 //! conexión protegida o en safe mode nunca es destino; el origen solo se lee.
 //!
 //! - `catalog`: las BDs del origen con sus colecciones copiables, para que la UI las ofrezca.
-//! - `target`: reglas puras sobre el destino (no es el origen) y nombre de la provisional.
-//! - `copy`: la copia por cursor y lotes, a una colección provisional que se renombra al final.
+//! - `target`: reglas puras sobre el destino (no es el origen).
+//! - `copy`: la copia por cursor y lotes, a una colección provisional que se renombra al final
+//!   (`backup::staging`, común con el restore).
 //! - `commands`: comandos Tauri (`database_catalog`, `sync_databases`).
 
 mod catalog;
@@ -18,8 +19,9 @@ mod tests {
     use mongodb::{Client, Database};
 
     use super::catalog::{database_catalog, syncable_collections};
-    use super::copy::{DatabaseCopy, SyncEnds, sync};
+    use super::copy::{DatabaseCopy, sync};
     use super::target::SAME_COLLECTION;
+    use crate::backup::staging::Destination;
     use crate::jobs::{CANCELLED, CancelFlag};
     use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
 
@@ -39,7 +41,7 @@ mod tests {
     }
 
     async fn staging_left(db: &Database) -> bool {
-        db.list_collection_names(None).await.unwrap().iter().any(|n| n.contains("robo3b-sync"))
+        db.list_collection_names(None).await.unwrap().iter().any(|n| n.contains("robo3b-staging"))
     }
 
     async fn count(db: &Database, collection: &str) -> u64 {
@@ -79,9 +81,9 @@ mod tests {
 
         // Dos BDs en un solo trabajo: una completa sobre otra existente, otra parcial a una BD nueva.
         let safe_mode = SafeMode::new(false);
-        let ends = SyncEnds { target_client: &client, safe_mode: &safe_mode };
+        let destination = Destination { client: &client, safe_mode: &safe_mode };
         let copies = [copy(&prod_a, &qa_a, &["orders", "users"]), copy(&prod_b, &qa_b, &["orders"])];
-        let results = sync(&ends, &copies, &CancelFlag::default(), |_| {}).await.unwrap();
+        let results = sync(&destination, &copies, &CancelFlag::default(), |_| {}).await.unwrap();
         let labels: Vec<_> = results.iter().map(|r| r.collection.as_str()).collect();
         assert_eq!(labels, [format!("{}.orders", names[2]), format!("{}.users", names[2]), format!("{}.orders", names[3])]);
         assert_eq!((count(&qa_a, "orders").await, count(&qa_b, "orders").await), (3500, 20));
@@ -93,15 +95,15 @@ mod tests {
 
         // La misma BD vista como destino: se rechaza.
         let same = [copy(&prod_a, &prod_a, &["orders"])];
-        assert_eq!(sync(&ends, &same, &CancelFlag::default(), |_| {}).await, Err(SAME_COLLECTION.into()));
+        assert_eq!(sync(&destination, &same, &CancelFlag::default(), |_| {}).await, Err(SAME_COLLECTION.into()));
 
         // Cancelar o safe mode a mitad no tocan el destino.
         seed(&client, names[2], 10).await;
         let cancel = CancelFlag::default();
         let cancel_mid_copy = |p: crate::jobs::report::Progress| if p.done > 0 { cancel.cancel() };
-        assert_eq!(sync(&ends, &copies, &cancel, cancel_mid_copy).await, Err(CANCELLED.into()));
+        assert_eq!(sync(&destination, &copies, &cancel, cancel_mid_copy).await, Err(CANCELLED.into()));
         safe_mode.set(true);
-        assert_eq!(sync(&ends, &copies, &CancelFlag::default(), |_| {}).await, Err(SAFE_MODE_ERROR.into()));
+        assert_eq!(sync(&destination, &copies, &CancelFlag::default(), |_| {}).await, Err(SAFE_MODE_ERROR.into()));
         assert_eq!(count(&qa_a, "orders").await, 10);
         assert!(!staging_left(&qa_a).await);
 

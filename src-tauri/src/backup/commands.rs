@@ -1,87 +1,125 @@
 //! Comandos Tauri de backup/restore: finos, solo resuelven la sesión, registran el trabajo para
 //! poder cancelarlo (`crate::jobs`) y emiten el progreso como evento.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use mongodb::Client;
 use serde::Deserialize;
 use tauri::{AppHandle, State};
 
-use super::dump::dump;
-use super::folder::{self, BackupEntry};
-use super::restore::{RestoreTarget, restore};
+use super::dump;
+use super::folder;
+use super::restore::{self, DatabaseRestore};
+use super::staging::Destination;
 use crate::jobs::Jobs;
 use crate::jobs::events::emitter;
 use crate::jobs::report::CollectionResult;
+use crate::jobs::selection::{DatabaseCatalog, DatabaseSelection, non_empty};
 use crate::mongo::{self, Sessions};
 use crate::store;
 
-pub const NO_COLLECTIONS: &str = "Elige al menos una colección";
 const PROTECTED: &str = "La conexión de destino está protegida o es de producción: no se restaura sobre ella";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupRequest {
     sid: String,
-    db: String,
-    collections: Vec<String>,
-    /// Carpeta de la base de datos (`<salida>/<bd>`), como la deja `mongodump`.
+    /// Carpeta de salida: cada BD va a `<dir>/<bd>`, como la deja `mongodump --out`.
     dir: PathBuf,
+    databases: Vec<DatabaseSelection>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RestoreRequest {
-    /// Conexión y base de datos de destino.
-    sid: String,
-    db: String,
     dir: PathBuf,
-    collections: Vec<String>,
-    drop_before: bool,
-}
-
-pub fn require_collections(collections: &[String]) -> Result<(), String> {
-    if collections.is_empty() { Err(NO_COLLECTIONS.into()) } else { Ok(()) }
+    target_sid: String,
+    /// Cada BD del backup va a la de su mismo nombre en el destino.
+    databases: Vec<DatabaseSelection>,
 }
 
 #[tauri::command]
-pub async fn backup_database(
+pub async fn backup_databases(
     app: AppHandle,
     sessions: State<'_, Sessions>,
     jobs: State<'_, Jobs>,
     job: String,
     request: BackupRequest,
 ) -> Result<Vec<CollectionResult>, String> {
-    let BackupRequest { sid, db, collections, dir } = request;
-    require_collections(&collections)?;
-    // Un backup solo lee: se permite con safe mode activo.
+    let BackupRequest { sid, dir, databases } = request;
+    let databases = non_empty(databases)?;
+    // Un backup solo lee: se permite con safe mode activo y sobre conexiones protegidas.
     let (client, _) = mongo::session_with_safe_mode(&sessions, &sid).await?;
     let running = jobs.start(&job)?;
-    dump(&client.database(&db), &collections, &dir, running.cancel_flag(), emitter(&app, &job)).await
+    dump::dump_databases(&client, &databases, &dir, running.cancel_flag(), emitter(&app, &job)).await
+}
+
+/// Bases de datos y colecciones que se pueden restaurar de una carpeta de backup.
+#[tauri::command]
+pub fn read_backup_catalog(dir: PathBuf) -> Result<Vec<DatabaseCatalog>, String> {
+    folder::read_catalog(&dir)
+}
+
+/// Abre en el explorador del sistema la carpeta de un backup. Solo carpetas: nunca abre (ejecuta) un archivo.
+#[tauri::command]
+pub fn open_backup_folder(dir: PathBuf) -> Result<(), String> {
+    if !dir.is_dir() {
+        return Err(format!("La carpeta {} ya no existe", dir.display()));
+    }
+    tauri_plugin_opener::open_path(&dir, None::<&str>).map_err(|e| format!("No se pudo abrir la carpeta: {e}"))
 }
 
 #[tauri::command]
-pub async fn restore_database(
+pub async fn restore_databases(
     app: AppHandle,
     sessions: State<'_, Sessions>,
     jobs: State<'_, Jobs>,
     job: String,
     request: RestoreRequest,
 ) -> Result<Vec<CollectionResult>, String> {
-    let RestoreRequest { sid, db, dir, collections, drop_before } = request;
-    require_collections(&collections)?;
-    if store::is_protected(&app, &sid)? {
-        return Err(PROTECTED.into());
-    }
-    let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &sid).await?;
+    let RestoreRequest { dir, target_sid, databases } = request;
+    let databases = non_empty(databases)?;
+    // No basta con que la UI no lo ofrezca: se comprueba con lo guardado en disco.
+    ensure_restorable(store::is_protected(&app, &target_sid)?)?;
+    let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &target_sid).await?;
     safe_mode.ensure_writable()?;
+    let restores = restores_from(&client, &dir, databases)?;
     let running = jobs.start(&job)?;
-    let database = client.database(&db);
-    let target = RestoreTarget { db: &database, safe_mode: &safe_mode, drop_before };
-    restore(&target, &collections, &dir, running.cancel_flag(), emitter(&app, &job)).await
+    let destination = Destination { client: &client, safe_mode: &safe_mode };
+    restore::restore_databases(&destination, &restores, running.cancel_flag(), emitter(&app, &job)).await
 }
 
-/// Colecciones que hay en una carpeta de backup.
-#[tauri::command]
-pub fn read_backup_folder(dir: PathBuf) -> Result<Vec<BackupEntry>, String> {
-    folder::list_entries(&dir)
+/// Nunca se restaura sobre una conexión protegida o de producción.
+fn ensure_restorable(protected: bool) -> Result<(), String> {
+    if protected { Err(PROTECTED.into()) } else { Ok(()) }
+}
+
+/// Cada BD elegida, con su carpeta dentro del backup y la BD del mismo nombre en el destino.
+fn restores_from(client: &Client, dir: &Path, databases: Vec<DatabaseSelection>) -> Result<Vec<DatabaseRestore>, String> {
+    let found = folder::backup_databases(dir)?;
+    databases
+        .into_iter()
+        .map(|selection| {
+            let source = found
+                .iter()
+                .find(|d| d.name == selection.db)
+                .ok_or_else(|| format!("La carpeta no tiene la base de datos “{}”", selection.db))?;
+            Ok(DatabaseRestore {
+                dir: source.dir.clone(),
+                target: client.database(&selection.db),
+                collections: selection.collections,
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_protected_or_production_target_is_rejected() {
+        assert_eq!(ensure_restorable(true), Err(PROTECTED.into()));
+        assert_eq!(ensure_restorable(false), Ok(()));
+    }
 }

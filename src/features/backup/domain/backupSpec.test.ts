@@ -1,77 +1,69 @@
 import { describe, expect, it } from "vitest";
-import { newConnection, type Tag } from "../../connections/domain/connection";
-import type { Session } from "../../connections/domain/session";
-import { INVALID_DB_NAME } from "../../explorer/domain/copySpec";
+import { MODIFY_HEADING } from "../../../shared/domain/confirmation";
+import { COLLECTIONS_REQUIRED, type DatabaseCatalog } from "../../../shared/domain/selection";
 import {
-  COLLECTIONS_REQUIRED,
   FOLDER_REQUIRED,
-  PROTECTED_TARGET,
-  SAFE_MODE_TARGET,
-  TARGET_DB_REQUIRED,
-  backupDir,
+  SOURCE_REQUIRED,
+  TARGET_REQUIRED,
+  backupConfirmation,
+  backupPlan,
   backupSummary,
-  folderName,
-  restoreBlockReason,
+  restoreConfirmation,
+  restorePlan,
   restoreSummary,
   validateBackup,
   validateRestore,
+  type BackupRequest,
   type RestoreRequest,
 } from "./backupSpec";
 
-const session = (over: { protected?: boolean; safeMode?: boolean; tag?: Tag } = {}): Session => ({
-  conn: { ...newConnection(), name: "local", protected: !!over.protected, tag: over.tag ?? "local" },
-  info: { version: "7.0", databases: [] },
-  safeMode: !!over.safeMode,
-});
+const SHOP: DatabaseCatalog = { name: "shop", sizeOnDisk: 0, collections: ["orders", "users"] };
+const LOG: DatabaseCatalog = { name: "log", sizeOnDisk: 0, collections: ["events"] };
+const DATABASES = [{ db: "shop", collections: ["orders"] }];
 
-const restore = (over: Partial<RestoreRequest>): RestoreRequest => ({
-  sid: "s1",
-  db: "shop",
-  dir: "C:\\backups\\shop",
-  collections: ["orders"],
-  dropBefore: false,
-  ...over,
-});
+const backup = (over: Partial<BackupRequest> = {}): BackupRequest => ({ sid: "s1", dir: " C:\\b ", databases: DATABASES, ...over });
+const restore = (over: Partial<RestoreRequest> = {}): RestoreRequest => ({ dir: " C:\\b ", targetSid: "qa", databases: DATABASES, ...over });
 
 describe("backupSpec", () => {
-  it("saves each database in its own folder, keeping the separator", () => {
-    expect(backupDir("C:\\backups\\", "shop")).toBe("C:\\backups\\shop");
-    expect(backupDir("/home/ana/backups", "shop")).toBe("/home/ana/backups/shop");
+  it("needs a source, a folder and at least one collection to back up", () => {
+    expect(validateBackup(backup()).dir).toBe("C:\\b");
+    expect(() => validateBackup(backup({ sid: "" }))).toThrow(SOURCE_REQUIRED);
+    expect(() => validateBackup(backup({ dir: " " }))).toThrow(FOLDER_REQUIRED);
+    expect(() => validateBackup(backup({ databases: [] }))).toThrow(COLLECTIONS_REQUIRED);
   });
 
-  it("takes the restore database from the folder name", () => {
-    expect(folderName("C:\\backups\\shop\\")).toBe("shop");
-    expect(folderName("/tmp/dump/sales")).toBe("sales");
+  it("needs a folder, a destination and at least one collection to restore", () => {
+    expect(validateRestore(restore()).dir).toBe("C:\\b");
+    expect(() => validateRestore(restore({ dir: "" }))).toThrow(FOLDER_REQUIRED);
+    expect(() => validateRestore(restore({ targetSid: "" }))).toThrow(TARGET_REQUIRED);
+    expect(() => validateRestore(restore({ databases: [{ db: "shop", collections: [] }] }))).toThrow(COLLECTIONS_REQUIRED);
   });
 
-  it("needs a folder and at least one collection", () => {
-    const backup = { sid: "s1", db: "shop", collections: ["orders"], dir: " C:\\b\\shop " };
-    expect(validateBackup(backup).dir).toBe("C:\\b\\shop");
-    expect(() => validateBackup({ ...backup, dir: " " })).toThrow(FOLDER_REQUIRED);
-    expect(() => validateBackup({ ...backup, collections: [] })).toThrow(COLLECTIONS_REQUIRED);
+  it("asks to confirm saving to the folder", () => {
+    const plan = backupPlan([LOG, SHOP], { shop: ["orders"] });
+    const confirm = backupConfirmation(plan, "QA", "C:\\b");
+    expect(confirm.heading).toBe("Se va a GUARDAR en");
+    expect(confirm.target).toEqual({ name: "C:\\b" });
+    expect(confirm.items).toEqual([{ badge: "guarda", kind: "save", name: "shop", detail: "orders" }]);
   });
 
-  it("checks the restore destination database", () => {
-    expect(validateRestore(restore({ db: " copy " })).db).toBe("copy");
-    expect(() => validateRestore(restore({ db: "" }))).toThrow(TARGET_DB_REQUIRED);
-    expect(() => validateRestore(restore({ db: "a.b" }))).toThrow(INVALID_DB_NAME);
-    expect(() => validateRestore(restore({ collections: [] }))).toThrow(COLLECTIONS_REQUIRED);
-  });
-
-  it("never restores over protected, production or safe-mode sessions", () => {
-    expect(restoreBlockReason(session())).toBeUndefined();
-    expect(restoreBlockReason(session({ protected: true }))).toBe(PROTECTED_TARGET);
-    expect(restoreBlockReason(session({ tag: "production" }))).toBe(PROTECTED_TARGET);
-    expect(restoreBlockReason(session({ safeMode: true }))).toBe(SAFE_MODE_TARGET);
+  it("asks to confirm modifying the destination, replacing the databases it has", () => {
+    const plan = restorePlan([LOG, SHOP], { shop: SHOP.collections, log: ["events"] }, ["shop"]);
+    const confirm = restoreConfirmation(plan, "C:\\b", { name: "local", tag: "local" }, "ocupada");
+    expect(confirm.heading ?? MODIFY_HEADING).toBe(MODIFY_HEADING);
+    expect(confirm.items.map((i) => [i.name, i.badge])).toEqual([
+      ["log", "nueva"],
+      ["shop", "reemplaza"],
+    ]);
+    expect(confirm.blocked).toBe("ocupada");
   });
 
   it("summarizes the results", () => {
     const results = [
-      { collection: "a", documents: 3, duplicates: 0, indexes: 1 },
-      { collection: "b", documents: 1, duplicates: 2, indexes: 0 },
+      { collection: "shop.a", documents: 3, duplicates: 0, indexes: 1 },
+      { collection: "log.b", documents: 1, duplicates: 0, indexes: 0 },
     ];
-    expect(backupSummary("shop", results)).toBe("Backup de shop: 2 colecciones, 4 documentos");
-    expect(restoreSummary("shop", results)).toBe("Restaurado en shop: 2 colecciones, 4 documentos (2 saltados por _id repetido)");
-    expect(restoreSummary("shop", results.slice(0, 1))).toBe("Restaurado en shop: 1 colección, 3 documentos");
+    expect(backupSummary("C:\\b", 2, results)).toBe("Backup en b: 2 bases de datos, 2 colecciones, 4 documentos");
+    expect(restoreSummary("local", 1, results.slice(0, 1))).toBe("Restaurado en local: 1 base de datos, 1 colección, 3 documentos");
   });
 });

@@ -1,20 +1,19 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useDataOperations } from "../../../app/operations/useDataOperations";
 import { useServices } from "../../../app/services";
 import { LogPanel } from "../../../shared/ui/LogPanel";
-import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
 import { useNotify } from "../../../shared/ui/useNotifications";
-import { backupSummary, restoreSummary } from "../../backup/domain/backupSpec";
-import { BackupDialog } from "../../backup/ui/BackupDialog";
-import { RestoreDialog } from "../../backup/ui/RestoreDialog";
-import { displayName } from "../../connections/domain/connection";
+import type { SelectionOrigin } from "../../../shared/domain/selection";
+import { useBackupFlow } from "../../backup/ui/useBackupFlow";
+import { useRestoreFlow } from "../../backup/ui/useRestoreFlow";
+import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
-import { syncSummary } from "../../sync/domain/syncPlan";
-import { SYNC_VIEW, SYNC_WINDOW, type SyncWindowData, type SyncWindowResult } from "../../sync/ui/SyncWindow";
+import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
-import type { Session } from "../../connections/domain/session";
+import type { BorrowedSession, Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
 import { databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
 import { blockedInSafeMode } from "../domain/writeActions";
@@ -38,8 +37,18 @@ export interface WorkspaceControls {
   runAction: (action: Action, node: TreeNode) => void;
 }
 
+/** An operation chosen in its own windows: how to open them, and its name for the error. */
+interface OperationFlow {
+  open: (origin: SelectionOrigin) => Promise<void>;
+  name: string;
+}
+
 interface Props {
   sessions: Session[];
+  /** Every registered connection: the sync can use closed ones too. */
+  connections: MongoConnection[];
+  /** Opens a registered connection by id (or returns its session when it's already open). */
+  onBorrowSession: (id: string) => Promise<BorrowedSession>;
   sidebarHidden: boolean;
   logsOpen: boolean;
   onCloseLogs: () => void;
@@ -54,7 +63,7 @@ interface Props {
 }
 
 export function Workspace(props: Props) {
-  const { sessions, sidebarHidden, logsOpen, onCloseLogs, onDisconnect, onOpenShell, onShowDetails } = props;
+  const { sessions, connections, sidebarHidden, logsOpen, onCloseLogs, onDisconnect, onOpenShell, onShowDetails } = props;
   const roots = useMemo(
     () => sessions.map((s) => serverNode(s.conn.id, displayName(s.conn))),
     [sessions],
@@ -62,8 +71,6 @@ export function Workspace(props: Props) {
   const { explorer, terminal } = useServices();
   const tree = useTree(roots, explorer.loadChildren);
   const [panel, setPanel] = useState<{ key: string; mode: PanelMode } | null>(null);
-  // Backup and restore run in their own dialogs, open while the job runs.
-  const [operation, setOperation] = useState<{ kind: "backup" | "restore"; node: TreeNode } | null>(null);
   const { ok, fail } = useNotify();
   const isReadOnly = useReadOnly();
   const log = useLog();
@@ -77,6 +84,15 @@ export function Workspace(props: Props) {
     notify: ok,
     fail,
   });
+  const data = useDataOperations(connections, actions.refreshAll);
+  // Sync, backup and restore are chosen and confirmed in their own windows (this one stays disabled)
+  // and run in the operations panel.
+  const flow = { connections, sessions, borrowSession: props.onBorrowSession, busyReason: data.busyReason };
+  const flows: Partial<Record<Action, OperationFlow>> = {
+    syncDatabase: { open: useSyncFlow({ ...flow, run: data.sync }), name: "sincronización" },
+    backupDatabase: { open: useBackupFlow({ ...flow, run: data.backup }), name: "backup" },
+    restoreDatabase: { open: useRestoreFlow({ ...flow, run: data.restore }), name: "restore" },
+  };
 
   const openMongosh = useCallback(
     (sid: string, db?: string) =>
@@ -90,20 +106,9 @@ export function Workspace(props: Props) {
     [terminal, fail, log],
   );
 
-  /** The sync runs in its own window, which keeps this one disabled until it closes. */
-  const openSync = async (n: TreeNode) => {
-    const data: SyncWindowData = { sessions, origin: { sid: n.sid, db: n.db, collection: n.coll } };
-    let result: SyncWindowResult | null;
-    try {
-      result = await openModalWindow<SyncWindowResult>(SYNC_VIEW, data, SYNC_WINDOW);
-    } catch (e) {
-      log.error("No se pudo abrir la ventana de sincronización", e);
-      return;
-    }
-    // Refreshed even without a result: a cancelled sync may have replaced some collections.
-    actions.refreshAll();
-    if (result) ok(syncSummary(connectionName(result.target.sid), result.target.databases, result.results));
-  };
+  /** Opens an operation's windows with `n` (a connection, database or collection) preselected. */
+  const openFlow = ({ open, name }: OperationFlow, n: TreeNode) =>
+    open({ sid: n.sid, db: n.db, collection: n.coll }).catch((e) => log.error(`No se pudo abrir la ventana de ${name}`, e));
 
   const onAction = (action: Action, n: TreeNode) => {
     // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.
@@ -111,13 +116,9 @@ export function Workspace(props: Props) {
     else if (action === "openShell") onOpenShell(n);
     else if (isMenuScript(action)) onOpenShell(n, action);
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
-    else if ((action === "backupDatabase" || action === "restoreDatabase") && n.db)
-      setOperation({ kind: action === "backupDatabase" ? "backup" : "restore", node: n });
-    else if (action === "syncDatabase") void openSync(n);
+    else if (flows[action]) void openFlow(flows[action], n);
     else actions.onAction(action, n);
   };
-
-  const connectionName = (sid: string) => roots.find((r) => r.sid === sid)?.label ?? sid;
 
   const selected = tree.node(tree.selected) ?? roots[0];
   const controls: WorkspaceControls = {
@@ -163,32 +164,6 @@ export function Workspace(props: Props) {
         onSubmitUser={actions.submitUser}
         onCopy={actions.submitCopy}
       />
-
-      {operation?.kind === "backup" && (
-        <BackupDialog
-          sid={operation.node.sid}
-          db={operation.node.db!}
-          connection={connectionName(operation.node.sid)}
-          onDone={(results) => {
-            setOperation(null);
-            ok(backupSummary(operation.node.db!, results));
-          }}
-          onClose={() => setOperation(null)}
-        />
-      )}
-      {operation?.kind === "restore" && (
-        <RestoreDialog
-          sessions={sessions}
-          initial={{ sid: operation.node.sid, db: operation.node.db! }}
-          onDone={(results, target) => {
-            setOperation(null);
-            // The destination may be a new database or have new collections.
-            actions.refreshAll();
-            ok(`${restoreSummary(target.db, results)} · ${connectionName(target.sid)}`);
-          }}
-          onClose={() => setOperation(null)}
-        />
-      )}
     </div>
   );
 }

@@ -1,0 +1,188 @@
+// Background operations (sync, backup, restore) that the main window runs and the operations panel shows (R38).
+import type { ConfirmRequest } from "./confirmation";
+import { progressPercent, type CollectionResult, type JobProgress } from "./jobs";
+
+export type OperationKind = "sync" | "backup" | "restore";
+export type OperationStatus = "running" | "done" | "failed" | "cancelled";
+
+/** One end of an operation: a connection (with its environment tag) or a folder (with its full path). */
+export interface OperationEndpoint {
+  name: string;
+  tag?: string;
+  path?: string;
+}
+
+/** Last segment of a folder path, the name it's shown by: `C:\backups\qa\` is `qa`. */
+export function folderName(dir: string): string {
+  const parts = dir.trim().split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? dir;
+}
+
+/** A backup folder as an end of an operation: shown by its name, opened by its path. */
+export const folderEndpoint = (dir: string): OperationEndpoint => ({ name: folderName(dir), path: dir.trim() });
+
+/** What is launched: the operation as the panel shows it. */
+export interface OperationSpec {
+  kind: OperationKind;
+  title: string;
+  source: OperationEndpoint;
+  target: OperationEndpoint;
+  /** Connection whose databases it modifies; a backup only reads, so it has none. */
+  writesTo?: string;
+}
+
+export interface Operation extends OperationSpec {
+  id: string;
+  status: OperationStatus;
+  progress: JobProgress | null;
+  results: CollectionResult[];
+  /** Summary of a finished operation, for its row and its notification. */
+  summary: string;
+  error: string;
+  /** Epoch milliseconds. */
+  startedAt: number;
+  endedAt: number | null;
+}
+
+export type OperationEvent =
+  | { type: "started"; id: string; spec: OperationSpec; at: number }
+  | { type: "progress"; id: string; progress: JobProgress }
+  | { type: "finished"; id: string; results: CollectionResult[]; summary: string; at: number }
+  | { type: "failed"; id: string; error: string; at: number }
+  | { type: "cancelled"; id: string; at: number }
+  | { type: "cleared" };
+
+export const OPERATION_KINDS: OperationKind[] = ["sync", "backup", "restore"];
+
+export const KIND_LABELS: Record<OperationKind, string> = { sync: "Sync", backup: "Backup", restore: "Restore" };
+
+export const STATUS_LABELS: Record<OperationStatus, string> = {
+  running: "En curso",
+  done: "Terminada",
+  failed: "Error",
+  cancelled: "Cancelada",
+};
+
+export const OPERATION_BUSY_TARGET = "Ya hay una operación escribiendo en {destino}";
+export const NO_OPERATIONS = "Sin operaciones";
+
+const update = (ops: Operation[], id: string, change: (op: Operation) => Operation) =>
+  ops.map((op) => (op.id === id ? change(op) : op));
+
+/** Only a running operation changes: late events of an ended one are ignored. */
+const whileRunning = (ops: Operation[], id: string, change: (op: Operation) => Operation) =>
+  update(ops, id, (op) => (op.status === "running" ? change(op) : op));
+
+export function operationsReducer(ops: Operation[], event: OperationEvent): Operation[] {
+  switch (event.type) {
+    case "started":
+      return [
+        ...ops,
+        {
+          ...event.spec,
+          id: event.id,
+          status: "running",
+          progress: null,
+          results: [],
+          summary: "",
+          error: "",
+          startedAt: event.at,
+          endedAt: null,
+        },
+      ];
+    case "progress":
+      return whileRunning(ops, event.id, (op) => ({ ...op, progress: event.progress }));
+    case "finished":
+      return whileRunning(ops, event.id, (op) => ({
+        ...op,
+        status: "done",
+        results: event.results,
+        summary: event.summary,
+        endedAt: event.at,
+      }));
+    case "failed":
+      return whileRunning(ops, event.id, (op) => ({ ...op, status: "failed", error: event.error, endedAt: event.at }));
+    case "cancelled":
+      return whileRunning(ops, event.id, (op) => ({ ...op, status: "cancelled", endedAt: event.at }));
+    case "cleared":
+      return ops.filter((op) => op.status === "running");
+  }
+}
+
+export const isRunning = (op: Operation) => op.status === "running";
+export const runningOperations = (ops: Operation[]) => ops.filter(isRunning);
+
+/** The running operation that writes to `targetSid`, if any: only one may write to a connection at a time. */
+export const runningOn = (ops: Operation[], targetSid: string) =>
+  ops.find((op) => isRunning(op) && op.writesTo === targetSid);
+
+export const busyTargetMessage = (target: string) => OPERATION_BUSY_TARGET.replace("{destino}", target);
+
+export const operationsOfKind = (ops: Operation[], kind: OperationKind) => ops.filter((op) => op.kind === kind);
+
+export const operationPercent = (op: Operation) => (op.status === "done" ? 100 : op.progress ? progressPercent(op.progress) : 0);
+
+/**
+ * Text of the toolbar badge: the running count and the percentage of the oldest one
+ * ("45%" alone, "3 · 45%" with several), or nothing when none runs.
+ */
+export function operationsBadge(ops: Operation[]): string | undefined {
+  const running = runningOperations(ops);
+  if (!running.length) return undefined;
+  const percent = `${operationPercent(running[0])}%`;
+  return running.length === 1 ? percent : `${running.length} · ${percent}`;
+}
+
+/** "QA → local". */
+export const operationRoute = (op: Pick<Operation, "source" | "target">) => `${op.source.name} → ${op.target.name}`;
+
+/** What happens to the work already done when an operation is cancelled. */
+const CANCEL_EFFECTS: Record<OperationKind, string> = {
+  sync: "Las colecciones ya copiadas se conservan; la que está a medias no se toca.",
+  backup: "Los archivos ya guardados se conservan; el de la colección a medias se descarta.",
+  restore: "Las colecciones ya restauradas se conservan; la que está a medias puede quedar incompleta.",
+};
+
+const CANCEL_NAMES: Record<OperationKind, string> = { sync: "la sincronización", backup: "el backup", restore: "el restore" };
+
+/** Backs out of stopping or closing: "Cancelar" would read as "cancel the operation". */
+export const KEEP_RUNNING = "Seguir";
+
+/** "¿Cancelar la sincronización QA → local? …": Seguir, or "Detener la sincronización". */
+export const cancelConfirmation = (op: Operation): ConfirmRequest => ({
+  title: "Cancelar operación",
+  message: `¿Cancelar ${CANCEL_NAMES[op.kind]} ${operationRoute(op)}? ${CANCEL_EFFECTS[op.kind]}`,
+  confirmLabel: `Detener ${CANCEL_NAMES[op.kind]}`,
+  dismissLabel: KEEP_RUNNING,
+});
+
+/** Asked when the app closes with `count` operations running. */
+export const closeWithRunningConfirmation = (count: number): ConfirmRequest => ({
+  title: "Cerrar Robo3B",
+  message: `Hay ${count} ${count === 1 ? "operación en curso; se cancelará" : "operaciones en curso; se cancelarán"}. ¿Cerrar Robo3B?`,
+  confirmLabel: "Cancelar y cerrar",
+  dismissLabel: KEEP_RUNNING,
+});
+
+/** "1 min 05 s", "12 s": how long an ended operation took. */
+export function durationLabel(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  if (!minutes) return `${seconds} s`;
+  return `${minutes} min ${String(seconds % 60).padStart(2, "0")} s`;
+}
+
+/** What the panel row says under an ended operation; its route and status are already on the row. */
+export function operationDetail(op: Operation): string {
+  if (op.status === "done") return op.summary;
+  if (op.status === "failed") return op.error;
+  return "";
+}
+
+/** What the notification says when an operation ends. */
+export function operationOutcome(op: Operation): string {
+  if (op.status === "done") return op.summary;
+  if (op.status === "failed") return `${KIND_LABELS[op.kind]} ${operationRoute(op)} falló: ${op.error}`;
+  if (op.status === "cancelled") return `${KIND_LABELS[op.kind]} ${operationRoute(op)} cancelado`;
+  return "";
+}

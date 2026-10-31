@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { ConfirmRequest } from "../domain/confirmation";
+import { DISMISS_LABEL, type ConfirmRequest } from "../domain/confirmation";
 
 interface Props {
   request: ConfirmRequest;
@@ -20,7 +20,7 @@ export function ConfirmWindow({ request, onDone }: Props) {
       <p>{request.message}</p>
       <div className="modal-footer">
         <span className="spacer" />
-        <button onClick={() => onDone(null)}>Cancelar</button>
+        <button onClick={() => onDone(null)}>{request.dismissLabel ?? DISMISS_LABEL}</button>
         <button className="danger" onClick={() => onDone(true)} autoFocus>
           {request.confirmLabel}
         </button>

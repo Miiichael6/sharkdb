@@ -52,8 +52,6 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
   const targetEntry = target?.db
     ? databases.find((d) => d.node.sid === target.sid && d.node.db === target.db)
     : undefined;
-  // Without a database selected, backup and restore use the connection's first one.
-  const targetDb = targetEntry?.node ?? databases.find((d) => d.node.sid === target?.sid)?.node;
   const session = target && sessions.find((s) => s.conn.id === target.sid);
 
   const show = (node: TreeNode) => {
@@ -70,7 +68,7 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
       case "database":
         return databaseItems(databases.map((d) => ({ key: d.node.key, db: d.node.db ?? d.node.label, connection: d.connection })));
       case "action":
-        return actionItems({ connection: !!session, database: !!targetDb });
+        return actionItems(!!session);
       default:
         return [];
     }
@@ -92,8 +90,8 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
 
   const pickAction = (id: string) => {
     const action = TREE_ACTIONS[id as QuickActionId];
-    // Sync chooses its databases in its own window: the connection is enough.
-    const node = targetDb ?? (action === "syncDatabase" && session ? serverNode(session.conn.id, displayName(session.conn)) : undefined);
+    // Each action chooses its databases in its own window: the connection is enough.
+    const node = targetEntry?.node ?? (session && serverNode(session.conn.id, displayName(session.conn)));
     if (!action || !node) return;
     if (node === targetEntry?.node) show(node);
     controls.runAction(action, node);

@@ -18,3 +18,12 @@ export interface Session {
   /** Read-only switch: while on, the backend rejects every write of this session. */
   safeMode: boolean;
 }
+
+/**
+ * A connection's session lent to a sync, backup or restore: the one the user opened, or one opened
+ * apart that the explorer doesn't show. `release` gives it back (closing the one opened apart).
+ */
+export interface BorrowedSession {
+  session: Session;
+  release: () => Promise<void>;
+}

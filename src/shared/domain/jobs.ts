@@ -26,10 +26,12 @@ export function progressPercent(p: Pick<JobProgress, "index" | "count" | "done" 
   return Math.round(((p.index + current) / p.count) * 100);
 }
 
+/** "64 de 69": the collection in course among all of the job's. */
+export const progressCount = (p: Pick<JobProgress, "index" | "count">) => `${p.index + 1} de ${p.count}`;
+
 const sum = (results: CollectionResult[], field: "documents" | "duplicates") =>
   results.reduce((total, r) => total + r[field], 0);
 
 export const totalDocuments = (results: CollectionResult[]) => sum(results, "documents");
-export const totalDuplicates = (results: CollectionResult[]) => sum(results, "duplicates");
 
 export const collectionsLabel = (n: number) => `${n} ${n === 1 ? "colección" : "colecciones"}`;

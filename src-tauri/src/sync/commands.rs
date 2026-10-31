@@ -4,30 +4,25 @@
 use serde::Deserialize;
 use tauri::{AppHandle, State};
 
-use super::catalog::{self, DatabaseCatalog};
-use super::copy::{DatabaseCopy, SyncEnds, sync};
+use super::catalog;
+use super::copy::{DatabaseCopy, sync};
 use super::target::ensure_distinct_connections;
-use crate::backup::commands::require_collections;
+use crate::backup::staging::Destination;
 use crate::jobs::Jobs;
 use crate::jobs::events::emitter;
 use crate::jobs::report::CollectionResult;
+use crate::jobs::selection::{DatabaseCatalog, DatabaseSelection, non_empty};
 use crate::mongo::{self, Sessions};
 use crate::store;
 
 const PROTECTED: &str = "La conexión de destino está protegida o es de producción: nunca se sincroniza sobre ella";
-
-/// Colecciones de una BD del origen; van a la BD del mismo nombre en el destino.
-#[derive(Deserialize)]
-pub struct DatabaseSelection {
-    db: String,
-    collections: Vec<String>,
-}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncRequest {
     source_sid: String,
     target_sid: String,
+    /// Cada BD del origen va a la de su mismo nombre en el destino.
     databases: Vec<DatabaseSelection>,
 }
 
@@ -47,8 +42,7 @@ pub async fn sync_databases(
     request: SyncRequest,
 ) -> Result<Vec<CollectionResult>, String> {
     let SyncRequest { source_sid, target_sid, databases } = request;
-    let databases: Vec<_> = databases.into_iter().filter(|d| !d.collections.is_empty()).collect();
-    require_collections(&databases.iter().flat_map(|d| d.collections.clone()).collect::<Vec<_>>())?;
+    let databases = non_empty(databases)?;
     ensure_distinct_connections(&source_sid, &target_sid)?;
     // No basta con que la UI no lo ofrezca: se comprueba con lo guardado en disco.
     if store::is_protected(&app, &target_sid)? {
@@ -67,6 +61,6 @@ pub async fn sync_databases(
             collections: d.collections,
         })
         .collect();
-    let ends = SyncEnds { target_client: &target_client, safe_mode: &safe_mode };
-    sync(&ends, &copies, running.cancel_flag(), emitter(&app, &job)).await
+    let destination = Destination { client: &target_client, safe_mode: &safe_mode };
+    sync(&destination, &copies, running.cancel_flag(), emitter(&app, &job)).await
 }

@@ -3,9 +3,11 @@
 //!
 //! - `report`: el progreso y el resultado por colección.
 //! - `events`: el progreso como evento Tauri y el comando `cancel_job`.
+//! - `selection`: las colecciones de varias BDs que elige un trabajo.
 
 pub mod events;
 pub mod report;
+pub mod selection;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};

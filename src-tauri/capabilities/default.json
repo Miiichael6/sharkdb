@@ -8,6 +8,8 @@
     "core:webview:allow-create-webview-window",
     "core:window:allow-set-enabled",
     "core:window:allow-set-focus",
+    "core:window:allow-set-theme",
+    "core:window:allow-start-dragging",
     "core:window:allow-close",
     "core:window:allow-destroy",
     "opener:default",

@@ -41,9 +41,20 @@ impl OpenClient {
     }
 }
 
-/// Open clients, keyed by saved-connection id.
+/// A client opened apart for the operations (sync, backup, restore) on a connection the user hasn't
+/// opened; it closes when the last one that holds it lets it go.
+struct Detached {
+    client: OpenClient,
+    holders: usize,
+}
+
+/// Clients keyed by saved-connection id: the sessions the user opened and, apart from them, the
+/// detached ones the operations borrow. An open session wins over a detached one with the same id.
 #[derive(Default)]
-pub struct Sessions(Mutex<HashMap<String, OpenClient>>);
+pub struct Sessions {
+    open: Mutex<HashMap<String, OpenClient>>,
+    detached: Mutex<HashMap<String, Detached>>,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -192,7 +203,7 @@ pub async fn connect(
     };
     // El shell abierto usa el cliente anterior: se suelta antes de cerrarlo.
     shells.close(&id);
-    if let Some(old) = sessions.0.lock().await.insert(id, client) {
+    if let Some(old) = sessions.open.lock().await.insert(id, client) {
         old.shutdown().await;
     }
     Ok(info)
@@ -206,26 +217,107 @@ pub async fn disconnect(
 ) -> Result<(), String> {
     // `shutdown` espera a que se suelten los cursores, y los del shell viven en su hilo.
     shells.close(&id);
-    if let Some(client) = sessions.0.lock().await.remove(&id) {
+    if let Some(client) = sessions.open.lock().await.remove(&id) {
         client.shutdown().await;
     }
     Ok(())
 }
 
+/// Opens connection `id` apart, without a session (the explorer doesn't show it), for an operation
+/// to use; each call holds it until its `close_detached`. Reuses the one already open apart.
+#[tauri::command]
+pub async fn open_detached(
+    app: AppHandle,
+    sessions: State<'_, Sessions>,
+    id: String,
+    uri: String,
+    ssh: Option<SshConfig>,
+    safe_mode: bool,
+) -> Result<ServerInfo, String> {
+    let known_hosts = known_hosts_path(&app)?;
+    sessions.hold_detached(&id, || open(&uri, ssh, known_hosts, safe_mode)).await
+}
+
+/// Lets go of a hold taken by `open_detached`; the last one closes the client.
+#[tauri::command]
+pub async fn close_detached(sessions: State<'_, Sessions>, id: String) -> Result<(), String> {
+    sessions.release_detached(&id).await;
+    Ok(())
+}
+
+impl Sessions {
+    /// Takes a hold on the client opened apart for `id`, opening it with `open_client` when there's
+    /// none; fails (holding nothing) when the server doesn't answer.
+    async fn hold_detached<F, Fut>(&self, id: &str, open_client: F) -> Result<ServerInfo, String>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<OpenClient, String>>,
+    {
+        let held = self.detached.lock().await.get_mut(id).map(|held| {
+            held.holders += 1;
+            held.client.client.clone()
+        });
+        if let Some(client) = held {
+            let info = server_info(&client).await;
+            if info.is_err() {
+                self.release_detached(id).await;
+            }
+            return info;
+        }
+        let client = open_client().await?;
+        let info = match server_info(&client.client).await {
+            Ok(info) => info,
+            Err(e) => {
+                client.shutdown().await;
+                return Err(e);
+            }
+        };
+        let mut detached = self.detached.lock().await;
+        match detached.get_mut(id) {
+            // Another call opened it meanwhile: this one shares that client.
+            Some(held) => {
+                held.holders += 1;
+                drop(detached);
+                client.shutdown().await;
+            }
+            None => {
+                detached.insert(id.to_string(), Detached { client, holders: 1 });
+            }
+        }
+        Ok(info)
+    }
+
+    async fn release_detached(&self, id: &str) {
+        let mut detached = self.detached.lock().await;
+        let Some(held) = detached.get_mut(id) else { return };
+        held.holders -= 1;
+        if held.holders == 0 {
+            let held = detached.remove(id).expect("just found");
+            drop(detached);
+            held.client.shutdown().await;
+        }
+    }
+}
+
 const NOT_OPEN: &str = "La conexión no está abierta";
 
-/// The client of an open session and its read-only switch. Code that runs arbitrary commands
-/// checks them with `safe_mode.check_command(&command)?` before sending them.
+/// The client of an open session (or, without one, of the one opened apart) and its read-only
+/// switch. Code that runs arbitrary commands checks them with `safe_mode.check_command(&command)?`
+/// before sending them.
 pub(crate) async fn session_with_safe_mode(
     sessions: &Sessions,
     id: &str,
 ) -> Result<(Client, SafeMode), String> {
+    let pair = |open: &OpenClient| (open.client.clone(), open.safe_mode.clone());
+    if let Some(found) = sessions.open.lock().await.get(id).map(pair) {
+        return Ok(found);
+    }
     sessions
-        .0
+        .detached
         .lock()
         .await
         .get(id)
-        .map(|open| (open.client.clone(), open.safe_mode.clone()))
+        .map(|held| pair(&held.client))
         .ok_or_else(|| NOT_OPEN.to_string())
 }
 
@@ -252,7 +344,7 @@ pub async fn set_safe_mode(
 /// URI an open session was opened with, and the local port of its SSH tunnel if it has one.
 pub(crate) async fn session_uri(sessions: &Sessions, id: &str) -> Result<(String, Option<u16>), String> {
     sessions
-        .0
+        .open
         .lock()
         .await
         .get(id)
@@ -364,6 +456,64 @@ mod tests {
         open.shutdown().await;
         // Once closed, nothing listens on the tunnel's local port any more.
         assert!(tokio::net::TcpStream::connect((TUNNEL_HOST, local_port)).await.is_err());
+    }
+
+    /// A client that never connects (the driver connects lazily), to fill the registry.
+    async fn idle_client(safe_mode: bool) -> OpenClient {
+        let client = Client::with_uri_str("mongodb://127.0.0.1:1/").await.unwrap();
+        OpenClient { client, tunnel: None, uri: String::new(), safe_mode: SafeMode::new(safe_mode) }
+    }
+
+    #[tokio::test]
+    async fn an_open_session_wins_over_the_detached_client() {
+        let sessions = Sessions::default();
+        sessions.detached.lock().await.insert("c".into(), Detached { client: idle_client(false).await, holders: 1 });
+        sessions.open.lock().await.insert("c".into(), idle_client(true).await);
+        assert!(session_with_safe_mode(&sessions, "c").await.unwrap().1.is_enabled());
+
+        sessions.open.lock().await.remove("c").unwrap().shutdown().await;
+        assert!(!session_with_safe_mode(&sessions, "c").await.unwrap().1.is_enabled());
+        // mongosh only ever uses a session the user opened.
+        assert!(session_uri(&sessions, "c").await.is_err());
+
+        sessions.release_detached("c").await;
+        assert_eq!(session_with_safe_mode(&sessions, "c").await.unwrap_err(), NOT_OPEN);
+    }
+
+    /// Prueba real contra un mongod local: el cliente aparte se abre una sola vez aunque lo tomen
+    /// dos operaciones y se cierra cuando lo suelta la última.
+    #[tokio::test]
+    #[ignore = "needs a mongod on 127.0.0.1:27017"]
+    async fn live_detached_client_is_shared_and_closed_by_the_last_holder() {
+        let sessions = Sessions::default();
+        let opened = std::sync::atomic::AtomicUsize::new(0);
+        let open_local = || async {
+            opened.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
+            open("mongodb://127.0.0.1:27017/?serverSelectionTimeoutMS=2000", None, known_hosts, false).await
+        };
+        let info = sessions.hold_detached("local", open_local).await.unwrap();
+        assert!(!info.databases.is_empty());
+        sessions.hold_detached("local", open_local).await.unwrap();
+        assert_eq!(opened.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        sessions.release_detached("local").await;
+        let (client, _) = session_with_safe_mode(&sessions, "local").await.unwrap();
+        client.database("admin").run_command(doc! { "ping": 1 }, None).await.unwrap();
+
+        sessions.release_detached("local").await;
+        assert_eq!(session_with_safe_mode(&sessions, "local").await.unwrap_err(), NOT_OPEN);
+    }
+
+    #[tokio::test]
+    async fn a_detached_client_that_does_not_answer_holds_nothing() {
+        let sessions = Sessions::default();
+        let unreachable = || async {
+            let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
+            open("mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200", None, known_hosts, false).await
+        };
+        assert!(sessions.hold_detached("down", unreachable).await.is_err());
+        assert!(sessions.detached.lock().await.is_empty());
     }
 
     #[test]

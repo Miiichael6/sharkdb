@@ -4,8 +4,8 @@ import { FOLDER_REQUIRED, type BackupRequest } from "../domain/backupSpec";
 import { createBackupService } from "./backupService";
 import type { BackupGateway, FolderPicker } from "./ports";
 
-const REQUEST: BackupRequest = { sid: "s1", db: "shop", collections: ["orders"], dir: " C:\\b\\shop " };
-const RESULT = [{ collection: "orders", documents: 2, duplicates: 0, indexes: 1 }];
+const REQUEST: BackupRequest = { sid: "s1", dir: " C:\\b ", databases: [{ db: "shop", collections: ["orders"] }] };
+const RESULT = [{ collection: "shop.orders", documents: 2, duplicates: 0, indexes: 1 }];
 
 /** Gateway that records what reached the backend. */
 function fakeGateway() {
@@ -27,7 +27,7 @@ describe("backupService", () => {
     const { gateway, sent } = fakeGateway();
     const running = createBackupService(gateway, picker, start).backup(REQUEST, () => {});
     expect(await running.result).toEqual(RESULT);
-    expect(sent).toEqual([{ job: "job-1", request: { ...REQUEST, dir: "C:\\b\\shop" } }]);
+    expect(sent).toEqual([{ job: "job-1", request: { ...REQUEST, dir: "C:\\b" } }]);
   });
 
   it("rejects an invalid request without calling the backend", async () => {

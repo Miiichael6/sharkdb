@@ -7,7 +7,7 @@ import {
   upsertConnection,
   type MongoConnection,
 } from "../features/connections/domain/connection";
-import type { Session } from "../features/connections/domain/session";
+import type { BorrowedSession, Session } from "../features/connections/domain/session";
 import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
@@ -22,6 +22,7 @@ import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
 import { useNotify } from "../shared/ui/useNotifications";
+import { WithOperationsPanel } from "./operations/WithOperationsPanel";
 import { useServices } from "./services";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
@@ -57,21 +58,44 @@ function App() {
 
   const upsert = (conn: MongoConnection) => persist(upsertConnection(connections, conn));
 
+  /** Opens `conn` and adds it to the explorer; throws when it can't connect. */
+  const openSession = async (conn: MongoConnection) => {
+    const session = await service.open(conn);
+    // Reconnecting an open connection (e.g. after editing it) replaces its session.
+    setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
+    log.info(`Conectado a ${displayName(conn)}`);
+    return session;
+  };
+
   const connect = async (conn: MongoConnection) => {
     setDialog({ kind: "none" });
     setError("");
     setConnectingId(conn.id);
     try {
-      const session = await service.open(conn);
-      // Reconnecting an open connection (e.g. after editing it) replaces its session.
-      setSessions((s) => [...s.filter((x) => x.conn.id !== conn.id), session]);
+      await openSession(conn);
       setShowWelcome(false);
-      log.info(`Conectado a ${displayName(conn)}`);
     } catch (e) {
       setError(`${displayName(conn)}: ${errorMessage(e)}`);
       log.error(`No se pudo conectar a ${displayName(conn)}`, e);
     } finally {
       setConnectingId(null);
+    }
+  };
+
+  /**
+   * A registered connection's session for a sync, backup or restore: the open one, or one opened apart
+   * when it's closed (the explorer doesn't show it and it closes once the operation is done).
+   */
+  const borrowSession = async (id: string): Promise<BorrowedSession> => {
+    const open = sessions.find((s) => s.conn.id === id);
+    if (open) return { session: open, release: async () => {} };
+    const conn = connections.find((c) => c.id === id);
+    if (!conn) throw "La conexión ya no existe";
+    try {
+      return await service.borrow(conn);
+    } catch (e) {
+      log.error(`No se pudo conectar a ${displayName(conn)}`, e);
+      throw e;
     }
   };
 
@@ -129,6 +153,8 @@ function App() {
       ) : (
         <Workspace
           sessions={sessions}
+          connections={connections}
+          onBorrowSession={borrowSession}
           sidebarHidden={layout.sidebarHidden}
           logsOpen={layout.logsOpen}
           onCloseLogs={layout.closeLogs}
@@ -151,7 +177,9 @@ function App() {
             />
           )}
           renderMain={(details, selected) => (
-            <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
+            <WithOperationsPanel>
+              <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
+            </WithOperationsPanel>
           )}
         />
       )}
