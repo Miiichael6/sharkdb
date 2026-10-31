@@ -78,6 +78,22 @@ pub fn save_connections(app: AppHandle, mut connections: Value) -> Result<(), St
     secrets::forget_removed(&before, &connections, &KeyringVault)
 }
 
+/// Whether a saved connection is marked protected (production-like): restore and sync never
+/// write to it. Reads the file as is: the secrets aren't needed for this.
+pub(crate) fn is_protected(app: &AppHandle, connection_id: &str) -> Result<bool, String> {
+    let connections = read_json(&config_dir(app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))?;
+    Ok(connection_is_protected(&connections, connection_id))
+}
+
+fn connection_is_protected(connections: &Value, connection_id: &str) -> bool {
+    connections.as_array().is_some_and(|list| {
+        list.iter().any(|c| {
+            c.get("id").and_then(Value::as_str) == Some(connection_id)
+                && c.get("protected").and_then(Value::as_bool) == Some(true)
+        })
+    })
+}
+
 #[tauri::command]
 pub fn load_history(app: AppHandle, connection_id: String) -> Result<Value, String> {
     read_json(&history_path(&app, &connection_id)?, Value::Array(vec![]))
@@ -103,6 +119,19 @@ mod tests {
         for id in ["", "../connections", "a/b", "a\\b", "c:x"] {
             assert!(history_file_name(id).is_err(), "{id}");
         }
+    }
+
+    #[test]
+    fn only_connections_marked_protected_are_protected() {
+        let connections = serde_json::json!([
+            { "id": "prod", "protected": true },
+            { "id": "qa", "protected": false },
+            { "id": "old" },
+        ]);
+        assert!(connection_is_protected(&connections, "prod"));
+        assert!(!connection_is_protected(&connections, "qa"));
+        assert!(!connection_is_protected(&connections, "old"));
+        assert!(!connection_is_protected(&connections, "missing"));
     }
 
     #[test]

@@ -22,6 +22,8 @@ const TREE_ACTIONS: Partial<Record<QuickActionId, Action>> = {
   dbStats: "dbStats",
   refresh: "refresh",
   openMongosh: "openMongosh",
+  backup: "backupDatabase",
+  restore: "restoreDatabase",
 };
 
 interface Options {

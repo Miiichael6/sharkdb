@@ -49,7 +49,7 @@ describe("candidates", () => {
 
   it("disables pending actions, and all of them without a database", () => {
     const enabled = actionItems("shop").filter((i) => !i.disabled).map((i) => i.id);
-    expect(enabled).toEqual(["openShell", "createCollection", "dbStats", "refresh", "openMongosh"]);
+    expect(enabled).toEqual(["openShell", "createCollection", "dbStats", "refresh", "openMongosh", "backup", "restore"]);
     expect(actionItems(undefined).every((i) => i.disabled)).toBe(true);
   });
 });

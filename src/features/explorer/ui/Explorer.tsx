@@ -37,6 +37,8 @@ export type Action =
   | "copyCollection"
   | "duplicateCollection"
   | "removeFunction"
+  | "backupDatabase"
+  | "restoreDatabase"
   | MenuScriptKind;
 
 type MenuItem = { label: string; action: Action; danger?: boolean; disabled?: boolean } | "sep";
@@ -69,6 +71,9 @@ function menuFor(n: TreeNode): MenuItem[] {
         "sep",
         { label: "Crear colección…", action: "createCollection" },
         { label: "Eliminar base de datos…", action: "dropDatabase", danger: true },
+        "sep",
+        { label: "Backup…", action: "backupDatabase" },
+        { label: "Restaurar…", action: "restoreDatabase" },
       ];
     case "collections":
       return [
