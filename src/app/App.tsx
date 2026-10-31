@@ -7,7 +7,7 @@ import {
   upsertConnection,
   type MongoConnection,
 } from "../features/connections/domain/connection";
-import type { Session } from "../features/connections/domain/session";
+import type { BorrowedSession, Session } from "../features/connections/domain/session";
 import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
@@ -82,14 +82,17 @@ function App() {
     }
   };
 
-  /** A registered connection's session, opening it when it's closed (the sync's ends). */
-  const ensureSession = async (id: string) => {
+  /**
+   * A registered connection's session for a sync, backup or restore: the open one, or one opened apart
+   * when it's closed (the explorer doesn't show it and it closes once the operation is done).
+   */
+  const borrowSession = async (id: string): Promise<BorrowedSession> => {
     const open = sessions.find((s) => s.conn.id === id);
-    if (open) return open;
+    if (open) return { session: open, release: async () => {} };
     const conn = connections.find((c) => c.id === id);
     if (!conn) throw "La conexión ya no existe";
     try {
-      return await openSession(conn);
+      return await service.borrow(conn);
     } catch (e) {
       log.error(`No se pudo conectar a ${displayName(conn)}`, e);
       throw e;
@@ -151,7 +154,7 @@ function App() {
         <Workspace
           sessions={sessions}
           connections={connections}
-          onEnsureSession={ensureSession}
+          onBorrowSession={borrowSession}
           sidebarHidden={layout.sidebarHidden}
           logsOpen={layout.logsOpen}
           onCloseLogs={layout.closeLogs}

@@ -5,6 +5,8 @@ import { errorMessage } from "../errors";
 
 /** Query parameter a modal window is loaded with (see `currentModalView`). */
 const MODAL_VIEW_PARAM = "view";
+/** Query parameter with the title the modal draws in its own title bar (see `currentModalTitle`). */
+const MODAL_TITLE_PARAM = "title";
 
 // One modal window per view at a time (the opener is disabled meanwhile), so the view names its events.
 const readyEvent = (view: string) => `modal-ready:${view}`;
@@ -60,7 +62,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
   try {
     await parent.setEnabled(false);
     const child = new WebviewWindow(`modal-${view}`, {
-      url: `index.html?${new URLSearchParams({ [MODAL_VIEW_PARAM]: view })}`,
+      url: `index.html?${new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title })}`,
       title,
       width,
       height,
@@ -71,6 +73,8 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       maximizable,
       resizable,
       skipTaskbar: true,
+      // The modal draws its own title bar (ModalTitleBar), without the OS one.
+      decorations: false,
     });
     await new Promise<void>((resolve) => {
       void child.once("tauri://destroyed", () => resolve());
@@ -129,4 +133,9 @@ export async function finishModalWindow(view: string, result: unknown) {
 /** The view this window shows when it was opened by `openModalWindow`. */
 export function currentModalView(): string | null {
   return new URLSearchParams(window.location.search).get(MODAL_VIEW_PARAM);
+}
+
+/** The title this modal window was opened with. */
+export function currentModalTitle(): string {
+  return new URLSearchParams(window.location.search).get(MODAL_TITLE_PARAM) ?? "";
 }

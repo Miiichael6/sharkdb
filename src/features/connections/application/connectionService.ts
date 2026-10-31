@@ -1,6 +1,6 @@
 import { buildUri, type MongoConnection } from "../domain/connection";
 import { migrateConnection } from "../domain/migrate";
-import type { Session } from "../domain/session";
+import type { BorrowedSession, Session } from "../domain/session";
 import { sshTunnelConfig } from "../domain/ssh";
 import type { ConnectionStore, FilePicker, SessionGateway } from "./ports";
 
@@ -22,6 +22,18 @@ export function createConnectionService(store: ConnectionStore, gateway: Session
       return { ...session, safeMode: enabled };
     },
     close: (id: string) => gateway.close(id),
+    /** Opens `conn` apart from the sessions, for an operation; protected ones stay read-only too. */
+    async borrow(conn: MongoConnection): Promise<BorrowedSession> {
+      const safeMode = conn.protected;
+      const info = await gateway.openDetached(conn.id, buildUri(conn), sshTunnelConfig(conn.ssh), safeMode);
+      let released = false;
+      const release = async () => {
+        if (released) return;
+        released = true;
+        await gateway.closeDetached(conn.id);
+      };
+      return { session: { conn, safeMode, info }, release };
+    },
     pickFile: (title: string) => files.pick(title),
   };
 }

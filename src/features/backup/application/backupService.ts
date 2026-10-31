@@ -10,7 +10,8 @@ export function createBackupService(gateway: BackupGateway, picker: FolderPicker
       start(async (job) => gateway.backup(job, validateBackup(request)), onProgress),
     restore: (request: RestoreRequest, onProgress: OnProgress) =>
       start(async (job) => gateway.restore(job, validateRestore(request)), onProgress),
-    readFolder: (dir: string) => gateway.readFolder(dir.trim()),
+    readCatalog: (dir: string) => gateway.readCatalog(dir.trim()),
+    openFolder: (dir: string) => gateway.openFolder(dir),
     pickFolder: (title: string) => picker.pickFolder(title),
   };
 }

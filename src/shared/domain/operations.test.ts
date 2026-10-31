@@ -5,6 +5,9 @@ import {
   cancelConfirmation,
   closeWithRunningConfirmation,
   durationLabel,
+  folderEndpoint,
+  folderName,
+  operationDetail,
   operationOutcome,
   operationsBadge,
   operationsReducer,
@@ -51,6 +54,7 @@ describe("operationsReducer", () => {
     expect(ops[0]).toMatchObject({ results: RESULTS, summary: "Sincronizado local", endedAt: 5000, progress: null });
     expect(operationOutcome(ops[1])).toBe("Sync QA → local falló: sin red");
     expect(operationOutcome(ops[2])).toBe("Sync QA → local cancelado");
+    expect(ops.map(operationDetail)).toEqual(["Sincronizado local", "sin red", ""]);
   });
 
   it("clearing keeps only the running ones", () => {
@@ -104,5 +108,13 @@ describe("texts", () => {
   it("formats durations", () => {
     expect(durationLabel(12_400)).toBe("12 s");
     expect(durationLabel(65_000)).toBe("1 min 05 s");
+  });
+});
+
+describe("folder endpoints", () => {
+  it("are shown by the folder's name and keep the full path to open it", () => {
+    expect(folderName("C:\\backups\\qa\\")).toBe("qa");
+    expect(folderName("/home/me/dumps/2026")).toBe("2026");
+    expect(folderEndpoint(" D:\\b\\local ")).toEqual({ name: "local", path: "D:\\b\\local" });
   });
 });

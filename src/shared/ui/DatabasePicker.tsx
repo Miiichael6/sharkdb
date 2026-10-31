@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Spinner } from "../../../shared/ui/common";
-import { selectEverything, type DatabaseCatalog, type Selection } from "../domain/syncPlan";
+import { selectEverything, type DatabaseCatalog, type Selection } from "../domain/selection";
+import { Spinner } from "./common";
 import { DatabaseRow } from "./DatabaseRow";
 
 interface Props {
@@ -8,14 +8,16 @@ interface Props {
   loading: boolean;
   selection: Selection;
   onChange: (selection: Selection) => void;
-  /** Where the copy goes, for the heading. */
-  targetName: string;
+  /** Heading: "Qué copiar a QA", "Qué guardar"… */
+  title: string;
+  /** Shown when the origin has no databases. */
+  emptyText: string;
   /** Databases that start expanded (the one of the origin collection, or those chosen before "Volver"). */
   initiallyExpanded?: string[];
 }
 
-/** "Qué copiar": the source's databases, whole or by collection, across several databases. */
-export function DatabasePicker({ catalog, loading, selection, onChange, targetName, initiallyExpanded }: Props) {
+/** The origin's databases, whole or by collection, across several databases (sync, backup and restore). */
+export function DatabasePicker({ catalog, loading, selection, onChange, title, emptyText, initiallyExpanded }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(initiallyExpanded));
   const toggleExpanded = (db: string) =>
     setExpanded((current) => {
@@ -25,9 +27,9 @@ export function DatabasePicker({ catalog, loading, selection, onChange, targetNa
     });
 
   return (
-    <section className="sync-picker">
+    <section className="selection-picker">
       <header>
-        <b>Qué copiar{targetName && ` a ${targetName}`}</b>
+        <b>{title}</b>
         {loading && <Spinner />}
         <span className="spacer" />
         <button type="button" onClick={() => onChange(selectEverything(catalog))} disabled={!catalog.length}>
@@ -37,9 +39,9 @@ export function DatabasePicker({ catalog, loading, selection, onChange, targetNa
           Limpiar
         </button>
       </header>
-      <p className="muted small">Marca una base de datos para copiarla completa, o despliégala y elige colecciones sueltas.</p>
-      {!loading && !catalog.length && <p className="sync-plan-empty">La conexión de origen no tiene bases de datos que copiar</p>}
-      <div className="sync-db-list">
+      <p className="muted small">Marca una base de datos para elegirla completa, o despliégala y elige colecciones sueltas.</p>
+      {!loading && !catalog.length && <p className="selection-empty">{emptyText}</p>}
+      <div className="selection-db-list">
         {catalog.map((database) => (
           <DatabaseRow
             key={database.name}

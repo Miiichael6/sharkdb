@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { badgeText } from "../../../shared/domain/notifications";
 import { ContextMenu, type ContextMenuItem } from "../../../shared/ui/ContextMenu";
 import { NotificationCenter } from "../../../shared/ui/NotificationCenter";
+import { THEME_CHOICES, useThemeChoice } from "../../../shared/ui/theme";
 import { useNotifications } from "../../../shared/ui/useNotifications";
 import type { StatusContext } from "../domain/statusLabel";
 import { TOOLBAR_ACTIONS, TOOLBAR_LAYOUT, type ToolbarActionId } from "../domain/toolbarActions";
@@ -10,7 +11,7 @@ import { ToolbarButton } from "./ToolbarButton";
 import type { ToolbarHandlers } from "./useToolbarShortcuts";
 
 /** Actions that open a popup anchored to their button instead of running a handler. */
-const POPUPS = { menu: "menu", notifications: "dialog" } as const;
+const POPUPS = { menu: "menu", notifications: "dialog", settings: "menu" } as const;
 type PopupId = keyof typeof POPUPS;
 const isPopup = (id: ToolbarActionId): id is PopupId => id in POPUPS;
 
@@ -31,6 +32,12 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
   const { unread } = useNotifications();
+  const theme = useThemeChoice();
+  const settingsItems: ContextMenuItem[] = THEME_CHOICES.map(({ id, label }) => ({
+    label: `Tema ${label.toLowerCase()}`,
+    checked: theme.choice === id,
+    onSelect: () => theme.choose(id),
+  }));
   const badges: Partial<Record<ToolbarActionId, string>> = { ...extraBadges, notifications: unread ? badgeText(unread) : undefined };
 
   const onButton = (id: ToolbarActionId, e: MouseEvent<HTMLButtonElement>) => {
@@ -75,6 +82,9 @@ export function Toolbar({ handlers, pressed, disabled, menuItems, status, badges
 
       {popup?.id === "menu" && (
         <ContextMenu x={popup.x} y={popup.y} items={menuItems} onClose={closePopup} label={TOOLBAR_ACTIONS.menu.label} />
+      )}
+      {popup?.id === "settings" && (
+        <ContextMenu x={popup.x} y={popup.y} items={settingsItems} onClose={closePopup} label={TOOLBAR_ACTIONS.settings.label} />
       )}
       {popup?.id === "notifications" && <NotificationCenter x={popup.x} y={popup.y} onClose={closePopup} />}
     </div>

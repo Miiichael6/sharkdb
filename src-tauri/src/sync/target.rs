@@ -1,13 +1,10 @@
-//! Reglas sobre el destino de un sync que no dependen del servidor.
+//! Reglas sobre el destino de un sync que no dependen del servidor: nunca es el origen.
 
 use mongodb::bson::Bson;
 
 pub const SAME_CONNECTION: &str = "El destino no puede ser la conexión de origen";
 pub const SAME_COLLECTION: &str =
     "El destino es la misma colección que el origen (las dos conexiones apuntan al mismo servidor)";
-
-/// Marca de las colecciones provisionales en las que se copia antes de reemplazar el destino.
-const STAGING_MARK: &str = "robo3b-sync";
 
 /// Error si origen y destino son la misma conexión: cada BD va a la de su mismo nombre, así que sería ella misma.
 pub fn ensure_distinct_connections(source_sid: &str, target_sid: &str) -> Result<(), String> {
@@ -20,11 +17,6 @@ pub fn ensure_distinct_collections(source: Option<&Bson>, target: Option<&Bson>)
         (Some(source), Some(target)) if source == target => Err(SAME_COLLECTION.into()),
         _ => Ok(()),
     }
-}
-
-/// Colección provisional del destino donde se copia `collection` antes de renombrarla encima.
-pub fn staging_name(collection: &str, run: &str) -> String {
-    format!("{collection}.{STAGING_MARK}-{run}")
 }
 
 #[cfg(test)]
@@ -49,10 +41,5 @@ mod tests {
         // El destino aún no existe, o un servidor antiguo no da UUID.
         assert!(ensure_distinct_collections(Some(&uuid(1)), None).is_ok());
         assert!(ensure_distinct_collections(None, None).is_ok());
-    }
-
-    #[test]
-    fn staging_collection_keeps_the_name_and_marks_the_run() {
-        assert_eq!(staging_name("orders", "abc"), "orders.robo3b-sync-abc");
     }
 }

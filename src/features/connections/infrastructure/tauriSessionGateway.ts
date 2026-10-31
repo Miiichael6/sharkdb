@@ -7,4 +7,6 @@ export const tauriSessionGateway: SessionGateway = {
   open: (id, uri, ssh, safeMode) => call<ServerInfo>("connect", { id, uri, ssh, safeMode }),
   setSafeMode: (id, enabled) => call<void>("set_safe_mode", { id, enabled }),
   close: (id) => call<void>("disconnect", { id }),
+  openDetached: (id, uri, ssh, safeMode) => call<ServerInfo>("open_detached", { id, uri, ssh, safeMode }),
+  closeDetached: (id) => call<void>("close_detached", { id }),
 };

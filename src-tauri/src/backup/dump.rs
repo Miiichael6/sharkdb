@@ -1,11 +1,12 @@
-//! Backup: vuelca colecciones de una base de datos a una carpeta con el formato de `mongodump`.
+//! Backup: vuelca colecciones de una o varias BDs a una carpeta con el formato de `mongodump --out`
+//! (`<carpeta>/<bd>/<colección>.bson`).
 
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use mongodb::Database;
 use mongodb::bson::RawDocumentBuf;
+use mongodb::{Client, Database};
 use mongodb::options::FindOptions;
 
 use super::folder;
@@ -13,6 +14,7 @@ use super::format;
 use super::source::read_metadata;
 use crate::jobs::CancelFlag;
 use crate::jobs::report::{CollectionResult, Progress};
+use crate::jobs::selection::{DatabaseSelection, collection_label, each_collection};
 use crate::mongo::describe;
 
 /// Cada cuántos documentos se avisa del progreso.
@@ -21,28 +23,26 @@ const FIND_BATCH_SIZE: u32 = 1000;
 /// Los datos se escriben aquí y se renombran al acabar: un backup cortado no deja un `.bson` a medias.
 const PARTIAL_SUFFIX: &str = ".partial";
 
-/// Vuelca `collections` de `db` en `dir` (que se crea si no existe).
-pub async fn dump(
-    db: &Database,
-    collections: &[String],
+/// Vuelca las colecciones elegidas de cada BD de `client` en `dir/<bd>` (que se crean si no existen).
+pub async fn dump_databases(
+    client: &Client,
+    databases: &[DatabaseSelection],
     dir: &Path,
     cancel: &CancelFlag,
     report: impl Fn(Progress),
 ) -> Result<Vec<CollectionResult>, String> {
-    fs::create_dir_all(dir).map_err(|e| format!("No se pudo crear {}: {e}", dir.display()))?;
-    let mut results = Vec::with_capacity(collections.len());
-    for (index, collection) in collections.iter().enumerate() {
+    // Reunidas antes del bucle: un iterador de closures vivo entre `await`s no es `Send`.
+    let collections = each_collection(databases, |d| &d.collections);
+    let count = collections.len();
+    let mut results = Vec::with_capacity(count);
+    for (index, (database, collection)) in collections.into_iter().enumerate() {
         cancel.check()?;
-        let progress = |done, total| {
-            report(Progress {
-                collection: collection.clone(),
-                index,
-                count: collections.len(),
-                done,
-                total,
-            })
-        };
-        results.push(dump_collection(db, collection, dir, cancel, progress).await?);
+        let db_dir = folder::database_dir(dir, &database.db);
+        fs::create_dir_all(&db_dir).map_err(|e| format!("No se pudo crear {}: {e}", db_dir.display()))?;
+        let label = collection_label(&database.db, collection);
+        let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
+        let result = dump_collection(&client.database(&database.db), collection, &db_dir, cancel, progress).await?;
+        results.push(CollectionResult { collection: label, ..result });
     }
     Ok(results)
 }

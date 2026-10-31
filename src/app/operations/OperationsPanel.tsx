@@ -3,12 +3,12 @@ import { OperationsSection } from "./OperationsSection";
 import { useOperations } from "./useOperations";
 
 /** Right-hand panel of the main window with the background operations; closing it stops nothing. */
-export function OperationsPanel() {
+export function OperationsPanel({ width }: { width: number }) {
   const { operations, closePanel, cancel, clearFinished } = useOperations();
   const anyEnded = operations.some((op) => !isRunning(op));
 
   return (
-    <aside className="ops-panel" aria-label="Operaciones">
+    <aside className="ops-panel" aria-label="Operaciones" style={{ width }}>
       <header>
         <strong>Operaciones</strong>
         <button type="button" className="ghost small" onClick={clearFinished} disabled={!anyEnded}>

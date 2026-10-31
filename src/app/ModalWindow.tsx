@@ -1,6 +1,14 @@
 // What a window opened with `openModalWindow` renders instead of the app.
 import { useCallback, useEffect, useState } from "react";
+import { BackupWindow } from "../features/backup/ui/BackupWindow";
+import { BACKUP_VIEW, RESTORE_VIEW, type BackupWindowData, type RestoreWindowData } from "../features/backup/ui/backupViews";
+import { RestoreWindow } from "../features/backup/ui/RestoreWindow";
 import { TAGS } from "../features/connections/domain/connection";
+import {
+  OPEN_CONNECTION_VIEW,
+  OpenConnectionDialog,
+  type OpenConnectionData,
+} from "../features/connections/ui/OpenConnectionDialog";
 import { TagBadge } from "../features/connections/ui/TagBadge";
 import {
   DOCUMENT_EDITOR_VIEW,
@@ -14,21 +22,33 @@ import type { ConfirmRequest, DangerConfirmRequest } from "../shared/domain/conf
 import { CONFIRM_VIEW, DANGER_CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
 import { ConfirmWindow } from "../shared/ui/ConfirmWindow";
 import { DangerConfirmWindow } from "../shared/ui/DangerConfirmWindow";
-import { finishModalWindow, receiveModalData } from "../shared/ui/modalWindow";
+import { ModalTitleBar } from "../shared/ui/ModalTitleBar";
+import { currentModalTitle, finishModalWindow, receiveModalData } from "../shared/ui/modalWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
 
 export const OPEN_DATABASE_VIEW = "open-database";
 
+/** The modal's own title bar over its view; the bar shows right away, the view once its data arrives. */
 export function ModalWindow({ view }: { view: string }) {
   const [data, setData] = useState<unknown>();
   useEffect(() => receiveModalData(view, (d) => setData(() => d)), [view]);
   const done = useCallback((result: unknown) => void finishModalWindow(view, result), [view]);
-  if (data === undefined) return null;
 
+  return (
+    <div className="modal-window">
+      <ModalTitleBar title={currentModalTitle()} />
+      <div className="modal-window-body">{data !== undefined && <ModalView view={view} data={data} done={done} />}</div>
+    </div>
+  );
+}
+
+function ModalView({ view, data, done }: { view: string; data: unknown; done: (result: unknown) => void }) {
   switch (view) {
     case CONFIRM_VIEW:
       return <ConfirmWindow request={data as ConfirmRequest} onDone={done} />;
+    case OPEN_CONNECTION_VIEW:
+      return <OpenConnectionDialog data={data as OpenConnectionData} onDone={done} />;
     case OPEN_DATABASE_VIEW:
       return <OpenDatabaseDialog databases={data as DatabaseChoice[]} onDone={done} />;
     case DOCUMENT_EDITOR_VIEW:
@@ -46,6 +66,18 @@ export function ModalWindow({ view }: { view: string }) {
       return (
         <ServicesProvider services={createServices()}>
           <SyncSelectWindow data={data as SyncWindowData} onDone={done} onClose={() => done(null)} />
+        </ServicesProvider>
+      );
+    case BACKUP_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <BackupWindow data={data as BackupWindowData} onDone={done} onClose={() => done(null)} />
+        </ServicesProvider>
+      );
+    case RESTORE_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <RestoreWindow data={data as RestoreWindowData} onDone={done} onClose={() => done(null)} />
         </ServicesProvider>
       );
     default:

@@ -17,6 +17,9 @@ export interface SessionGateway {
   open(id: string, uri: string, ssh: SshTunnelConfig | null, safeMode: boolean): Promise<ServerInfo>;
   setSafeMode(id: string, enabled: boolean): Promise<void>;
   close(id: string): Promise<void>;
+  /** Opens one apart from the sessions, for an operation; each call holds it until `closeDetached`. */
+  openDetached(id: string, uri: string, ssh: SshTunnelConfig | null, safeMode: boolean): Promise<ServerInfo>;
+  closeDetached(id: string): Promise<void>;
 }
 
 /** Lets the user choose a local file (certificates, private keys). Null when cancelled. */

@@ -3,7 +3,13 @@ import { useState } from "react";
 import type { ContextMenuItem } from "../shared/ui/ContextMenu";
 import { displayName, type MongoConnection } from "../features/connections/domain/connection";
 import type { Session } from "../features/connections/domain/session";
+import {
+  OPEN_CONNECTION_VIEW,
+  type OpenConnectionData,
+  type OpenConnectionResult,
+} from "../features/connections/ui/OpenConnectionDialog";
 import { serverNode } from "../features/explorer/domain/tree";
+import type { Action } from "../features/explorer/ui/Explorer";
 import type { WorkspaceControls } from "../features/explorer/ui/Workspace";
 import type { NewTab } from "../features/shell/domain/tabs";
 import type { ScriptFileActions } from "../features/shell/ui/useScriptFileActions";
@@ -88,6 +94,24 @@ export function WorkspaceToolbar(props: Props) {
     else if (result?.kind === "new") newDatabase();
   };
 
+  const showConnections = async () => {
+    let result: OpenConnectionResult | null;
+    try {
+      const data: OpenConnectionData = { connections, openIds: sessions.map((s) => s.conn.id) };
+      result = await openModalWindow<OpenConnectionResult>(OPEN_CONNECTION_VIEW, data, {
+        title: "Abrir conexión",
+        width: 480,
+        height: 540,
+      });
+    } catch (e) {
+      log.error("No se pudo abrir la lista de conexiones", e);
+      return;
+    }
+    if (result?.kind === "new") return onNewConnection();
+    const conn = result?.kind === "open" && connections.find((c) => c.id === result.id);
+    if (conn) onConnect(conn);
+  };
+
   const toggleSafeMode = () => {
     if (!session) return;
     if (session.safeMode && session.conn.protected) void confirmUnprotect(session);
@@ -106,7 +130,7 @@ export function WorkspaceToolbar(props: Props) {
   const operations = useOperations();
   const handlers: ToolbarHandlers = {
     toggleSidebar: layout.toggleSidebar,
-    connections: onShowConnections,
+    connections: () => void showConnections(),
     databases: () => target && showDatabases(),
     openMongosh: () => target && controls.openMongosh(target.sid, target.db),
     openConnection: () => quickOpen.open("connection"),
@@ -119,8 +143,13 @@ export function WorkspaceToolbar(props: Props) {
   };
   useToolbarShortcuts(handlers);
 
+  // Sync, backup and restore choose their databases in their own window: the connection is enough.
+  const runOnTarget = (action: Action) =>
+    session && controls.runAction(action, targetDatabase ?? serverNode(session.conn.id, displayName(session.conn)));
+
   const menuItems: ContextMenuItem[] = [
     { label: "Nueva conexión…", onSelect: onNewConnection },
+    { label: "Administrar conexiones…", onSelect: onShowConnections },
     { label: "Abrir script…", hint: "Ctrl+O", onSelect: () => files.openFile(tabs.active ?? newTabTarget()) },
     {
       label: "Guardar script",
@@ -128,22 +157,9 @@ export function WorkspaceToolbar(props: Props) {
       disabled: !tabs.active,
       onSelect: () => tabs.active && files.save(tabs.active),
     },
-    {
-      label: "Backup de base de datos…",
-      disabled: !targetDatabase,
-      onSelect: () => targetDatabase && controls.runAction("backupDatabase", targetDatabase),
-    },
-    {
-      label: "Restaurar base de datos…",
-      disabled: !targetDatabase,
-      onSelect: () => targetDatabase && controls.runAction("restoreDatabase", targetDatabase),
-    },
-    {
-      label: "Sincronizar con otro entorno…",
-      disabled: !session,
-      onSelect: () =>
-        session && controls.runAction("syncDatabase", targetDatabase ?? serverNode(session.conn.id, displayName(session.conn))),
-    },
+    { label: "Backup…", disabled: !session, onSelect: () => runOnTarget("backupDatabase") },
+    { label: "Restaurar backup…", disabled: !session, onSelect: () => runOnTarget("restoreDatabase") },
+    { label: "Sincronizar con otro entorno…", disabled: !session, onSelect: () => runOnTarget("syncDatabase") },
     { label: layout.logsOpen ? "Ocultar logs" : "Mostrar logs", onSelect: layout.toggleLogs },
     { label: "Acerca de Robo3B", onSelect: () => setAboutOpen(true) },
   ];

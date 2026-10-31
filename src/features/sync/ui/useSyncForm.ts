@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
-import { pickTarget, requestSelection, syncSources, syncTargets, type Selection } from "../domain/syncPlan";
-import type { SyncWindowData } from "./syncViews";
-import { useSyncConnections } from "./useSyncConnections";
+import { selectionOf, type Selection } from "../../../shared/domain/selection";
+import { pickTarget, sourceOptions, targetOptions } from "../../connections/domain/endpoints";
+import { useConnectionsOnDemand } from "../../connections/ui/useConnectionsOnDemand";
+import { SYNC_VIEW, type SyncWindowData } from "./syncViews";
 
 /**
- * State of the selection window: source, destination and the chosen collections. Each end is chosen
- * among the registered connections, never the other end's, and gets connected when it's closed.
+ * State of the selection window: source, destination and the chosen collections. Both ends are chosen
+ * among the registered connections (the destination never is the source) and get connected when closed.
  */
 export function useSyncForm({ connections, sessions: openSessions, origin, initial }: SyncWindowData) {
-  const { sessions, connecting, errors, ensureConnected, clearError } = useSyncConnections(openSessions);
+  const { sessions, ensureConnected, clearError, status, databasesOf } = useConnectionsOnDemand(SYNC_VIEW, openSessions);
   const [sourceId, setSourceId] = useState(initial?.sourceSid ?? origin.sid);
   const [chosenTargetId, setChosenTargetId] = useState(initial?.targetSid ?? "");
-  const [selection, setSelection] = useState<Selection>(() => (initial ? requestSelection(initial) : {}));
+  const [selection, setSelection] = useState<Selection>(() => (initial ? selectionOf(initial.databases) : {}));
 
-  const targets = syncTargets(connections, sessions, sourceId);
-  // The chosen destination, or another one when it's no longer offered.
+  const targets = targetOptions(connections, sessions, sourceId);
+  // The chosen destination, or another one when it's no longer offered (e.g. it was made the source).
   const targetId = pickTarget(targets, chosenTargetId);
-  const sources = syncSources(connections, sessions, targetId);
+  const sources = sourceOptions(connections, sessions);
 
   useEffect(() => ensureConnected(sourceId), [ensureConnected, sourceId]);
   useEffect(() => ensureConnected(targetId), [ensureConnected, targetId]);
@@ -31,11 +32,6 @@ export function useSyncForm({ connections, sessions: openSessions, origin, initi
     setChosenTargetId(id);
   };
 
-  const status = (id: string) => ({
-    connected: sessions.some((s) => s.conn.id === id),
-    connecting: connecting.has(id),
-    error: errors[id] ?? "",
-  });
   return {
     sources,
     targets,
@@ -45,8 +41,7 @@ export function useSyncForm({ connections, sessions: openSessions, origin, initi
     targetId,
     sourceStatus: status(sourceId),
     targetStatus: status(targetId),
-    /** Databases the destination has now, to tell what is replaced from what is created. */
-    targetDatabases: sessions.find((s) => s.conn.id === targetId)?.info.databases.map((d) => d.name) ?? [],
+    targetDatabases: databasesOf(targetId),
     changeSource,
     changeTarget,
     selection,

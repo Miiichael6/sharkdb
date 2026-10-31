@@ -6,13 +6,14 @@ import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
 import { useNotify } from "../../../shared/ui/useNotifications";
-import { BackupDialog } from "../../backup/ui/BackupDialog";
-import { RestoreDialog } from "../../backup/ui/RestoreDialog";
+import type { SelectionOrigin } from "../../../shared/domain/selection";
+import { useBackupFlow } from "../../backup/ui/useBackupFlow";
+import { useRestoreFlow } from "../../backup/ui/useRestoreFlow";
 import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
-import type { Session } from "../../connections/domain/session";
+import type { BorrowedSession, Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
 import { databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
 import { blockedInSafeMode } from "../domain/writeActions";
@@ -36,12 +37,18 @@ export interface WorkspaceControls {
   runAction: (action: Action, node: TreeNode) => void;
 }
 
+/** An operation chosen in its own windows: how to open them, and its name for the error. */
+interface OperationFlow {
+  open: (origin: SelectionOrigin) => Promise<void>;
+  name: string;
+}
+
 interface Props {
   sessions: Session[];
   /** Every registered connection: the sync can use closed ones too. */
   connections: MongoConnection[];
   /** Opens a registered connection by id (or returns its session when it's already open). */
-  onEnsureSession: (id: string) => Promise<Session>;
+  onBorrowSession: (id: string) => Promise<BorrowedSession>;
   sidebarHidden: boolean;
   logsOpen: boolean;
   onCloseLogs: () => void;
@@ -64,8 +71,6 @@ export function Workspace(props: Props) {
   const { explorer, terminal } = useServices();
   const tree = useTree(roots, explorer.loadChildren);
   const [panel, setPanel] = useState<{ key: string; mode: PanelMode } | null>(null);
-  // Backup and restore are chosen in their own dialogs; the operations panel runs them.
-  const [operation, setOperation] = useState<{ kind: "backup" | "restore"; node: TreeNode } | null>(null);
   const { ok, fail } = useNotify();
   const isReadOnly = useReadOnly();
   const log = useLog();
@@ -80,13 +85,14 @@ export function Workspace(props: Props) {
     fail,
   });
   const data = useDataOperations(connections, actions.refreshAll);
-  const openSyncFlow = useSyncFlow({
-    connections,
-    sessions,
-    ensureSession: props.onEnsureSession,
-    busyReason: data.busyReason,
-    run: data.sync,
-  });
+  // Sync, backup and restore are chosen and confirmed in their own windows (this one stays disabled)
+  // and run in the operations panel.
+  const flow = { connections, sessions, borrowSession: props.onBorrowSession, busyReason: data.busyReason };
+  const flows: Partial<Record<Action, OperationFlow>> = {
+    syncDatabase: { open: useSyncFlow({ ...flow, run: data.sync }), name: "sincronización" },
+    backupDatabase: { open: useBackupFlow({ ...flow, run: data.backup }), name: "backup" },
+    restoreDatabase: { open: useRestoreFlow({ ...flow, run: data.restore }), name: "restore" },
+  };
 
   const openMongosh = useCallback(
     (sid: string, db?: string) =>
@@ -100,11 +106,9 @@ export function Workspace(props: Props) {
     [terminal, fail, log],
   );
 
-  /** The sync is chosen and confirmed in their own windows (this one stays disabled) and runs in the operations panel. */
-  const openSync = (n: TreeNode) =>
-    openSyncFlow({ sid: n.sid, db: n.db, collection: n.coll }).catch((e) =>
-      log.error("No se pudo abrir la ventana de sincronización", e),
-    );
+  /** Opens an operation's windows with `n` (a connection, database or collection) preselected. */
+  const openFlow = ({ open, name }: OperationFlow, n: TreeNode) =>
+    open({ sid: n.sid, db: n.db, collection: n.coll }).catch((e) => log.error(`No se pudo abrir la ventana de ${name}`, e));
 
   const onAction = (action: Action, n: TreeNode) => {
     // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.
@@ -112,13 +116,9 @@ export function Workspace(props: Props) {
     else if (action === "openShell") onOpenShell(n);
     else if (isMenuScript(action)) onOpenShell(n, action);
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
-    else if ((action === "backupDatabase" || action === "restoreDatabase") && n.db)
-      setOperation({ kind: action === "backupDatabase" ? "backup" : "restore", node: n });
-    else if (action === "syncDatabase") void openSync(n);
+    else if (flows[action]) void openFlow(flows[action], n);
     else actions.onAction(action, n);
   };
-
-  const connectionName = (sid: string) => roots.find((r) => r.sid === sid)?.label ?? sid;
 
   const selected = tree.node(tree.selected) ?? roots[0];
   const controls: WorkspaceControls = {
@@ -164,30 +164,6 @@ export function Workspace(props: Props) {
         onSubmitUser={actions.submitUser}
         onCopy={actions.submitCopy}
       />
-
-      {operation?.kind === "backup" && (
-        <BackupDialog
-          sid={operation.node.sid}
-          db={operation.node.db!}
-          connection={connectionName(operation.node.sid)}
-          onDone={(request) => {
-            setOperation(null);
-            data.backup(request);
-          }}
-          onClose={() => setOperation(null)}
-        />
-      )}
-      {operation?.kind === "restore" && (
-        <RestoreDialog
-          sessions={sessions}
-          initial={{ sid: operation.node.sid, db: operation.node.db! }}
-          onDone={(request) => {
-            setOperation(null);
-            data.restore(request);
-          }}
-          onClose={() => setOperation(null)}
-        />
-      )}
     </div>
   );
 }

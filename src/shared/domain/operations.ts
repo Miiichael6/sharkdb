@@ -5,11 +5,21 @@ import { progressPercent, type CollectionResult, type JobProgress } from "./jobs
 export type OperationKind = "sync" | "backup" | "restore";
 export type OperationStatus = "running" | "done" | "failed" | "cancelled";
 
-/** One end of an operation: a connection (with its environment tag) or a folder. */
+/** One end of an operation: a connection (with its environment tag) or a folder (with its full path). */
 export interface OperationEndpoint {
   name: string;
   tag?: string;
+  path?: string;
 }
+
+/** Last segment of a folder path, the name it's shown by: `C:\backups\qa\` is `qa`. */
+export function folderName(dir: string): string {
+  const parts = dir.trim().split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? dir;
+}
+
+/** A backup folder as an end of an operation: shown by its name, opened by its path. */
+export const folderEndpoint = (dir: string): OperationEndpoint => ({ name: folderName(dir), path: dir.trim() });
 
 /** What is launched: the operation as the panel shows it. */
 export interface OperationSpec {
@@ -162,7 +172,14 @@ export function durationLabel(ms: number): string {
   return `${minutes} min ${String(seconds % 60).padStart(2, "0")} s`;
 }
 
-/** What the notification and the row say when an operation ends. */
+/** What the panel row says under an ended operation; its route and status are already on the row. */
+export function operationDetail(op: Operation): string {
+  if (op.status === "done") return op.summary;
+  if (op.status === "failed") return op.error;
+  return "";
+}
+
+/** What the notification says when an operation ends. */
 export function operationOutcome(op: Operation): string {
   if (op.status === "done") return op.summary;
   if (op.status === "failed") return `${KIND_LABELS[op.kind]} ${operationRoute(op)} falló: ${op.error}`;

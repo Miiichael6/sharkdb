@@ -71,6 +71,12 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
   - El trabajo corre en **segundo plano** en un **panel lateral derecho "Operaciones"** con secciones Sync, Backup y Restore, con %. Cancelar se confirma en una sub-ventana.
   - Origen y destino salen de **todas las conexiones registradas** (todas MongoDB); las cerradas se conectan al elegirlas. Producción/protegidas nunca son destino, y la conexión elegida en un select se quita del otro.
   - "Clonar" no es una operación aparte: entre conexiones es el sync; dentro de la misma conexión es "Copiar colección" (09).
+- [x] **D10** Orden de las favoritas → **alfabético** (al usuario le da igual, 2026-10-31) → afecta 23
+- [x] **D11** Quitar una base de la lista → **sí, "Quitar de la lista"** en el menú contextual, inconfundible con "Eliminar base de datos" (grupo, icono y color distintos) (2026-10-31) → afecta 23
+- [ ] **D12** Nivel de confirmación de cada borrado manual (propuesta, falta que el usuario la apruebe) → afecta 25:
+  - **Rojo + `confirmo`**: eliminar base de datos, eliminar colección, eliminar todos los documentos, eliminar usuario, eliminar índice.
+  - **Rojo, sin escribir**: eliminar documentos seleccionados (se usa a menudo), eliminar conexión registrada (no toca el servidor).
+  - **Sin rojo** (no borran datos): renombrar colección, reconstruir índices, editar índice, quitar base de la lista (23).
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -98,7 +104,10 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 19 | [Menús de índices y conexión como Robo 3T](done/19_menus_indices_conexion.md) | 7 Administración | 17, 18 | ✅ Terminada (prueba manual pendiente) |
 | 20 | [Panel de operaciones en segundo plano](done/20_panel_operaciones.md) | 9 Operaciones de BD | 15 | ✅ Terminada |
 | 21 | [Sync en dos pasos: selección y confirmación](done/21_sync_dos_pasos.md) | 9 Operaciones de BD | 20 | ✅ Terminada |
-| 22 | [Backup y restore con el mismo flujo que el sync](pending/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ⬜ Pendiente |
+| 22 | [Backup y restore con el mismo flujo que el sync](done/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ✅ Terminada (prueba manual en QA pendiente) |
+| 23 | [Bases favoritas y temporales por conexión](pending/23_bases_favoritas.md) | 11 Bases fijadas | 12, 22 | ⬜ Pendiente |
+| 24 | [Título de ventana y color de la conexión activa](pending/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ⬜ Pendiente |
+| 25 | [Confirmación roja con `confirmo` para borrados manuales](pending/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ⛔ Bloqueada (D12) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -148,6 +157,14 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R39 Sync en dos sub-ventanas: selección → "Se va a MODIFICAR" + escribir `confirmo` | 21 |
 | R40 Origen y destino entre todas las conexiones registradas (conexión bajo demanda), nunca producción ni la misma conexión | 21, 22 |
 | R41 Backup y restore multi-BD en sub-ventanas con el flujo del sync (formato `mongodump --out`) | 22 |
+| R42 El explorador solo muestra bases favoritas (persistentes por conexión) y temporales (hasta cerrar la app) | 23 |
+| R43 Conexión sin bases fijadas: ventana "Bases de datos" obligatoria hasta elegir al menos una (crear si no hay); Cancelar cierra la conexión y la quita del explorador | 23 |
+| R44 Ventana "Bases de datos": estrella por base, selección múltiple, favoritas arriba sin reordenar mientras está abierta | 23 |
+| R45 Título de ventana con conexión y etiqueta de entorno; barra con el color de la etiqueta (safe mode sin cambios) | 24 |
+| R46 Selectores de sync/backup/restore con las favoritas primero | 24 |
+| R47 Borrados manuales en sub-ventana totalmente roja, con conexión y entorno, escribiendo `confirmo` como en el sync | 25 |
+| R48 Aplicar ese nivel a cada acción destructiva del explorador, documentos y conexiones (D12) | 25 |
+| Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
 
@@ -163,5 +180,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 09, 13 → 17
 12 → 18
 17, 18 → 19
-15 → 20 → 21 → 22
+15 → 20 → 21 → 22 → 23 → 24
+18, 21 → 25
+12 ────────────────────┘
 ```

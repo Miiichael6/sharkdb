@@ -43,11 +43,13 @@ export interface DangerItem {
   detail: string;
 }
 
-/** "Se va a MODIFICAR…": the second window of an operation that writes to a connection. */
+/** "Se va a MODIFICAR…": the second window of an operation that writes to a connection or a folder. */
 export interface DangerConfirmRequest {
   /** Title of the window. */
   title: string;
-  /** What gets modified, with its environment tag. */
+  /** Banner before the destination (`MODIFY_HEADING` by default). */
+  heading?: string;
+  /** What gets written to, with its environment tag. */
   target: { name: string; tag?: string };
   /** Sentence under the banner (where the data comes from). */
   intro: string;
@@ -63,3 +65,5 @@ export interface DangerConfirmRequest {
 export type DangerAnswer = "confirm" | "back";
 
 export const BACK_LABEL = "Volver";
+
+export const MODIFY_HEADING = "Se va a MODIFICAR";

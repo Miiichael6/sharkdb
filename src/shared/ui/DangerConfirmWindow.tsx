@@ -3,6 +3,7 @@ import {
   BACK_LABEL,
   CONFIRM_WORD,
   DISMISS_LABEL,
+  MODIFY_HEADING,
   confirmationMatches,
   type DangerAnswer,
   type DangerConfirmRequest,
@@ -17,7 +18,7 @@ interface Props {
 }
 
 /**
- * Second window of an operation that writes (D9): "Se va a MODIFICAR" with what changes, and the
+ * Second window of an operation that writes (D9): "Se va a MODIFICAR" (or "GUARDAR") with what changes, and the
  * red button only enabled once `CONFIRM_WORD` is typed. Escape cancels.
  */
 export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
@@ -41,7 +42,7 @@ export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
       <div className="danger-body">
         <div className="danger-plan">
           <div className="danger-plan-title">
-            <span>Se va a MODIFICAR</span>
+            <span>{request.heading ?? MODIFY_HEADING}</span>
             {targetBadge}
             <b>{request.target.name}</b>
           </div>

@@ -14,7 +14,8 @@ export type ToolbarActionId =
   | "safeMode"
   | "operations"
   | "notifications"
-  | "logs";
+  | "logs"
+  | "settings";
 
 export interface Shortcut {
   key: string;
@@ -63,6 +64,7 @@ export const TOOLBAR_ACTIONS: Record<ToolbarActionId, ToolbarAction> = {
   operations: { id: "operations", label: "Operaciones en segundo plano", shortcuts: [], toggle: true },
   notifications: { id: "notifications", label: "Notificaciones", shortcuts: [] },
   logs: { id: "logs", label: "Logs", shortcuts: [], toggle: true },
+  settings: { id: "settings", label: "Ajustes", shortcuts: [] },
 };
 
 /** Button groups left and right of the status pill, as in TablePlus. */
@@ -72,7 +74,7 @@ export const TOOLBAR_LAYOUT: { left: ToolbarActionId[][]; right: ToolbarActionId
     ["databases", "openMongosh"],
     ["openConnection", "openDatabase", "quickActions"],
   ],
-  right: [["refresh"], ["safeMode"], ["operations", "notifications", "logs"]],
+  right: [["refresh"], ["safeMode"], ["operations", "notifications", "logs"], ["settings"]],
 };
 
 export const shortcutLabel = (s: Shortcut) =>

@@ -32,3 +32,22 @@ const DANGER_WINDOW = { width: 560, height: 480 };
  */
 export const confirmDangerInWindow = (request: DangerConfirmRequest) =>
   openModalWindow<DangerAnswer>(DANGER_CONFIRM_VIEW, request, { title: request.title, ...DANGER_WINDOW });
+
+/**
+ * An operation in two windows: `select` (given what was chosen before "Volver"), then `confirmation`
+ * with the confirmation word. Resolves the confirmed choice, or null when cancelled at either step.
+ */
+export async function selectThenConfirm<T>(
+  select: (previous?: T) => Promise<T | null>,
+  confirmation: (choice: T) => DangerConfirmRequest,
+): Promise<T | null> {
+  let previous: T | undefined;
+  for (;;) {
+    const choice = await select(previous);
+    if (!choice) return null;
+    const answer = await confirmDangerInWindow(confirmation(choice));
+    if (answer === "confirm") return choice;
+    if (answer !== "back") return null;
+    previous = choice;
+  }
+}

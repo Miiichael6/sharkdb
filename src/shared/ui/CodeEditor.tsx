@@ -1,9 +1,10 @@
 import { javascript } from "@codemirror/lang-javascript";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { monokaiVibrant } from "./monokaiVibrant";
+import { useTheme } from "./theme";
 
 interface Props {
   value: string;
@@ -31,6 +32,8 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
   changed.current = onChange;
+  const theme = useTheme();
+  const themeSlot = useRef(new Compartment());
 
   useEffect(() => {
     const editor = new EditorView({
@@ -41,7 +44,7 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
           ...extensions,
           basicSetup,
           javascript(),
-          monokaiVibrant,
+          themeSlot.current.of(monokaiVibrant(theme === "dark")),
           fillParent,
           readOnly ? readOnlySetup : [],
           EditorView.updateListener.of((u) => u.docChanged && changed.current?.(u.state.doc.toString())),
@@ -59,6 +62,10 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
     const editor = view.current;
     if (editor && editor.state.doc.toString() !== value) replaceAll(editor, value);
   }, [value]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: themeSlot.current.reconfigure(monokaiVibrant(theme === "dark")) });
+  }, [theme]);
 
   return <div className={className} ref={host} />;
 }

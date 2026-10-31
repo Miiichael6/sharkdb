@@ -12,6 +12,8 @@ function setup(saved: MongoConnection[] = []) {
     open: vi.fn(async () => INFO),
     setSafeMode: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
+    openDetached: vi.fn(async () => INFO),
+    closeDetached: vi.fn(async () => {}),
   };
   const files: FilePicker = { pick: vi.fn(async () => "C:\\ca.pem") };
   return { store, gateway, files, service: createConnectionService(store, gateway, files) };
@@ -48,6 +50,19 @@ describe("connectionService", () => {
     const next = await service.setSafeMode(session, true);
     expect(gateway.setSafeMode).toHaveBeenCalledWith(session.conn.id, true);
     expect(next).toEqual({ ...session, safeMode: true });
+  });
+
+  it("borrows a connection apart, read-only when protected, and gives it back once", async () => {
+    const { service, gateway } = setup();
+    const conn = { ...newConnection(), protected: true };
+    const { session, release } = await service.borrow(conn);
+    expect(session).toEqual({ conn, safeMode: true, info: INFO });
+    expect(gateway.openDetached).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null, true);
+    expect(gateway.open).not.toHaveBeenCalled();
+    await release();
+    await release();
+    expect(gateway.closeDetached).toHaveBeenCalledTimes(1);
+    expect(gateway.closeDetached).toHaveBeenCalledWith(conn.id);
   });
 
   it("passes the tunnel settings when SSH is enabled", async () => {
