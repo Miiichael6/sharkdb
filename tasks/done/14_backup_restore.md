@@ -20,7 +20,7 @@ Hacer copia de seguridad de una base de datos (todas o algunas colecciones) a di
 - [x] Prueba real: backup de una BD con varias colecciones e índices; restaurar en otra BD y en otra conexión; comparar conteos e índices; cancelar a mitad
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test`, `npm run build`, `cargo test` pasan
-- [ ] Commit: `feat(backup): backup y restore de bases de datos` (propuesto, pendiente del usuario)
+- [x] Commit: `feat(backup): backup y restore de bases de datos`
 
 ## Criterios de aceptación
 - [x] Un backup restaurado conserva documentos (mismos conteos), tipos BSON e índices
