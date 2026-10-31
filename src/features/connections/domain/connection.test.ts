@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildUri, fieldsFromUri, maskUri, newConnection, parseUri, type MongoConnection } from "./connection";
+import { buildUri, favoritesOf, fieldsFromUri, maskUri, newConnection, parseUri, type MongoConnection } from "./connection";
 
 const conn = (patch: Partial<MongoConnection> = {}): MongoConnection => ({ ...newConnection(), ...patch });
 
@@ -82,5 +82,13 @@ describe("fieldsFromUri", () => {
   it("refuses replica-set host lists and invalid URIs", () => {
     expect(fieldsFromUri(conn(), "mongodb://h1,h2/db")).toBeNull();
     expect(fieldsFromUri(conn(), "nope")).toBeNull();
+  });
+});
+
+describe("favoritesOf", () => {
+  it("gives the favorites of a registered connection, none otherwise", () => {
+    const shop = { ...newConnection(), favoriteDatabases: ["shop"] };
+    expect(favoritesOf([shop], shop.id)).toEqual(["shop"]);
+    expect(favoritesOf([shop], "other")).toEqual([]);
   });
 });

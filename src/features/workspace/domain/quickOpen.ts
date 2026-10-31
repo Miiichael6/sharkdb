@@ -67,7 +67,7 @@ export const connectionItems = (connections: ConnectionCandidate[]): QuickItem[]
   connections.map((c) => ({ id: c.id, label: c.name, hint: c.open ? "abierta" : undefined }));
 
 export interface DatabaseCandidate {
-  /** Tree key of the database node. */
+  /** Unique among the palette's databases. */
   key: string;
   db: string;
   connection: string;

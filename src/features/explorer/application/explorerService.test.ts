@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TARGET_EXISTS, TARGET_IS_SOURCE } from "../domain/copySpec";
-import type { Doc, IndexSpec } from "../domain/mongo";
+import type { DatabaseEntry, Doc, IndexSpec } from "../domain/mongo";
+import { serverNode } from "../domain/tree";
 import { createExplorerService } from "./explorerService";
 import type { MongoAdmin } from "./ports";
 
@@ -83,5 +84,48 @@ describe("explorerService.duplicateCollection", () => {
   it("rejects duplicating onto itself", async () => {
     const { admin } = fakeAdmin();
     await expect(createExplorerService(admin).duplicateCollection(SOURCE, "orders")).rejects.toBe(TARGET_IS_SOURCE);
+  });
+});
+
+describe("explorerService.loadChildren of a connection", () => {
+  const SERVER_DBS: DatabaseEntry[] = ["admin", "crm", "logs", "shop"].map((name) => ({ name, sizeOnDisk: 1, empty: false }));
+  const service = () => createExplorerService({ listDatabases: async () => SERVER_DBS } as unknown as MongoAdmin);
+  const labels = async (s: ReturnType<typeof service>) => (await s.loadChildren(serverNode("s1", "Local"))).map((n) => n.label);
+
+  it("shows only the favorites and the temporary databases, and always the System folder", async () => {
+    const s = service();
+    s.setFavorites("s1", ["shop"]);
+    s.openTemporary("s1", ["crm"]);
+    expect(await labels(s)).toEqual(["System", "crm", "shop"]);
+  });
+
+  it("shows only the System folder until something is chosen", async () => {
+    const s = service();
+    expect(s.hasPinned("s1")).toBe(false);
+    expect(await labels(s)).toEqual(["System"]);
+    s.openTemporary("s1", ["logs"]);
+    expect(s.hasPinned("s1")).toBe(true);
+  });
+
+  it("doesn't count a system database as chosen", () => {
+    const s = service();
+    s.setFavorites("s1", ["admin"]);
+    s.openTemporary("s1", ["local"]);
+    expect(s.hasPinned("s1")).toBe(false);
+  });
+
+  it("forgets a temporary database removed from the list, per connection", async () => {
+    const s = service();
+    s.openTemporary("s1", ["crm", "logs"]);
+    s.openTemporary("s2", ["crm"]);
+    s.forgetTemporary("s1", "crm");
+    expect(await labels(s)).toEqual(["System", "logs"]);
+    expect(s.temporariesOf("s2")).toEqual(["crm"]);
+  });
+
+  it("keeps system databases in their folder", async () => {
+    const s = service();
+    s.setFavorites("s1", ["admin", "shop"]);
+    expect(await labels(s)).toEqual(["System", "shop"]);
   });
 });

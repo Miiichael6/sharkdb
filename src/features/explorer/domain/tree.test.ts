@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childKey, childNode, databaseNodes, isWithin, parentKey, serverNode, withSystemFolder } from "./tree";
+import { childKey, childNode, databaseNode, databaseNodes, isLeaf, isWithin, parentKey, serverNode, withSystemFolder } from "./tree";
 
 describe("childKey / parentKey", () => {
   it("round-trips through several levels", () => {
@@ -44,5 +44,22 @@ describe("databaseNodes", () => {
     const kids = withSystemFolder(server, "systemDbs", ["admin", "shop", "local", "crm"], (d) => ["admin", "local"].includes(d), db);
     expect(databaseNodes(kids).map((n) => n.label)).toEqual(["shop", "crm", "admin", "local"]);
     expect(databaseNodes([])).toEqual([]);
+  });
+});
+
+describe("databaseNode", () => {
+  const server = serverNode("s1", "Local");
+  const loaded = withSystemFolder(server, "systemDbs", ["admin", "shop"], (d) => d === "admin", (p, d) =>
+    childNode(p, "database", d, { db: d }),
+  );
+
+  it("has the key the server's loaded children give it, inside System for a system database", () => {
+    expect(databaseNode(server, "shop").key).toBe(databaseNodes(loaded).find((n) => n.db === "shop")!.key);
+    expect(databaseNode(server, "admin").key).toBe(databaseNodes(loaded).find((n) => n.db === "admin")!.key);
+  });
+
+  it("makes a missing favorite a leaf", () => {
+    expect(isLeaf({ ...databaseNode(server, "gone"), data: { missing: true } })).toBe(true);
+    expect(isLeaf(databaseNode(server, "shop"))).toBe(false);
   });
 });

@@ -62,7 +62,7 @@
   /* Script editor and highlighted shell text (shared/ui/monokaiVibrant.ts). */
   --syn-background: #16171d;
   --syn-foreground: #f8f8f0;
-  --syn-line-highlight: #1f2328;
+  --syn-line-highlight: rgb(255 255 255 / 0.045); /* translucent: the selection is drawn under the line */
   --syn-selection: #3e4451;
   --syn-gutter: #495162;
   --syn-widget: #21252b;
@@ -153,7 +153,7 @@
   --bson-array: #b0602a;
   --syn-background: #fdfcf9;
   --syn-foreground: #141413;
-  --syn-line-highlight: #f5f3ec;
+  --syn-line-highlight: rgb(110 90 30 / 0.05);
   --syn-selection: #f0dccf;
   --syn-gutter: #a9a79e;
   --syn-widget: #ffffff;
@@ -401,10 +401,53 @@ input[type="checkbox"] {
   gap: 8px;
   padding: 10px 12px;
 }
+/* When the window narrows, the search gives up the room; the buttons keep their size. */
 .toolbar .search {
-  max-width: 280px;
+  flex: 0 1 280px;
+  min-width: 0;
+}
+.toolbar > button {
+  flex: none;
+  white-space: nowrap;
+}
+/* The connections screen's toolbar doubles as the title bar: the window controls sit flush in its
+   top-right corner. */
+.welcome-titlebar {
+  align-items: flex-start;
+  padding-right: 0;
+  padding-top: 0;
+  height: 52px;
+}
+.welcome-titlebar > :not(.window-controls) {
+  margin-top: 10px;
+}
+.welcome-titlebar .window-controls {
+  margin-left: 4px;
+}
+.window-controls {
+  display: flex;
+  flex: none;
+}
+.window-control {
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
+}
+.window-control:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.window-control.close:hover:not(:disabled) {
+  background: #e81123;
+  color: #fff;
 }
 .icon-btn {
+  flex: none;
   width: 32px;
   height: 32px;
   padding: 0;
@@ -489,6 +532,8 @@ input[type="checkbox"] {
   border-radius: 6px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
   z-index: 20;
+  /* Not the text cursor of whatever it opened over (editor, results…). */
+  cursor: default;
 }
 .context-menu li {
   display: flex;
@@ -497,6 +542,7 @@ input[type="checkbox"] {
   padding: 3px 8px;
   border-radius: 4px;
   outline: none;
+  cursor: pointer;
 }
 .context-menu li:hover,
 .context-menu li:focus {
@@ -527,6 +573,16 @@ input[type="checkbox"] {
 .context-menu li:hover .menu-hint,
 .context-menu li:focus .menu-hint {
   color: inherit;
+}
+.menu-arrow {
+  margin-left: 16px;
+  font-size: 14px;
+  line-height: 1;
+}
+/* The item whose submenu is open stays lit while the pointer is in the submenu. */
+.context-menu li.open {
+  background: var(--accent);
+  color: #fff;
 }
 .context-menu li.danger {
   color: var(--danger);
@@ -803,7 +859,13 @@ input[type="checkbox"] {
   border-bottom: 1px solid var(--divider);
   background: var(--bg-side);
 }
+/* The toolbar doubles as the title bar: the window controls sit flush in its top-right corner. */
+.ws-toolbar .window-controls {
+  align-self: flex-start;
+  margin: -5px -8px 0 0;
+}
 .tb-group {
+  flex: none;
   display: flex;
   gap: 1px;
   background: var(--border);
@@ -888,6 +950,11 @@ input[type="checkbox"] {
   border-radius: 999px;
   white-space: nowrap;
   overflow: hidden;
+}
+/* The pill drags the window (data-tauri-drag-region), which only works on the element itself: its
+   text lets the press through to it. */
+.status-pill > * {
+  pointer-events: none;
 }
 .status-pill.empty {
   background: var(--surface);
@@ -1003,6 +1070,14 @@ input[type="checkbox"] {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* A favorite the server no longer has: dimmed, it can only leave the list. */
+.tree-row.missing .tree-label,
+.tree-row.missing .icon {
+  opacity: 0.5;
+}
+.tree-row.missing .tree-label {
+  font-style: italic;
 }
 .tree-count {
   flex: none;
@@ -1484,11 +1559,15 @@ table.grid {
   padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
-.shell-action {
+/* `button.` so the padding beats `button.ghost`'s, which left the icon a few pixels. */
+button.shell-action {
   width: 28px;
   height: 26px;
   padding: 0;
   justify-content: center;
+}
+.shell-action svg {
+  flex: none;
 }
 .shell-head-sep {
   width: 1px;
@@ -1523,6 +1602,33 @@ table.grid {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  margin: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+/* The shell and the document editor stay dark in the light theme too: the dark palette, scoped to the editor. */
+:root[data-theme="light"] .query-editor,
+:root[data-theme="light"] .document-editor {
+  --syn-background: #16171d;
+  --syn-foreground: #f8f8f0;
+  --syn-line-highlight: rgb(255 255 255 / 0.045);
+  --syn-selection: #3e4451;
+  --syn-gutter: #495162;
+  --syn-widget: #21252b;
+  --syn-widget-border: #181a1f;
+  --syn-widget-selected: #2c313a;
+  --syn-find-match: #42557b;
+  --syn-find-match-highlight: #314365;
+  --syn-comment: #5c6370;
+  --syn-string: #ffd945;
+  --syn-template: #e5a422;
+  --syn-constant: #e373ce;
+  --syn-keyword: #ff3f4f;
+  --syn-cyan: #19d1e5;
+  --syn-blue: #00a0e4;
+  --syn-green: #81f900;
+  border-color: #16171d;
+  color-scheme: dark;
 }
 /* No horizontal scrollbar: on a one-line script it hides the line. It still scrolls sideways
    (Shift+wheel, touchpad, cursor). The vertical one comes from the global rule. */
@@ -1648,9 +1754,9 @@ table.grid {
   padding: 2px 6px;
 }
 .paging-field {
-  width: 64px;
-  padding: 1px 6px;
-  text-align: right;
+  width: 48px;
+  padding: 1px 4px;
+  text-align: center;
 }
 .documents-view {
   flex: 1;
@@ -2040,10 +2146,15 @@ table.grid {
   text-overflow: ellipsis;
   max-width: calc(100% - 120px);
 }
-.modal-titlebar-close {
+.modal-titlebar-buttons {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  height: 100%;
+}
+.modal-titlebar-close,
+.modal-titlebar-maximize {
   width: 46px;
   height: 100%;
   padding: 0;
@@ -2052,6 +2163,10 @@ table.grid {
   border: none;
   border-radius: 0;
   color: var(--muted);
+}
+.modal-titlebar-maximize:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
 }
 .modal-titlebar-close:hover:not(:disabled) {
   background: #e81123;
@@ -2064,6 +2179,68 @@ table.grid {
 .db-dialog-list li.db-dialog-empty {
   color: var(--muted);
   cursor: default;
+}
+/* The anchor is where the arrows and Shift start from. */
+.db-dialog-list li.anchor {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+.db-dialog-list li.missing .db-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.db-dialog-list input[type="checkbox"] {
+  margin: 0;
+}
+.db-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-missing {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+.db-star {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+}
+.db-star:hover:not(:disabled),
+.db-star.on {
+  background: transparent;
+  color: var(--warn);
+}
+.db-dialog-connection {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.db-dialog-connection b {
+  color: var(--text);
+}
+.db-dialog-note {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg);
+}
+.db-create {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.db-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ---------- progress and blocked banner ---------- */

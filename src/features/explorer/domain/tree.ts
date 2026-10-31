@@ -1,4 +1,6 @@
-// Explorer tree model, following Robo 3T's layout:
+import { SYSTEM_DATABASES } from "./mongo";
+
+// Explorer tree model, following Robo 3T's layout (only the server's favorite and temporary databases):
 //   Server (N) ─ System (admin/config/local) ─ <db>
 //   <db> ─ Collections (N) [System (system.*)] ─ Functions (N) ─ Users (N)
 //   <collection> ─ Indexes (N) ─ <index>
@@ -38,6 +40,9 @@ export const FOLDER_KINDS: NodeKind[] = [
   "indexes",
 ];
 
+/** Label of the folders that group system databases and collections. */
+const SYSTEM_FOLDER = "System";
+
 // Unit separator: never appears in database or collection names.
 const SEP = "\u001f";
 
@@ -70,8 +75,18 @@ export const serverNode = (sid: string, label: string): TreeNode => ({
   sid,
 });
 
+/** The node of database `name` under `server`, inside the System folder for a system database. */
+export function databaseNode(server: TreeNode, name: string): TreeNode {
+  const parent = SYSTEM_DATABASES.includes(name) ? childNode(server, "systemDbs", SYSTEM_FOLDER) : server;
+  return childNode(parent, "database", name, { db: name });
+}
+
+/** A favorite database the server no longer has: shown dimmed, with nothing inside. */
+export const isMissingDatabase = (n: TreeNode) => n.kind === "database" && !!n.data?.missing;
+
 export function isLeaf(n: TreeNode): boolean {
   if (n.kind === "collection") return n.data?.type === "view";
+  if (isMissingDatabase(n)) return true;
   return n.kind === "index" || n.kind === "user" || n.kind === "function";
 }
 
@@ -86,7 +101,7 @@ export function withSystemFolder<T>(
   const user = items.filter((i) => !isSystem(i)).map((i) => toNode(parent, i));
   const system = items.filter(isSystem);
   if (!system.length) return user;
-  const folder = childNode(parent, folderKind, "System");
+  const folder = childNode(parent, folderKind, SYSTEM_FOLDER);
   folder.data = { children: system.map((i) => toNode(folder, i)) };
   return [folder, ...user];
 }

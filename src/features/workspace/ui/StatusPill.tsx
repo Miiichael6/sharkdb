@@ -2,9 +2,9 @@ import { SAFE_MODE_LABEL, statusLabel, statusLocation, tagLabel, type StatusCont
 
 /** Where the active tab points, in the colour of the connection's tag (LOCAL, PRODUCTION...). */
 export function StatusPill({ status }: { status: StatusContext | null }) {
-  if (!status) return <div className="status-pill empty">Sin conexión</div>;
+  if (!status) return <div className="status-pill empty" data-tauri-drag-region>Sin conexión</div>;
   return (
-    <div className={`status-pill tag-${status.tag}`} title={statusLabel(status)} role="status">
+    <div className={`status-pill tag-${status.tag}`} title={statusLabel(status)} role="status" data-tauri-drag-region>
       <strong>{tagLabel(status.tag)}</strong>
       {status.safeMode && <span className="status-safe">{SAFE_MODE_LABEL}</span>}
       <span className="status-sep" aria-hidden>

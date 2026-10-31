@@ -8,14 +8,35 @@ import {
   type CopyRequest,
 } from "../domain/copySpec";
 import { creatableSpec } from "../domain/indexSpec";
-import { SYSTEM_DATABASES, type CollectionEntry, type DatabaseEntry, type IndexSpec } from "../domain/mongo";
+import { SYSTEM_DATABASES, type CollectionEntry, type IndexSpec } from "../domain/mongo";
+import { hasUserDatabases, visibleDatabases, type VisibleDatabase } from "../domain/pinnedDatabases";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
 import type { MongoAdmin } from "./ports";
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
 
 export function createExplorerService(admin: MongoAdmin) {
-  const database = (parent: TreeNode, d: DatabaseEntry) =>
+  // What the explorer shows of each connection (by session id): its saved favorites, and the
+  // temporary databases opened during this run, which are never saved.
+  const favorites = new Map<string, string[]>();
+  const temporaries = new Map<string, Set<string>>();
+
+  const temporariesOf = (sid: string) => [...(temporaries.get(sid) ?? [])];
+
+  /** The connection's favorites as saved; the caller persists them. */
+  const setFavorites = (sid: string, names: string[]) => void favorites.set(sid, [...names]);
+  const favoritesOf = (sid: string) => favorites.get(sid) ?? [];
+
+  /** Shows `names` until the app closes (or they're removed from the list). */
+  const openTemporary = (sid: string, names: string[]) =>
+    void temporaries.set(sid, new Set([...temporariesOf(sid), ...names]));
+
+  const forgetTemporary = (sid: string, name: string) => void temporaries.get(sid)?.delete(name);
+
+  /** Whether the connection shows a database of the user's: if not, the user must choose (or create) one. */
+  const hasPinned = (sid: string) => hasUserDatabases(favoritesOf(sid), temporariesOf(sid));
+
+  const database = (parent: TreeNode, d: VisibleDatabase) =>
     childNode(parent, "database", d.name, { db: d.name, data: d });
   const collection = (parent: TreeNode, c: CollectionEntry) =>
     childNode(parent, "collection", c.name, { coll: c.name, data: c });
@@ -24,7 +45,8 @@ export function createExplorerService(admin: MongoAdmin) {
   async function loadChildren(n: TreeNode): Promise<TreeNode[]> {
     switch (n.kind) {
       case "server": {
-        const dbs = await admin.listDatabases(n.sid);
+        const existing = await admin.listDatabases(n.sid);
+        const dbs = visibleDatabases(favoritesOf(n.sid), temporariesOf(n.sid), existing);
         return withSystemFolder(n, "systemDbs", dbs, (d) => SYSTEM_DATABASES.includes(d.name), database);
       }
       case "systemDbs":
@@ -100,5 +122,17 @@ export function createExplorerService(admin: MongoAdmin) {
     return copyCollection(request);
   }
 
-  return { ...admin, loadChildren, replaceIndex, copyCollection, duplicateCollection };
+  return {
+    ...admin,
+    loadChildren,
+    replaceIndex,
+    copyCollection,
+    duplicateCollection,
+    setFavorites,
+    favoritesOf,
+    openTemporary,
+    forgetTemporary,
+    temporariesOf,
+    hasPinned,
+  };
 }

@@ -77,6 +77,10 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
   - **Rojo + `confirmo`**: eliminar base de datos, eliminar colección, eliminar todos los documentos, eliminar usuario, eliminar índice.
   - **Rojo, sin escribir**: eliminar documentos seleccionados (se usa a menudo), eliminar conexión registrada (no toca el servidor).
   - **Sin rojo** (no borran datos): renombrar colección, reconstruir índices, editar índice, quitar base de la lista (23).
+- [ ] **D13** Shell en paralelo (propuesta, falta que el usuario la apruebe) → afecta 26:
+  - Como en **file-manager**: una **pestaña dividida** con dos paneles (izquierdo y derecho), que en la barra se ve como una sola pestaña `A | B`; no hay dos barras de pestañas.
+  - Se divide **arrastrando** una pestaña sobre el área del shell (vista previa del lado); se separa con **"Separar pestaña"** en su menú.
+  - Divisor arrastrable; en ventana estrecha solo se ve el panel activo. El panel de detalles del explorador no se divide.
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -105,9 +109,10 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 20 | [Panel de operaciones en segundo plano](done/20_panel_operaciones.md) | 9 Operaciones de BD | 15 | ✅ Terminada |
 | 21 | [Sync en dos pasos: selección y confirmación](done/21_sync_dos_pasos.md) | 9 Operaciones de BD | 20 | ✅ Terminada |
 | 22 | [Backup y restore con el mismo flujo que el sync](done/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ✅ Terminada (prueba manual en QA pendiente) |
-| 23 | [Bases favoritas y temporales por conexión](pending/23_bases_favoritas.md) | 11 Bases fijadas | 12, 22 | ⬜ Pendiente |
-| 24 | [Título de ventana y color de la conexión activa](pending/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ⬜ Pendiente |
+| 23 | [Bases favoritas y temporales por conexión](done/23_bases_favoritas.md) | 11 Bases fijadas | 12, 22 | ✅ Terminada (prueba manual pendiente) |
+| 24 | [Título de ventana y color de la conexión activa](done/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ✅ Terminada (prueba manual pendiente) |
 | 25 | [Confirmación roja con `confirmo` para borrados manuales](pending/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ⛔ Bloqueada (D12) |
+| 26 | [Dos consultas del shell en paralelo (pestaña dividida)](pending/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ⛔ Bloqueada (D13) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -160,10 +165,12 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R42 El explorador solo muestra bases favoritas (persistentes por conexión) y temporales (hasta cerrar la app) | 23 |
 | R43 Conexión sin bases fijadas: ventana "Bases de datos" obligatoria hasta elegir al menos una (crear si no hay); Cancelar cierra la conexión y la quita del explorador | 23 |
 | R44 Ventana "Bases de datos": estrella por base, selección múltiple, favoritas arriba sin reordenar mientras está abierta | 23 |
-| R45 Título de ventana con conexión y etiqueta de entorno; barra con el color de la etiqueta (safe mode sin cambios) | 24 |
+| R45 Título de ventana con conexión y etiqueta de entorno (la barra coloreada se descartó a petición del usuario) | 24 |
 | R46 Selectores de sync/backup/restore con las favoritas primero | 24 |
 | R47 Borrados manuales en sub-ventana totalmente roja, con conexión y entorno, escribiendo `confirmo` como en el sync | 25 |
 | R48 Aplicar ese nivel a cada acción destructiva del explorador, documentos y conexiones (D12) | 25 |
+| R49 Dos pestañas del shell visibles y ejecutándose a la vez, lado a lado, con divisor redimensionable | 26 |
+| R50 Dividir arrastrando una pestaña sobre el área del shell y separar desde el menú de la pestaña (como file-manager) | 26 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -182,5 +189,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 17, 18 → 19
 15 → 20 → 21 → 22 → 23 → 24
 18, 21 → 25
+04, 05 → 26
 12 ────────────────────┘
 ```

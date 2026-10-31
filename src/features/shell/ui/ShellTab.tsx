@@ -44,11 +44,21 @@ function editorFit(pane: HTMLElement, lines: number): TopFit {
   const content = pane.querySelector<HTMLElement>(".cm-content");
   const line = pane.querySelector<HTMLElement>(".cm-line");
   const scroller = pane.querySelector<HTMLElement>(".cm-scroller");
-  if (!content || !line || !scroller) return { height: 0, min: 0, max: 0 };
+  const editor = pane.querySelector<HTMLElement>(".query-editor");
+  if (!content || !line || !scroller || !editor) return { height: 0, min: 0, max: 0 };
   const style = getComputedStyle(content);
-  // Padding, the border slack and a horizontal scrollbar when a long line brings one.
+  const box = getComputedStyle(editor);
+  // Padding, the editor's margin and border, the border slack and a horizontal scrollbar when a
+  // long line brings one.
   const extra =
-    parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2 + (scroller.offsetHeight - scroller.clientHeight);
+    parseFloat(style.paddingTop) +
+    parseFloat(style.paddingBottom) +
+    parseFloat(box.marginTop) +
+    parseFloat(box.marginBottom) +
+    parseFloat(box.borderTopWidth) +
+    parseFloat(box.borderBottomWidth) +
+    2 +
+    (scroller.offsetHeight - scroller.clientHeight);
   const px = (n: number) => line.offsetHeight * n + extra;
   return { height: px(Math.min(lines, MAX_FIT_LINES)), min: px(1), max: px(lines) };
 }

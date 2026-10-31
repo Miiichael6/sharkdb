@@ -11,7 +11,8 @@ const PATHS: Record<BsonType, string[]> = {
     "M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1",
   ],
   array: ["M8 3H5v18h3", "M16 3h3v18h-3"],
-  string: ["M4 7V4h16v3", "M9 20h6", "M12 4v16"],
+  // Two pairs of quote marks, like Robo 3T's "".
+  string: ["M7 7 6 13", "M11 7l-1 6", "M14 7l-1 6", "M18 7l-1 6"],
   int32: HASH,
   int64: HASH,
   double: HASH,

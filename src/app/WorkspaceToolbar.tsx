@@ -16,18 +16,19 @@ import type { ScriptFileActions } from "../features/shell/ui/useScriptFileAction
 import type { ShellTabs } from "../features/shell/ui/useShellTabs";
 import type { StatusContext } from "../features/workspace/domain/statusLabel";
 import { AboutDialog } from "../features/workspace/ui/AboutDialog";
-import type { OpenDatabaseResult } from "../features/workspace/ui/OpenDatabaseDialog";
 import { QuickOpen } from "../features/workspace/ui/QuickOpen";
 import { Toolbar } from "../features/workspace/ui/Toolbar";
 import type { PanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { useToolbarShortcuts, type ToolbarHandlers } from "../features/workspace/ui/useToolbarShortcuts";
+import { useWindowTitle } from "../features/workspace/ui/useWindowTitle";
 import { confirmInWindow } from "../shared/ui/confirmInWindow";
 import { openModalWindow } from "../shared/ui/modalWindow";
+import { NO_CONNECTION_SELECTED } from "../features/workspace/domain/databaseChoice";
 import { useLog } from "../shared/ui/useLog";
 import { operationsBadge } from "../shared/domain/operations";
-import { OPEN_DATABASE_VIEW } from "./ModalWindow";
 import { useOperations } from "./operations/useOperations";
 import { useCurrentTarget } from "./useCurrentTarget";
+import type { ChooseDatabases } from "./useDatabaseWindow";
 import { useQuickOpen } from "./useQuickOpen";
 
 interface Props {
@@ -44,6 +45,7 @@ interface Props {
   onConnect: (conn: MongoConnection) => void;
   /** Turns the read-only safe mode of a session on or off. */
   onSetSafeMode: (sid: string, enabled: boolean) => void;
+  onChooseDatabases: ChooseDatabases;
 }
 
 export function WorkspaceToolbar(props: Props) {
@@ -65,33 +67,24 @@ export function WorkspaceToolbar(props: Props) {
         safeMode: session.safeMode,
       }
     : null;
+  useWindowTitle(status ?? undefined);
   const quickOpen = useQuickOpen({ controls, sessions, connections, layout, target, onConnect });
 
-  const databaseNodes = target ? controls.databases(target.sid) : [];
-  const databases = databaseNodes.map((n) => ({ key: n.key, name: n.label, current: n.db === target?.db }));
-  const pickDatabase = (key: string) => {
-    const node = databaseNodes.find((n) => n.key === key);
-    if (!node) return;
-    layout.showSidebar();
-    controls.reveal(node);
-  };
-  const targetDatabase = databaseNodes.find((n) => n.db === target?.db);
-  const newDatabase = () =>
-    session && controls.runAction("createDatabase", serverNode(session.conn.id, displayName(session.conn)));
+  const targetDatabase = target ? controls.databases(target.sid).find((n) => n.db === target.db) : undefined;
+  // "Bases de datos" only acts on the connection clicked in the tree, never on a guess.
+  const selectedSession = sessions.find((s) => s.conn.id === controls.selectedConnection);
   const showDatabases = async () => {
-    let result: OpenDatabaseResult | null;
+    if (!selectedSession) return;
+    let chosen: string[] | null;
     try {
-      result = await openModalWindow<OpenDatabaseResult>(OPEN_DATABASE_VIEW, databases, {
-        title: "Abrir base de datos",
-        width: 440,
-        height: 520,
-      });
+      chosen = await props.onChooseDatabases(selectedSession, false);
     } catch (e) {
       log.error("No se pudo abrir la lista de bases de datos", e);
       return;
     }
-    if (result?.kind === "open") pickDatabase(result.key);
-    else if (result?.kind === "new") newDatabase();
+    // The stars may have changed even when the window was just closed.
+    if (chosen?.length) layout.showSidebar();
+    controls.openDatabases(selectedSession.conn.id, chosen ?? []);
   };
 
   const showConnections = async () => {
@@ -131,7 +124,7 @@ export function WorkspaceToolbar(props: Props) {
   const handlers: ToolbarHandlers = {
     toggleSidebar: layout.toggleSidebar,
     connections: () => void showConnections(),
-    databases: () => target && showDatabases(),
+    databases: () => void showDatabases(),
     openMongosh: () => target && controls.openMongosh(target.sid, target.db),
     openConnection: () => quickOpen.open("connection"),
     openDatabase: () => quickOpen.open("database"),
@@ -174,7 +167,8 @@ export function WorkspaceToolbar(props: Props) {
           safeMode: !!session?.safeMode,
           operations: operations.panelOpen,
         }}
-        disabled={{ databases: !target, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
+        disabled={{ databases: !selectedSession, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
+        disabledReasons={{ databases: NO_CONNECTION_SELECTED }}
         menuItems={menuItems}
         badges={{ operations: operationsBadge(operations.operations) }}
         status={status}

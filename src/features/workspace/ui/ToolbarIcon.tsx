@@ -1,3 +1,4 @@
+import { GearIcon } from "../../../shared/ui/settingsMenu";
 import type { ToolbarActionId } from "../domain/toolbarActions";
 
 const props = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "aria-hidden": true };
@@ -92,11 +93,6 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
         </svg>
       );
     case "settings":
-      return (
-        <svg {...props} strokeLinejoin="round">
-          <circle cx="8" cy="8" r="2" />
-          <path d="M6.9 1.5h2.2l.4 1.8 1.2.7 1.8-.6 1.1 1.9-1.4 1.3v1.4l1.4 1.3-1.1 1.9-1.8-.6-1.2.7-.4 1.8H6.9l-.4-1.8-1.2-.7-1.8.6-1.1-1.9 1.4-1.3V7.3L2.4 6l1.1-1.9 1.8.6 1.2-.7z" />
-        </svg>
-      );
+      return <GearIcon />;
   }
 }

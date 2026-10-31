@@ -1,4 +1,4 @@
-import { autocompletion, type CompletionSource } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion, type CompletionSource } from "@codemirror/autocomplete";
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useRef, useState } from "react";
@@ -37,9 +37,11 @@ export function QueryEditor({ value, onChange, onRun, onHistory, completion, aut
       { key: "Shift-Mod-f", run: (v) => (replaceAll(v, formatScript(v.state.doc.toString())), true) },
       { key: "Mod-ArrowUp", run: browse("older") },
       { key: "Mod-ArrowDown", run: browse("newer") },
+      // Tab takes the highlighted suggestion, like Enter; with no list open it does what it did before.
+      { key: "Tab", run: acceptCompletion },
     ]);
     return [Prec.highest(shortcuts), autocompletion({ override: [completion] })];
   });
 
-  return <CodeEditor className="query-editor" value={value} onChange={onChange} extensions={extensions} autoFocus={autoFocus} />;
+  return <CodeEditor className="query-editor" value={value} onChange={onChange} extensions={extensions} autoFocus={autoFocus} alwaysDark />;
 }

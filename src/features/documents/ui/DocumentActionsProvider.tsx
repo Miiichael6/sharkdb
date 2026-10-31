@@ -27,8 +27,8 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
       try {
         return await openModalWindow<DocumentEditorResult>(DOCUMENT_EDITOR_VIEW, data, {
           title: `${EDITOR_TITLES[data.mode]} · ${namespace(data.target)}`,
-          width: 760,
-          height: 600,
+          width: 1000,
+          height: 760,
           maximizable: true,
         });
       } catch (e) {

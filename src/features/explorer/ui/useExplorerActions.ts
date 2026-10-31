@@ -6,7 +6,7 @@ import { useDocumentActions } from "../../../shared/ui/documentActions";
 import { duplicateName, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
-import { childKey, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
+import { childKey, parentKey, serverKey, type NodeKind, type TreeNode } from "../domain/tree";
 import type { PanelMode } from "./DetailPanel";
 import type { PromptField } from "./dialogs";
 import type { Action } from "./Explorer";
@@ -31,6 +31,8 @@ const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbSta
 interface Options {
   tree: Tree;
   onDisconnect: (sid: string) => void;
+  /** Takes a database out of its connection's list (temporary or favorite); the caller saves the stars. */
+  onRemoveFromList: (sid: string, db: string) => Promise<void>;
   /** Shows `mode` in the detail panel for node `key`; null goes back to the default view. */
   showPanel: (key: string, mode: PanelMode | null) => void;
   notify: (text: string) => void;
@@ -38,7 +40,7 @@ interface Options {
 }
 
 /** Turns a context-menu action on a tree node into a dialog, a service call or a panel change. */
-export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail }: Options) {
+export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showPanel, notify, fail }: Options) {
   const { explorer } = useServices();
   const documents = useDocumentActions();
   const [dialog, setDialog] = useState<ExplorerDialog>(null);
@@ -160,6 +162,7 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
           confirmLabel: "Crear",
           submit: async ({ db, coll }) => {
             await explorer.createCollection(n.sid, db, coll);
+            explorer.openTemporary(n.sid, [db]);
             setDialog(null);
             refreshKey(n.key);
             notify(`Base de datos “${db}” creada`);
@@ -191,11 +194,18 @@ export function useExplorerActions({ tree, onDisconnect, showPanel, notify, fail
           },
           async () => {
             await explorer.dropDatabase(n.sid, n.db!);
-            tree.select(`server:${n.sid}`);
-            refreshKey(`server:${n.sid}`);
+            await onRemoveFromList(n.sid, n.db!);
+            tree.select(serverKey(n.sid));
+            refreshKey(serverKey(n.sid));
             notify(`Base de datos “${n.db}” eliminada`);
           },
         );
+        break;
+      case "removeFromList":
+        onRemoveFromList(n.sid, n.db!).then(() => {
+          tree.select(serverKey(n.sid));
+          refreshKey(serverKey(n.sid));
+        }, fail);
         break;
       case "renameCollection":
         setDialog({

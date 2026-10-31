@@ -26,6 +26,68 @@ const color = {
   green: "var(--syn-green)",
 };
 
+const CONTROL = { height: "26px", margin: 0, boxSizing: "border-box", borderRadius: "5px", fontSize: "12px" };
+
+// Search / replace panel (Ctrl+F) as a grid: find, its buttons, the toggles and close on the first row;
+// replace and its buttons below. The checkboxes are hidden, their labels act as toggle buttons.
+const searchPanel = {
+  ".cm-panel.cm-search": {
+    display: "grid",
+    gridTemplateColumns: "minmax(140px, 1fr) repeat(7, auto)",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 10px",
+    fontFamily: "inherit",
+  },
+  ".cm-panel.cm-search br": { display: "none" },
+  ".cm-panel.cm-search .cm-textfield": {
+    ...CONTROL,
+    padding: "0 8px",
+    fontFamily: "inherit",
+    color: color.foreground,
+    backgroundColor: color.background,
+    border: `1px solid ${color.widgetBorder}`,
+    outline: "none",
+  },
+  ".cm-panel.cm-search .cm-textfield:focus": { borderColor: color.blue },
+  ".cm-panel.cm-search .cm-button, .cm-panel.cm-search label": {
+    ...CONTROL,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 10px",
+    color: color.foreground,
+    backgroundImage: "none",
+    backgroundColor: color.widgetSelected,
+    border: `1px solid ${color.widgetBorder}`,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+  },
+  ".cm-panel.cm-search .cm-button:hover, .cm-panel.cm-search label:hover": { backgroundColor: color.selection },
+  ".cm-panel.cm-search label": { color: color.comment, backgroundColor: "transparent" },
+  ".cm-panel.cm-search label:has(input:checked)": { color: color.foreground, backgroundColor: color.findMatchHighlight, borderColor: color.blue },
+  ".cm-panel.cm-search label:has(input:focus-visible)": { outline: `1px solid ${color.blue}` },
+  ".cm-panel.cm-search input[type=checkbox]": { position: "absolute", opacity: 0, width: 0, height: 0, margin: 0 },
+  ".cm-panel.cm-search [name=replace]": { gridRow: 2, gridColumn: 1 },
+  ".cm-panel.cm-search button[name=replace]": { gridRow: 2, gridColumn: 2 },
+  ".cm-panel.cm-search button[name=replaceAll]": { gridRow: 2, gridColumn: "3 / span 2" },
+  ".cm-panel.cm-search [name=close]": {
+    ...CONTROL,
+    position: "static",
+    gridRow: 1,
+    gridColumn: 8,
+    width: "26px",
+    padding: 0,
+    fontSize: "18px",
+    lineHeight: 1,
+    color: color.comment,
+    backgroundColor: "transparent",
+    border: "none",
+    cursor: "pointer",
+  },
+  ".cm-panel.cm-search [name=close]:hover": { color: color.foreground, backgroundColor: color.selection },
+};
+
 const spec = {
   "&": { color: color.foreground, backgroundColor: color.background },
   ".cm-content": { caretColor: color.foreground },
@@ -44,6 +106,8 @@ const spec = {
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: color.widgetSelected, color: color.foreground },
   ".cm-completionMatchedText": { color: color.cyan, textDecoration: "none" },
   ".cm-panels": { backgroundColor: color.widget, color: color.foreground },
+  ".cm-panels-bottom": { borderTop: `1px solid ${color.widgetBorder}` },
+  ...searchPanel,
 };
 
 export const monokaiHighlight = HighlightStyle.define([

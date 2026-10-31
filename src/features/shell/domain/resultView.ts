@@ -86,6 +86,7 @@ export function cellText(row: TreeRow, column: TreeColumn, doc: unknown, zone: D
   if (column === "type") return row.typeLabel;
   if (column === "key") return row.depth === 0 ? formatValue(doc, zone) : row.key;
   const value = bsonValue(row.raw);
+  // An empty string copies as empty too, so nothing copied earlier is left on the clipboard.
   return value.type === "string" ? value.value : formatValue(row.raw, zone);
 }
 
@@ -152,12 +153,14 @@ export function tableColumns(docs: unknown[]): TableColumn[] {
 }
 
 /**
- * The documents a non-cursor result holds, to show them like a cursor's: a document on its own,
- * or an array of documents (`toArray()`). Null for anything else (numbers, strings…).
+ * The roots a non-cursor result shows in `mode`: a document on its own, or an array as one root row
+ * like Robo 3T's `(1) [ N elements ]`. The table, which needs documents as rows, spreads an array of
+ * documents (`toArray()`) instead. Null for anything else (numbers, strings…).
  */
-export function documentsOf(value: unknown): unknown[] | null {
+export function documentsOf(value: unknown, mode: ViewMode): unknown[] | null {
   const v = bsonValue(value);
   if (v.type === "object") return [value];
-  if (v.type === "array" && v.items.length && v.items.every((item) => bsonValue(item).type === "object")) return v.items;
-  return null;
+  if (v.type !== "array") return null;
+  if (mode === "table" && v.items.length && v.items.every((item) => bsonValue(item).type === "object")) return v.items;
+  return [value];
 }
