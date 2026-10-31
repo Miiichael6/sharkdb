@@ -3,7 +3,8 @@ import type { ToolbarActionId } from "../domain/toolbarActions";
 
 const props = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "aria-hidden": true };
 
-export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
+/** `pressed` lets toggle icons show their state (safe mode: lock closed vs. open). */
+export function ToolbarIcon({ id, pressed }: { id: ToolbarActionId; pressed?: boolean }) {
   switch (id) {
     case "toggleSidebar":
       return (
@@ -67,9 +68,9 @@ export function ToolbarIcon({ id }: { id: ToolbarActionId }) {
       );
     case "safeMode":
       return (
-        <svg {...props} strokeLinejoin="round">
+        <svg {...props} strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="7" width="10" height="7.5" rx="1.5" />
-          <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+          {pressed ? <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /> : <path d="M5.5 7V4a2.5 2.5 0 0 1 4.9-.7" />}
         </svg>
       );
     case "operations":

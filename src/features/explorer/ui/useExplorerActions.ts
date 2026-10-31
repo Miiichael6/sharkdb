@@ -8,6 +8,8 @@ import {
 } from "../../../shared/domain/destructiveActions";
 import { confirmDeleteInWindow, confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { useDocumentActions } from "../../../shared/ui/documentActions";
+import { openModalWindow } from "../../../shared/ui/modalWindow";
+import { useReadOnly } from "../../connections/ui/useReadOnly";
 import { useServerOf } from "../../connections/ui/useTargetServer";
 import { duplicateName, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
@@ -17,6 +19,11 @@ import type { PanelMode } from "./DetailPanel";
 import type { PromptField } from "./dialogs";
 import type { Action } from "./Explorer";
 import type { Tree } from "./useTree";
+import {
+  VALIDATION_VIEW,
+  type ValidationWindowData,
+  type ValidationWindowResult,
+} from "./ValidationWindow";
 
 export type ExplorerDialog =
   | null
@@ -31,6 +38,9 @@ export type ExplorerDialog =
   | { kind: "index"; node: TreeNode; initial?: IndexSpec }
   | { kind: "user"; node: TreeNode; initial?: UserEntry }
   | { kind: "copy"; node: TreeNode };
+
+/** Size the validation window opens at; it can be maximized. */
+const VALIDATION_WINDOW = { width: 760, height: 820 };
 
 const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbStats", "collStats"];
 
@@ -50,6 +60,7 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
   const { explorer } = useServices();
   const documents = useDocumentActions();
   const serverOf = useServerOf();
+  const isReadOnly = useReadOnly();
   const [dialog, setDialog] = useState<ExplorerDialog>(null);
   // Bumped after every change so the detail panel reloads what it shows.
   const [version, setVersion] = useState(0);
@@ -155,6 +166,26 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     notify(`“${request.source.coll}” copiada a ${db.trim()}.${coll.trim()} (${copied.toLocaleString()} documentos)`);
   };
 
+  /** Opens the validation of collection `n` in its own window; it saves itself and says what it did. */
+  const editValidation = async (n: TreeNode) => {
+    const collection = { sid: n.sid, db: n.db!, coll: n.coll! };
+    const data: ValidationWindowData = {
+      collection,
+      where: { server: serverOf(n.sid), db: collection.db, coll: collection.coll },
+      initial: await explorer.validationOf(collection),
+      readOnly: isReadOnly(n.sid),
+    };
+    const result = await openModalWindow<ValidationWindowResult>(VALIDATION_VIEW, data, {
+      title: "Validación",
+      width: VALIDATION_WINDOW.width,
+      height: VALIDATION_WINDOW.height,
+      maximizable: true,
+    });
+    if (!result) return;
+    refreshKey(null);
+    notify(`Validación ${result.removed ? "quitada de" : "guardada en"} “${collection.coll}”`);
+  };
+
   const onAction = (action: Action, n: TreeNode) => {
     if (PANEL_ACTIONS.includes(action)) {
       tree.select(n.key);
@@ -258,6 +289,9 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         break;
       case "editIndex":
         editIndex(n, n.data);
+        break;
+      case "editValidation":
+        editValidation(n).catch(fail);
         break;
       case "rebuildIndexes":
         void confirmThen(

@@ -8,6 +8,10 @@ export const NO_ID = "El documento no tiene _id";
 export const ID_CHANGED = "No se puede cambiar el _id de un documento";
 export const DOCUMENT_GONE = "El documento ya no existe: otro proceso lo eliminó o cambió su _id";
 
+/** Server code of a write the collection's validator (`$jsonSchema`) refused. */
+const DOCUMENT_VALIDATION_FAILURE = 121;
+export const FAILED_VALIDATION = "El documento no cumple la validación de la colección";
+
 const hasId = (doc: Doc) => Object.prototype.hasOwnProperty.call(doc, ID_FIELD);
 
 /** Extended JSON values compare by their canonical text (same type and same value). */
@@ -38,6 +42,7 @@ export function keepId(original: Doc, edited: Doc): Doc {
 /** First error a write command reply carries (`writeErrors`, `writeConcernError`), or null. */
 export function writeFailure(reply: Doc): string | null {
   const writeError = Array.isArray(reply.writeErrors) ? reply.writeErrors[0] : null;
+  if (writeError?.code === DOCUMENT_VALIDATION_FAILURE) return `${FAILED_VALIDATION} (${writeError.errmsg})`;
   if (writeError) return String(writeError.errmsg ?? writeError.code);
   if (reply.writeConcernError) return String(reply.writeConcernError.errmsg);
   return null;

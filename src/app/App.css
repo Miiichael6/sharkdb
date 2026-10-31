@@ -1331,6 +1331,60 @@ table.grid {
 .modal.user-dialog {
   width: 500px;
 }
+.validation-note {
+  flex: none;
+  margin: 0 2px 8px;
+}
+.validation-editor {
+  flex: 1;
+  min-height: 160px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.validation-options {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.validation-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.cycle-button {
+  --tone: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tone) 60%, transparent);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone);
+  font-weight: 600;
+  cursor: pointer;
+}
+.cycle-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tone) 28%, transparent);
+}
+.cycle-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.cycle-button.tone-red {
+  --tone: var(--danger);
+}
+.cycle-button.tone-amber {
+  --tone: var(--warn);
+}
+.cycle-button.tone-green {
+  --tone: var(--ok);
+}
 .role-list {
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1850,9 +1904,10 @@ button.shell-action {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-/* The shell and the document editor stay dark in the light theme too: the dark palette, scoped to the editor. */
+/* The shell, the document editor and the validation editor stay dark in the light theme too: the dark palette, scoped to the editor. */
 :root[data-theme="light"] .query-editor,
-:root[data-theme="light"] .document-editor {
+:root[data-theme="light"] .document-editor,
+:root[data-theme="light"] .validation-editor {
   --syn-background: #16171d;
   --syn-foreground: #f8f8f0;
   --syn-line-highlight: rgb(255 255 255 / 0.045);

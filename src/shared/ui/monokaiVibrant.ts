@@ -119,6 +119,8 @@ export const monokaiHighlight = HighlightStyle.define([
   { tag: [t.bool, t.null, t.atom], color: color.constant, fontStyle: "italic" },
   { tag: t.keyword, color: color.keyword, fontStyle: "italic" },
   { tag: t.operator, color: color.keyword },
+  // The dot of `db.coll.find` is an operator too; in red it reads like an error.
+  { tag: t.derefOperator, color: color.foreground },
   { tag: t.self, color: color.keyword, fontStyle: "italic" },
   { tag: t.variableName, color: color.blue },
   { tag: t.propertyName, color: color.foreground },

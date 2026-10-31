@@ -19,6 +19,10 @@ export interface MongoAdmin {
   dropCollection(sid: string, db: string, name: string): Promise<void>;
   dropDatabase(sid: string, db: string): Promise<void>;
   renameCollection(sid: string, db: string, from: string, to: string): Promise<void>;
+  /** The collection's `listCollections` options (validator, validation level and action…); empty if it doesn't exist. */
+  collectionOptions(sid: string, db: string, coll: string): Promise<Doc>;
+  /** Runs a `collMod` command (built in the domain, with `collMod` first). */
+  modifyCollection(sid: string, db: string, command: Doc): Promise<void>;
 
   createIndex(sid: string, db: string, coll: string, spec: IndexSpec): Promise<void>;
   dropIndex(sid: string, db: string, coll: string, name: string): Promise<void>;

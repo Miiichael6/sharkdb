@@ -113,7 +113,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 24 | [Título de ventana y color de la conexión activa](done/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ✅ Terminada (prueba manual pendiente) |
 | 25 | [Confirmación roja con `confirmo` para borrados manuales](done/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ✅ Terminada |
 | 26 | [Dos consultas del shell en paralelo (pestaña dividida)](done/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ✅ Terminada |
-| 27 | [Validación de documentos por colección (`$jsonSchema`)](pending/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ⬜ Pendiente |
+| 27 | [Validación de documentos por colección (`$jsonSchema`)](done/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ✅ Terminada |
+| 28 | [Filtrar colecciones del árbol escribiendo](pending/28_filtro_colecciones.md) | 15 Explorador | 23 | ⬜ Pendiente |
+| 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -174,6 +176,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R50 Dividir arrastrando una pestaña sobre el área del shell y separar desde el menú de la pestaña (como file-manager) | 26 |
 | R51 Sub-ventana "Validación…" en el menú de colección: `$jsonSchema` editable y botones redondos que alternan con un clic el nivel (`moderate`/`strict`), acción (`error`/`warn`) y campos extra (`rechazar`/`permitir`) | 27 |
 | R52 Respeta safe mode; el error de validación al editar se muestra claro (4.2 no dice qué campo falla) | 27 |
+| R53 Filtrar las colecciones de una base escribiendo parte del nombre, con contador y resaltado | 28 |
+| R54 El error de validación dice qué campo y qué regla fallan (`errInfo.details` en 5.0+, comprobación propia en 4.2) | 29 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -193,6 +197,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 15 → 20 → 21 → 22 → 23 → 24
 18, 21 → 25
 04, 05 → 26
-13, 17, 18 → 27
+13, 17, 18 → 27 → 29
+23 → 28
 12 ────────────────────┘
 ```

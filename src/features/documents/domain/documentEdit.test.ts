@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ID_CHANGED, NO_ID, idFilter, idsFilter, keepId, writeFailure } from "./documentEdit";
+import { FAILED_VALIDATION, ID_CHANGED, NO_ID, idFilter, idsFilter, keepId, writeFailure } from "./documentEdit";
 
 const oid = (hex: string) => ({ $oid: hex });
 const A = oid("65a1b2c3d4e5f6a7b8c9d0e1");
@@ -39,5 +39,10 @@ describe("writeFailure", () => {
       "E11000 duplicate key",
     );
     expect(writeFailure({ ok: 1, writeConcernError: { errmsg: "timeout" } })).toBe("timeout");
+  });
+
+  it("says plainly when the collection's validation refused the document", () => {
+    const reply = { ok: 1, n: 0, writeErrors: [{ index: 0, code: 121, errmsg: "Document failed validation" }] };
+    expect(writeFailure(reply)).toBe(`${FAILED_VALIDATION} (Document failed validation)`);
   });
 });
