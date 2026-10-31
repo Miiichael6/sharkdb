@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import { Modal } from "../../../shared/ui/common";
+import { Avatar, Modal } from "../../../shared/ui/common";
+
+const MONGODB = "mongodb";
+/** Same size as `.driver-icon`. */
+const DRIVER_ICON_SIZE = 52;
 
 interface Driver {
   id: string;
@@ -11,7 +15,7 @@ interface Driver {
 
 // Only MongoDB is wired up; the rest are shown so the picker reads like the finished product.
 const DRIVERS: Driver[] = [
-  { id: "mongodb", name: "MongoDB", short: "Mg", color: "#0f7a3d", available: true },
+  { id: MONGODB, name: "MongoDB", short: "Mg", color: "#0f7a3d", available: true },
   { id: "postgres", name: "PostgreSQL", short: "Pg", color: "#2563eb", available: false },
   { id: "mysql", name: "MySQL", short: "Ms", color: "#e8891c", available: false },
   { id: "mariadb", name: "MariaDB", short: "Ma", color: "#2a8a96", available: false },
@@ -22,7 +26,7 @@ const DRIVERS: Driver[] = [
 
 export function DriverPicker({ onPick, onClose }: { onPick: (id: string) => void; onClose: () => void }) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState("mongodb");
+  const [selected, setSelected] = useState(MONGODB);
 
   const visible = useMemo(
     () => DRIVERS.filter((d) => d.name.toLowerCase().includes(query.toLowerCase())),
@@ -50,9 +54,13 @@ export function DriverPicker({ onPick, onClose }: { onPick: (id: string) => void
             onDoubleClick={() => d.available && onPick(d.id)}
             title={d.available ? d.name : `${d.name}: próximamente`}
           >
-            <span className="driver-icon" style={{ background: d.color }}>
-              {d.short}
-            </span>
+            {d.id === MONGODB ? (
+              <Avatar color={d.color} size={DRIVER_ICON_SIZE} />
+            ) : (
+              <span className="driver-icon" style={{ background: d.color }}>
+                {d.short}
+              </span>
+            )}
             <span>{d.name}</span>
             {!d.available && <span className="soon">Pronto</span>}
           </button>

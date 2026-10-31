@@ -6,6 +6,24 @@ export interface DocumentTarget {
   coll: string;
 }
 
+/** The connection a target's `sid` names, as the user knows it: name, address and environment tag. */
+export interface TargetServer {
+  name: string;
+  /** `host:port` (or the hosts of its URI). */
+  host: string;
+  tag?: string;
+}
+
+/** Where a write lands, shown over editors and confirmations so it can't be mistaken. */
+export interface TargetWhere {
+  server: TargetServer;
+  db: string;
+  coll?: string;
+}
+
+/** "LOCAL · shop.orders", for logs. */
+export const describeWhere = (w: TargetWhere) => `${w.server.name} · ${w.coll ? `${w.db}.${w.coll}` : w.db}`;
+
 /** Target of a namespace `db.coll`; collection names may contain dots, database names can't. */
 export function targetOfNamespace(sid: string, ns: string): DocumentTarget | null {
   const dot = ns.indexOf(".");

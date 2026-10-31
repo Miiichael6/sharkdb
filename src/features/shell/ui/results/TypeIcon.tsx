@@ -1,58 +1,67 @@
+import type { ReactNode } from "react";
 import type { BsonType } from "../../domain/bsonValue";
 
-// Lucide-style strokes (24×24) for each BSON type; colour comes from `.bson-<type>`.
-const HASH = ["M4 9h16", "M4 15h16", "M10 3 8 21", "M16 3l-2 18"];
-const CLOCK = ["M12 7v5l3 2", "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"];
-const NONE = ["M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z", "m5.6 5.6 12.8 12.8"];
+// A short glyph in the type's colour (from `.bson-<type>`): text where a couple of characters say it,
+// a drawing where they don't. Numbers, strings, objects and arrays get a tinted box, as in Robo 3T.
 
-const PATHS: Record<BsonType, string[]> = {
-  object: [
-    "M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1",
-    "M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1",
-  ],
-  array: ["M8 3H5v18h3", "M16 3h3v18h-3"],
-  // Two pairs of quote marks, like Robo 3T's "".
-  string: ["M7 7 6 13", "M11 7l-1 6", "M14 7l-1 6", "M18 7l-1 6"],
-  int32: HASH,
-  int64: HASH,
-  double: HASH,
-  decimal: HASH,
-  boolean: ["M8 6h8a6 6 0 0 1 0 12H8A6 6 0 0 1 8 6Z", "M10 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"],
-  date: ["M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z", "M16 3v4", "M8 3v4", "M3 11h18"],
+const stroke = { fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round" } as const;
+
+/** A drawing: `paths` in a `w`×`h` box, shown `scale` px per unit. */
+const drawing = (w: number, h: number, scale: number, strokeWidth: number, ...paths: string[]) => (
+  <svg width={w * scale} height={h * scale} viewBox={`0 0 ${w} ${h}`} aria-hidden>
+    {paths.map((d) => (
+      <path key={d} d={d} {...stroke} strokeWidth={strokeWidth} />
+    ))}
+  </svg>
+);
+/** Square drawing, without a box. */
+const icon = (...paths: string[]) => drawing(12, 12, 11 / 12, 1.3, ...paths);
+/**
+ * Drawing inside a box: symmetric around the middle of a 12×8 field, so it sits centred (text glyphs
+ * don't: the font places them on its baseline).
+ */
+const boxed = (...paths: string[]) => drawing(12, 8, 11 / 12, 1.2, ...paths);
+
+const CALENDAR = icon("M2 3h8v7H2z", "M2 5.5h8", "M4.5 1.5v2", "M7.5 1.5v2");
+const CLOCK = icon("M6 1.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z", "M6 3.5V6l1.8 1.2");
+const CHECK = icon("M2.5 6.2 5 8.5l4.5-5");
+const BRACES = boxed(
+  "M4.5 1H3.8a1 1 0 0 0-1 1v1.2a.8.8 0 0 1-.8.8.8.8 0 0 1 .8.8V6a1 1 0 0 0 1 1h.7",
+  "M7.5 1h.7a1 1 0 0 1 1 1v1.2a.8.8 0 0 0 .8.8.8.8 0 0 0-.8.8V6a1 1 0 0 1-1 1h-.7",
+);
+const BRACKETS = boxed("M4.5 1H3v6h1.5", "M7.5 1H9v6H7.5");
+const QUOTES = boxed("M3.5 2.5v3", "M5.2 2.5v3", "M6.8 2.5v3", "M8.5 2.5v3");
+
+const GLYPHS: Record<BsonType, ReactNode> = {
+  object: BRACES,
+  array: BRACKETS,
+  string: QUOTES,
+  int32: "i32",
+  int64: "i64",
+  double: "1.2",
+  decimal: "1.2",
+  boolean: CHECK,
+  date: CALENDAR,
   timestamp: CLOCK,
-  objectId: ["M12.5 15.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z", "m11 12 9.5-9.5", "m15.5 7.5 3 3L22 7l-3-3"],
-  null: NONE,
-  undefined: NONE,
-  minKey: ["M12 3v14", "m6 11 6 6 6-6", "M5 21h14"],
-  maxKey: ["M5 3h14", "m6 13 6-6 6 6", "M12 7v14"],
-  binary: ["M6 4h4v6H6z", "M14 14h4v6h-4z", "M6 14h2v6", "M14 4h2v6", "M6 20h4", "M14 10h4"],
-  regex: ["M17 3v10", "m12.7 5.5 8.6 5", "m12.7 10.5 8.6-5", "M5 15h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2Z"],
-  code: ["m16 18 6-6-6-6", "m8 6-6 6 6 6"],
-  symbol: ["M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z", "M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"],
-  dbPointer: [
-    "M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7",
-    "M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7",
-  ],
+  objectId: "id",
+  null: "null",
+  undefined: "–",
+  minKey: "min",
+  maxKey: "max",
+  binary: "01",
+  regex: ".*",
+  code: "</>",
+  symbol: "S",
+  dbPointer: "→",
 };
 
-/** Small icon before each tree key, so BSON types stand apart at a glance. */
+const BOXED = new Set<BsonType>(["object", "array", "string", "int32", "int64", "double", "decimal"]);
+
+/** Small badge before each tree key, so BSON types stand apart at a glance. */
 export function TypeIcon({ type }: { type: BsonType }) {
   return (
-    <svg
-      className={`type-icon bson-${type}`}
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {PATHS[type].map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
+    <span className={`type-icon bson-${type} ${BOXED.has(type) ? "boxed" : ""}`} aria-hidden>
+      {GLYPHS[type]}
+    </span>
   );
 }

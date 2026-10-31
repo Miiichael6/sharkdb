@@ -1,4 +1,5 @@
 // A yes/no question shown before an action that can't be undone.
+import type { TargetWhere } from "./documentTarget";
 
 export interface ConfirmRequest {
   /** Title of the window. */
@@ -8,24 +9,29 @@ export interface ConfirmRequest {
   confirmLabel: string;
   /** Label of the button that backs out (`DISMISS_LABEL` by default). */
   dismissLabel?: string;
+  /** Connection, database and collection it acts on, shown over the message. */
+  where?: TargetWhere;
 }
 
 export const DISMISS_LABEL = "Cancelar";
 
 export const CONFIRM_WINDOW_WIDTH = 440;
+/** Wide enough for the connection, address, database and collection on one line. */
+export const CONFIRM_WHERE_WINDOW_WIDTH = 600;
 
 // Rough text metrics of the window's message, to fit its height to it.
 const CHARS_PER_LINE = 52;
 const LINE_HEIGHT = 20;
 const CHROME_HEIGHT = 120;
 const MAX_LINES = 12;
+const WHERE_HEIGHT = 34;
 
 /** Height of a confirmation window that shows `message` without scrolling (long ones are capped). */
-export function confirmWindowHeight(message: string): number {
+export function confirmWindowHeight({ message, where }: Pick<ConfirmRequest, "message" | "where">): number {
   const lines = message
     .split("\n")
     .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / CHARS_PER_LINE)), 0);
-  return CHROME_HEIGHT + Math.min(lines, MAX_LINES) * LINE_HEIGHT;
+  return CHROME_HEIGHT + Math.min(lines, MAX_LINES) * LINE_HEIGHT + (where ? WHERE_HEIGHT : 0);
 }
 
 /** Word typed to let an operation modify a destination (D9): the same for sync, backup and restore. */

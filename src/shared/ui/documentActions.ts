@@ -8,7 +8,8 @@ export type StoredDocument = Record<string, unknown>;
 
 /** Each action asks the user (editor or confirmation) and calls `onDone` once something changed. */
 export interface DocumentActions {
-  view(target: DocumentTarget, doc: StoredDocument): void;
+  /** Shows the document with its dates in `zone` at first (it can be switched there). */
+  view(target: DocumentTarget, doc: StoredDocument, zone: "utc" | "local"): void;
   /** `onDone` receives the document as it was stored. */
   edit(target: DocumentTarget, doc: StoredDocument, onDone: (saved: StoredDocument) => void): void;
   insert(target: DocumentTarget, onDone: () => void): void;

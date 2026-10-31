@@ -1,8 +1,8 @@
 import { useCallback, useState, type MouseEvent } from "react";
 import type { ContextMenuItem } from "../../../../shared/ui/ContextMenu";
 import { useLog } from "../../../../shared/ui/useLog";
-import { formatJson, formatValue, type DateZone } from "../../domain/bsonFormat";
-import { dottedPath, type KeyPath } from "../../domain/resultView";
+import { formatValue, type DateZone } from "../../domain/bsonFormat";
+import { dottedPath, valueText, type KeyPath } from "../../domain/resultView";
 import { ResultMenuIcon, type ResultMenuAction } from "./ResultMenuIcon";
 
 /** What was right-clicked: a value at `path` inside `doc`. */
@@ -42,7 +42,7 @@ const withSeparators = (sections: ContextMenuItem[][]) =>
 
 /**
  * Right-click menu of the result views, in Robo 3T's order: expand / collapse (tree), the document
- * entries `documentEntries` adds, the copy entries (shell syntax or JSON) and deleting the document.
+ * entries `documentEntries` adds, the copy entries (dates in the view's zone) and deleting the document.
  */
 export function useResultMenu(zone: DateZone, documentEntries?: (target: ResultTarget) => DocumentEntries) {
   const log = useLog();
@@ -63,11 +63,10 @@ export function useResultMenu(zone: DateZone, documentEntries?: (target: ResultT
         ]
       : [];
     const copyItems = [
-      resultItem("copyValue", "Copiar valor", () => copy(formatValue(target.value, zone))),
+      resultItem("copyValue", "Copiar valor", () => copy(valueText(target.value, zone))),
       resultItem("copyName", "Copiar nombre", () => copy(path[path.length - 1]), { disabled: isRoot }),
       resultItem("copyPath", "Copiar ruta", () => copy(dottedPath(path)), { disabled: isRoot }),
-      resultItem("copyJson", "Copiar JSON", () => copy(formatJson(target.value))),
-      resultItem("copyDocument", "Copiar documento", () => copy(formatValue(target.doc, zone))),
+      resultItem("copyJson", "Copiar JSON", () => copy(formatValue(target.value, zone))),
     ];
     const documentItems = documentEntries?.(target);
     setMenu({

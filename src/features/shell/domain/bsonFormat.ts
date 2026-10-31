@@ -6,7 +6,6 @@ import { bsonValue, childrenOf, UUID_SUBTYPE, type BsonValue } from "./bsonValue
 export type DateZone = "utc" | "local";
 
 const INDENT = "    ";
-const JSON_INDENT = 2;
 const MAX_SAFE_LONG = Number.MAX_SAFE_INTEGER;
 
 const pad = (n: number, width = 2) => String(Math.abs(n)).padStart(width, "0");
@@ -97,13 +96,15 @@ function writeValue(raw: unknown, zone: DateZone, indent = ""): string {
     const text = writeValue(child, zone, inner);
     return v.type === "object" ? `${inner}${JSON.stringify(key)} : ${text}` : `${inner}${text}`;
   });
-  return `${open}\n${lines.join(",\n")}\n${indent}${close}`;
+  // Robo 3T leaves a space after an array's `[` and after each element's comma.
+  const [opening, separator] = v.type === "array" ? [`${open} `, ", "] : [open, ","];
+  return `${opening}\n${lines.join(`${separator}\n`)}\n${indent}${close}`;
 }
 
-/** Any value as JSON (canonical Extended JSON, as it comes from the shell: `{"$oid": "…"}`). */
-export const formatJson = (raw: unknown) => JSON.stringify(raw, null, JSON_INDENT);
-
-/** Any value as shell text; documents and arrays span several indented lines. */
+/**
+ * Any value as shell text, as Robo 3T copies it (`ObjectId("…")`, `ISODate("…")`, `1.0`); documents
+ * and arrays span several indented lines.
+ */
 export const formatValue = (raw: unknown, zone: DateZone) => writeValue(raw, zone);
 
 /**

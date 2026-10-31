@@ -1,6 +1,6 @@
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { CodeEditor } from "../../../shared/ui/CodeEditor";
@@ -35,12 +35,19 @@ const describe = (error: ScriptError) => (error.line ? `Línea ${error.line}: ${
  */
 export function DocumentEditorDialog({
   mode,
+  where,
   initial,
+  footer,
   onSave,
   onClose,
 }: {
   mode: EditorMode;
+  /** Connection, database and collection the document belongs to, over the editor. */
+  where?: ReactNode;
+  /** Viewing, the text shown (it follows later changes); otherwise the text the editor starts with. */
   initial: string;
+  /** Controls at the start of the footer. */
+  footer?: ReactNode;
   onSave: (doc: Doc) => Promise<void>;
   onClose: () => void;
 }) {
@@ -88,9 +95,10 @@ export function DocumentEditorDialog({
 
   return (
     <div className="document-window">
+      {where}
       <CodeEditor
         className="document-editor"
-        value={text}
+        value={mode === "view" ? initial : text}
         onChange={setText}
         onView={(v) => (view.current = v)}
         readOnly={mode === "view"}
@@ -99,6 +107,7 @@ export function DocumentEditorDialog({
       />
       {status && <p className={`test ${status.kind}`}>{status.text}</p>}
       <div className="modal-footer">
+        {footer}
         {mode !== "view" && (
           <button type="button" onClick={check} disabled={busy}>
             Validar

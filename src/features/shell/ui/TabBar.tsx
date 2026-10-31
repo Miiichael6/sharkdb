@@ -1,32 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import { MenuList } from "../../../shared/ui/MenuList";
-import { isDirty, type ShellTab } from "../domain/tabs";
+import type { BarEntry } from "../domain/splitTabs";
+import { TabFace } from "./TabFace";
 import { useActivePill } from "./useActivePill";
-import { useTabDrag } from "./useTabDrag";
+import { useTabDrag, type TabDragOut } from "./useTabDrag";
 
 interface Props {
-  tabs: ShellTab[];
-  /** Active shell tab; null while the detail panel is shown. */
+  entries: BarEntry[];
+  /** Active entry; null while the detail panel is shown. */
   activeId: string | null;
   onActivate: (id: string) => void;
-  onClose: (tab: ShellTab) => void;
-  onDuplicate: (id: string) => void;
-  onRename: (id: string, title: string) => void;
+  /** Closes an entry (both panes of a split). */
+  onClose: (entry: BarEntry) => void;
+  /** Duplicate and rename work on a tab: a split's active pane. */
+  onDuplicate: (tabId: string) => void;
+  onRename: (tabId: string, title: string) => void;
   onMove: (id: string, to: number) => void;
+  onSeparate: (id: string) => void;
+  /** A tab dragged out of the bar, onto the shell area. */
+  dragOut: TabDragOut;
 }
 
 const MIDDLE_BUTTON = 1;
 
+/** The tab an entry's tab actions work on: a split's active pane. */
+const focusedPane = (entry: BarEntry) => entry.panes[entry.activePane];
+
 /**
  * Shell tabs as a segmented control: equal-width tabs on a rounded track, the active one raised by a
- * highlight that slides between them. Drag reorders, double click renames, middle click closes.
+ * highlight that slides between them. Drag reorders (or, out of the bar, splits), double click
+ * renames, middle click closes.
  */
-export function TabBar({ tabs, activeId, onActivate, onClose, onDuplicate, onRename, onMove }: Props) {
-  const [menu, setMenu] = useState<{ x: number; y: number; tab: ShellTab } | null>(null);
+export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, onRename, onMove, onSeparate, dragOut }: Props) {
+  const [menu, setMenu] = useState<{ x: number; y: number; entry: BarEntry } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const track = useRef<HTMLDivElement>(null);
-  const ids = tabs.map((t) => t.id);
-  const drag = useTabDrag({ track, ids, onMove });
+  const ids = entries.map((e) => e.id);
+  const drag = useTabDrag({ track, ids, onMove, out: dragOut });
   const { pill, ready } = useActivePill(track, activeId, ids.join());
 
   useEffect(() => {
@@ -36,12 +46,12 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onDuplicate, onRen
     return () => window.removeEventListener("click", close);
   }, [menu]);
 
-  const finishRename = (id: string, title: string) => {
-    onRename(id, title);
+  const finishRename = (tabId: string, title: string) => {
+    onRename(tabId, title);
     setEditing(null);
   };
 
-  if (!tabs.length) return null;
+  if (!entries.length) return null;
   return (
     <div className="tab-bar">
       <div ref={track} className="tab-track" role="tablist" aria-label="Pestañas">
@@ -52,48 +62,47 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onDuplicate, onRen
             style={{ transform: `translateX(${pill.left}px)`, width: pill.width }}
           />
         )}
-        {tabs.map((t) => {
-          const selected = t.id === activeId;
+        {entries.map((entry) => {
+          const selected = entry.id === activeId;
+          const pane = focusedPane(entry);
+          const dragged = drag.draggingId === entry.id;
           return (
             <div
-              key={t.id}
+              key={entry.id}
               role="tab"
               aria-selected={selected}
-              data-tab-id={t.id}
-              className={`tab ${selected ? "active" : ""} ${drag.draggingId === t.id ? "dragging" : ""}`}
-              title={t.filePath ?? `${t.serverLabel} · ${t.db}`}
-              onPointerDown={drag.onPointerDown(t.id)}
-              onClick={() => drag.consumeClick() || onActivate(t.id)}
-              onDoubleClick={() => setEditing(t.id)}
-              onMouseDown={(e) => e.button === MIDDLE_BUTTON && (e.preventDefault(), onClose(t))}
+              data-tab-id={entry.id}
+              className={`tab ${selected ? "active" : ""} ${dragged ? "dragging" : ""} ${dragged && drag.outside ? "out" : ""}`}
+              title={entry.panes.map((t) => t.filePath ?? `${t.serverLabel} · ${t.db}`).join("\n")}
+              onPointerDown={drag.onPointerDown(entry.id)}
+              onClick={() => drag.consumeClick() || onActivate(entry.id)}
+              onDoubleClick={() => setEditing(entry.id)}
+              onMouseDown={(e) => e.button === MIDDLE_BUTTON && (e.preventDefault(), onClose(entry))}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setMenu({ x: e.clientX, y: e.clientY, tab: t });
+                setMenu({ x: e.clientX, y: e.clientY, entry });
               }}
             >
-              {editing === t.id ? (
+              {editing === entry.id ? (
                 <input
                   className="tab-rename"
-                  defaultValue={t.title}
+                  defaultValue={pane.title}
                   autoFocus
-                  onBlur={(e) => finishRename(t.id, e.target.value)}
+                  onBlur={(e) => finishRename(pane.id, e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") finishRename(t.id, e.currentTarget.value);
+                    if (e.key === "Enter") finishRename(pane.id, e.currentTarget.value);
                     if (e.key === "Escape") setEditing(null);
                   }}
                 />
               ) : (
-                <span className="tab-title">
-                  {t.title}
-                  {isDirty(t) && <span aria-label="sin guardar"> •</span>}
-                </span>
+                <TabFace entry={entry} />
               )}
               <button
                 className="tab-close"
-                aria-label={`Cerrar ${t.title}`}
+                aria-label={`Cerrar ${entry.panes.map((t) => t.title).join(" | ")}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onClose(t);
+                  onClose(entry);
                 }}
               >
                 ×
@@ -105,10 +114,11 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onDuplicate, onRen
 
       {menu && (
         <MenuList x={menu.x} y={menu.y}>
-          <li onClick={() => onDuplicate(menu.tab.id)}>Duplicar</li>
-          <li onClick={() => setEditing(menu.tab.id)}>Renombrar</li>
+          <li onClick={() => onDuplicate(focusedPane(menu.entry).id)}>Duplicar</li>
+          <li onClick={() => setEditing(menu.entry.id)}>Renombrar</li>
+          {menu.entry.split && <li onClick={() => onSeparate(menu.entry.id)}>Separar pestaña</li>}
           <li className="sep" />
-          <li onClick={() => onClose(menu.tab)}>Cerrar</li>
+          <li onClick={() => onClose(menu.entry)}>Cerrar</li>
         </MenuList>
       )}
     </div>

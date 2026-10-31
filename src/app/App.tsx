@@ -10,7 +10,9 @@ import type { BorrowedSession, Session } from "../features/connections/domain/se
 import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
+import { TargetServerProvider } from "../features/connections/ui/useTargetServer";
 import { Welcome } from "../features/connections/ui/Welcome";
+import { DocumentActionsProvider } from "../features/documents/ui/DocumentActionsProvider";
 import type { TreeNode } from "../features/explorer/domain/tree";
 import { Workspace } from "../features/explorer/ui/Workspace";
 import { ShellTabs } from "../features/shell/ui/ShellTabs";
@@ -138,84 +140,98 @@ function App() {
     return tabForNode(node, session ? displayName(session.conn) : node.sid, run, script);
   };
   const tabFor = (selected: TreeNode | undefined) => () => (selected ? shellTab(selected) : null);
+  // Dropped on the shell area, a collection opens with its default query running, as on double click.
+  const [draggedCollection, setDraggedCollection] = useState<TreeNode | null>(null);
 
   return (
     <ReadOnlyProvider sessions={sessions}>
-      {showWelcome || !sessions.length ? (
-        <Welcome
-          connections={connections}
-          openIds={sessions.map((s) => s.conn.id)}
-          connectingId={connectingId}
-          error={error}
-          onDismissError={() => setError("")}
-          onBack={sessions.length ? () => setShowWelcome(false) : undefined}
-          onNew={() => setDialog({ kind: "picker" })}
-          onConnect={connect}
-          onEdit={(conn) => setDialog({ kind: "form", conn, isNew: false })}
-          onDuplicate={(conn) => persist([...connections, duplicateConnection(conn)])}
-          onDelete={(conn) => {
-            if (sessions.some((s) => s.conn.id === conn.id)) disconnect(conn.id);
-            persist(removeConnection(connections, conn.id));
-          }}
-        />
-      ) : (
-        <Workspace
-          sessions={sessions}
-          connections={connections}
-          onBorrowSession={borrowSession}
-          onRemoveFromList={removeFromList}
-          sidebarHidden={layout.sidebarHidden}
-          logsOpen={layout.logsOpen}
-          onCloseLogs={layout.closeLogs}
-          onDisconnect={disconnect}
-          onOpenShell={(node, script) => tabs.open(shellTab(node, true, script))}
-          onShowDetails={tabs.showDetails}
-          renderToolbar={(controls) => (
-            <WorkspaceToolbar
-              controls={controls}
+      <TargetServerProvider sessions={sessions}>
+        <DocumentActionsProvider>
+          {showWelcome || !sessions.length ? (
+            <Welcome
+              connections={connections}
+              openIds={sessions.map((s) => s.conn.id)}
+              connectingId={connectingId}
+              error={error}
+              onDismissError={() => setError("")}
+              onBack={sessions.length ? () => setShowWelcome(false) : undefined}
+              onNew={() => setDialog({ kind: "picker" })}
+              onConnect={connect}
+              onEdit={(conn) => setDialog({ kind: "form", conn, isNew: false })}
+              onDuplicate={(conn) => persist([...connections, duplicateConnection(conn)])}
+              onDelete={(conn) => {
+                if (sessions.some((s) => s.conn.id === conn.id)) disconnect(conn.id);
+                persist(removeConnection(connections, conn.id));
+              }}
+            />
+          ) : (
+            <Workspace
               sessions={sessions}
               connections={connections}
-              tabs={tabs}
-              files={files}
-              layout={layout}
-              newTabTarget={tabFor(controls.selected)}
-              onNewConnection={() => setDialog({ kind: "picker" })}
-              onShowConnections={() => setShowWelcome(true)}
-              onConnect={connect}
-              onSetSafeMode={setSafeMode}
-              onChooseDatabases={chooseDatabases}
+              onBorrowSession={borrowSession}
+              onRemoveFromList={removeFromList}
+              sidebarHidden={layout.sidebarHidden}
+              logsOpen={layout.logsOpen}
+              onCloseLogs={layout.closeLogs}
+              onDisconnect={disconnect}
+              onOpenShell={(node, script) => tabs.open(shellTab(node, true, script))}
+              onRunCollection={(node) => tabs.runCollection(shellTab(node, true))}
+              onDragCollection={setDraggedCollection}
+              onShowDetails={tabs.showDetails}
+              renderToolbar={(controls) => (
+                <WorkspaceToolbar
+                  controls={controls}
+                  sessions={sessions}
+                  connections={connections}
+                  tabs={tabs}
+                  files={files}
+                  layout={layout}
+                  newTabTarget={tabFor(controls.selected)}
+                  onNewConnection={() => setDialog({ kind: "picker" })}
+                  onShowConnections={() => setShowWelcome(true)}
+                  onConnect={connect}
+                  onSetSafeMode={setSafeMode}
+                  onChooseDatabases={chooseDatabases}
+                />
+              )}
+              renderMain={(details, selected) => (
+                <WithOperationsPanel>
+                  <ShellTabs
+                    tabs={tabs}
+                    files={files}
+                    details={details}
+                    newTabTarget={tabFor(selected)}
+                    draggedCollection={draggedCollection && shellTab(draggedCollection, true)}
+                  />
+                </WithOperationsPanel>
+              )}
             />
           )}
-          renderMain={(details, selected) => (
-            <WithOperationsPanel>
-              <ShellTabs tabs={tabs} files={files} details={details} newTabTarget={tabFor(selected)} />
-            </WithOperationsPanel>
+
+          {dialog.kind === "picker" && (
+            <DriverPicker
+              onClose={() => setDialog({ kind: "none" })}
+              onPick={() => setDialog({ kind: "form", conn: newConnection(), isNew: true })}
+            />
           )}
-        />
-      )}
 
-      {dialog.kind === "picker" && (
-        <DriverPicker
-          onClose={() => setDialog({ kind: "none" })}
-          onPick={() => setDialog({ kind: "form", conn: newConnection(), isNew: true })}
-        />
-      )}
-
-      {dialog.kind === "form" && (
-        <ConnectionForm
-          initial={dialog.conn}
-          isNew={dialog.isNew}
-          onClose={() => setDialog({ kind: "none" })}
-          onSave={(conn) => {
-            upsert(conn);
-            setDialog({ kind: "none" });
-          }}
-          onConnect={(conn) => {
-            upsert(conn);
-            connect(conn);
-          }}
-        />
-      )}
+          {dialog.kind === "form" && (
+            <ConnectionForm
+              initial={dialog.conn}
+              isNew={dialog.isNew}
+              onClose={() => setDialog({ kind: "none" })}
+              onSave={(conn) => {
+                upsert(conn);
+                setDialog({ kind: "none" });
+              }}
+              onConnect={(conn) => {
+                upsert(conn);
+                connect(conn);
+              }}
+            />
+          )}
+        </DocumentActionsProvider>
+      </TargetServerProvider>
     </ReadOnlyProvider>
   );
 }

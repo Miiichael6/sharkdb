@@ -61,6 +61,10 @@ interface Props {
   onDisconnect: (sid: string) => void;
   /** "Abrir shell" on a node (or double click on a collection), or a menu entry that opens one with `script`. */
   onOpenShell: (node: TreeNode, script?: MenuScriptKind) => void;
+  /** Ctrl+Enter on a collection in the tree: runs its shell tab, opening one if it has none. */
+  onRunCollection: (node: TreeNode) => void;
+  /** A collection is being dragged out of the tree (null once dropped), to open it in the shell. */
+  onDragCollection: (node: TreeNode | null) => void;
   /** The detail panel was asked for (a panel action in the tree). */
   onShowDetails: () => void;
   /** Main area around the detail panel (the shell tabs); `selected` is the tree's selection. */
@@ -165,7 +169,7 @@ export function Workspace(props: Props) {
     <div className="workspace">
       {props.renderToolbar(controls)}
 
-      <SplitPane sideClassName="ws-sidebar" sideHidden={sidebarHidden} side={<Explorer tree={tree} onAction={onAction} />}>
+      <SplitPane sideClassName="ws-sidebar" sideHidden={sidebarHidden} side={<Explorer tree={tree} onAction={onAction} onRunCollection={props.onRunCollection} onDragCollection={props.onDragCollection} />}>
         {props.renderMain(details, selected)}
       </SplitPane>
 

@@ -4,7 +4,6 @@ import App from "./app/App";
 import { ModalWindow } from "./app/ModalWindow";
 import { OperationsProvider } from "./app/operations/useOperations";
 import { createServices, ServicesProvider } from "./app/services";
-import { DocumentActionsProvider } from "./features/documents/ui/DocumentActionsProvider";
 import { currentModalView } from "./shared/ui/modalWindow";
 import { initTheme } from "./shared/ui/theme";
 import { LogProvider } from "./shared/ui/useLog";
@@ -23,9 +22,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <NotificationsProvider>
           <LogProvider>
             <OperationsProvider>
-              <DocumentActionsProvider>
-                <App />
-              </DocumentActionsProvider>
+              <App />
             </OperationsProvider>
           </LogProvider>
         </NotificationsProvider>

@@ -85,9 +85,14 @@ export type TreeColumn = "key" | "value" | "type";
 export function cellText(row: TreeRow, column: TreeColumn, doc: unknown, zone: DateZone): string {
   if (column === "type") return row.typeLabel;
   if (column === "key") return row.depth === 0 ? formatValue(doc, zone) : row.key;
-  const value = bsonValue(row.raw);
+  return valueText(row.raw, zone);
+}
+
+/** A value to copy as itself: strings as plain text, anything else in shell syntax. */
+export function valueText(raw: unknown, zone: DateZone): string {
+  const value = bsonValue(raw);
   // An empty string copies as empty too, so nothing copied earlier is left on the clipboard.
-  return value.type === "string" ? value.value : formatValue(row.raw, zone);
+  return value.type === "string" ? value.value : formatValue(raw, zone);
 }
 
 export function toggleExpanded(expanded: ReadonlySet<string>, id: string): Set<string> {

@@ -1,4 +1,5 @@
 import {
+  CONFIRM_WHERE_WINDOW_WIDTH,
   CONFIRM_WINDOW_WIDTH,
   confirmWindowHeight,
   type ConfirmRequest,
@@ -16,8 +17,8 @@ export const CONFIRM_VIEW = "confirm";
 export async function confirmInWindow(request: ConfirmRequest): Promise<boolean> {
   const answer = await openModalWindow<boolean>(CONFIRM_VIEW, request, {
     title: request.title,
-    width: CONFIRM_WINDOW_WIDTH,
-    height: confirmWindowHeight(request.message),
+    width: request.where ? CONFIRM_WHERE_WINDOW_WIDTH : CONFIRM_WINDOW_WIDTH,
+    height: confirmWindowHeight(request),
     resizable: false,
   });
   return answer === true;

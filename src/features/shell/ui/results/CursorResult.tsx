@@ -17,7 +17,7 @@ interface Props {
 /** A cursor left as the script's value: its namespace, the page bar and the page's documents. */
 export function CursorResult({ sid, pager, view }: Props) {
   const { paging, setPaging, page, loading, error, reload } = useCursorPage(pager);
-  const documentMenu = useDocumentMenu(targetOfNamespace(sid, pager.ns), pager, reload);
+  const documentMenu = useDocumentMenu(targetOfNamespace(sid, pager.ns), pager, reload, view.zone);
 
   return (
     <section className="doc-result" aria-label={`Resultado de ${pager.ns}`}>
