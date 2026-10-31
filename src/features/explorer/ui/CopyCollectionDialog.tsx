@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { Modal, Spinner } from "../../../shared/ui/common";
 import type { CollectionRef, CopyRequest } from "../domain/copySpec";
-import { Field } from "./Field";
+import { Field } from "../../../shared/ui/Field";
 import { useCopyForm } from "./useCopyForm";
 import { useSubmit } from "./useSubmit";
 

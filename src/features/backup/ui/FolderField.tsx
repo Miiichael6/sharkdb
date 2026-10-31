@@ -1,4 +1,4 @@
-import { Field } from "../../explorer/ui/Field";
+import { Field } from "../../../shared/ui/Field";
 
 interface Props {
   label: string;

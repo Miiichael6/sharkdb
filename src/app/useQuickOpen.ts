@@ -15,13 +15,9 @@ import {
 } from "../features/workspace/domain/quickOpen";
 import type { PanelLayout } from "../features/workspace/ui/usePanelLayout";
 
-/** Quick actions that are a tree action on the database node (the rest are not built yet). */
-const TREE_ACTIONS: Partial<Record<QuickActionId, Action>> = {
-  openShell: "openShell",
-  createCollection: "createCollection",
-  dbStats: "dbStats",
-  refresh: "refresh",
-  openMongosh: "openMongosh",
+/** The tree action each quick action runs. */
+const TREE_ACTIONS: Record<QuickActionId, Action> = {
+  sync: "syncDatabase",
   backup: "backupDatabase",
   restore: "restoreDatabase",
 };
@@ -56,7 +52,9 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
   const targetEntry = target?.db
     ? databases.find((d) => d.node.sid === target.sid && d.node.db === target.db)
     : undefined;
-  const targetDb = targetEntry?.node;
+  // Without a database selected, backup and restore use the connection's first one.
+  const targetDb = targetEntry?.node ?? databases.find((d) => d.node.sid === target?.sid)?.node;
+  const session = target && sessions.find((s) => s.conn.id === target.sid);
 
   const show = (node: TreeNode) => {
     layout.showSidebar();
@@ -72,7 +70,7 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
       case "database":
         return databaseItems(databases.map((d) => ({ key: d.node.key, db: d.node.db ?? d.node.label, connection: d.connection })));
       case "action":
-        return actionItems(targetDb?.db);
+        return actionItems({ connection: !!session, database: !!targetDb });
       default:
         return [];
     }
@@ -94,9 +92,11 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
 
   const pickAction = (id: string) => {
     const action = TREE_ACTIONS[id as QuickActionId];
-    if (!action || !targetDb) return;
-    show(targetDb);
-    controls.runAction(action, targetDb);
+    // Sync chooses its databases in its own window: the connection is enough.
+    const node = targetDb ?? (action === "syncDatabase" && session ? serverNode(session.conn.id, displayName(session.conn)) : undefined);
+    if (!action || !node) return;
+    if (node === targetEntry?.node) show(node);
+    controls.runAction(action, node);
   };
 
   const pick = (id: string) => {
@@ -105,6 +105,8 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
     else if (mode === "action") pickAction(id);
   };
 
-  const context = targetEntry && `${targetEntry.node.db} · ${targetEntry.connection}`;
+  const context = targetEntry
+    ? `${targetEntry.node.db} · ${targetEntry.connection}`
+    : session ? displayName(session.conn) : undefined;
   return { mode, items: items(), context: mode === "action" ? context : undefined, open: setMode, close: () => setMode(null), pick };
 }

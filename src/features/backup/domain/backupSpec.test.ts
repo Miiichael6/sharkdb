@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newConnection } from "../../connections/domain/connection";
+import { newConnection, type Tag } from "../../connections/domain/connection";
 import type { Session } from "../../connections/domain/session";
 import { INVALID_DB_NAME } from "../../explorer/domain/copySpec";
 import {
@@ -11,7 +11,6 @@ import {
   backupDir,
   backupSummary,
   folderName,
-  progressPercent,
   restoreBlockReason,
   restoreSummary,
   validateBackup,
@@ -19,8 +18,8 @@ import {
   type RestoreRequest,
 } from "./backupSpec";
 
-const session = (over: { protected?: boolean; safeMode?: boolean } = {}): Session => ({
-  conn: { ...newConnection(), name: "local", protected: !!over.protected },
+const session = (over: { protected?: boolean; safeMode?: boolean; tag?: Tag } = {}): Session => ({
+  conn: { ...newConnection(), name: "local", protected: !!over.protected, tag: over.tag ?? "local" },
   info: { version: "7.0", databases: [] },
   safeMode: !!over.safeMode,
 });
@@ -45,13 +44,6 @@ describe("backupSpec", () => {
     expect(folderName("/tmp/dump/sales")).toBe("sales");
   });
 
-  it("measures overall progress across collections", () => {
-    expect(progressPercent({ index: 0, count: 2, done: 0, total: 0 })).toBe(0);
-    expect(progressPercent({ index: 0, count: 2, done: 50, total: 100 })).toBe(25);
-    expect(progressPercent({ index: 1, count: 2, done: 100, total: 100 })).toBe(100);
-    expect(progressPercent({ index: 0, count: 1, done: 120, total: 100 })).toBe(100);
-  });
-
   it("needs a folder and at least one collection", () => {
     const backup = { sid: "s1", db: "shop", collections: ["orders"], dir: " C:\\b\\shop " };
     expect(validateBackup(backup).dir).toBe("C:\\b\\shop");
@@ -66,9 +58,10 @@ describe("backupSpec", () => {
     expect(() => validateRestore(restore({ collections: [] }))).toThrow(COLLECTIONS_REQUIRED);
   });
 
-  it("never restores over protected or safe-mode sessions", () => {
+  it("never restores over protected, production or safe-mode sessions", () => {
     expect(restoreBlockReason(session())).toBeUndefined();
     expect(restoreBlockReason(session({ protected: true }))).toBe(PROTECTED_TARGET);
+    expect(restoreBlockReason(session({ tag: "production" }))).toBe(PROTECTED_TARGET);
     expect(restoreBlockReason(session({ safeMode: true }))).toBe(SAFE_MODE_TARGET);
   });
 

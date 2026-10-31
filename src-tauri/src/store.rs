@@ -78,7 +78,10 @@ pub fn save_connections(app: AppHandle, mut connections: Value) -> Result<(), St
     secrets::forget_removed(&before, &connections, &KeyringVault)
 }
 
-/// Whether a saved connection is marked protected (production-like): restore and sync never
+/// Tag of production connections: like a protected one, it's never modified.
+const PRODUCTION_TAG: &str = "production";
+
+/// Whether a saved connection is marked protected or tagged production: restore and sync never
 /// write to it. Reads the file as is: the secrets aren't needed for this.
 pub(crate) fn is_protected(app: &AppHandle, connection_id: &str) -> Result<bool, String> {
     let connections = read_json(&config_dir(app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))?;
@@ -89,7 +92,8 @@ fn connection_is_protected(connections: &Value, connection_id: &str) -> bool {
     connections.as_array().is_some_and(|list| {
         list.iter().any(|c| {
             c.get("id").and_then(Value::as_str) == Some(connection_id)
-                && c.get("protected").and_then(Value::as_bool) == Some(true)
+                && (c.get("protected").and_then(Value::as_bool) == Some(true)
+                    || c.get("tag").and_then(Value::as_str) == Some(PRODUCTION_TAG))
         })
     })
 }
@@ -122,13 +126,15 @@ mod tests {
     }
 
     #[test]
-    fn only_connections_marked_protected_are_protected() {
+    fn connections_marked_protected_or_tagged_production_are_protected() {
         let connections = serde_json::json!([
             { "id": "prod", "protected": true },
-            { "id": "qa", "protected": false },
+            { "id": "prod2", "protected": false, "tag": "production" },
+            { "id": "qa", "protected": false, "tag": "development" },
             { "id": "old" },
         ]);
         assert!(connection_is_protected(&connections, "prod"));
+        assert!(connection_is_protected(&connections, "prod2"));
         assert!(!connection_is_protected(&connections, "qa"));
         assert!(!connection_is_protected(&connections, "old"));
         assert!(!connection_is_protected(&connections, "missing"));

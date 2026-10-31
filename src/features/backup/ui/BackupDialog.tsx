@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
+import type { CollectionResult } from "../../../shared/domain/jobs";
+import { CollectionChecklist } from "../../../shared/ui/CollectionChecklist";
 import { Modal, Spinner } from "../../../shared/ui/common";
-import { backupDir, type CollectionResult } from "../domain/backupSpec";
-import { CollectionChecklist } from "./CollectionChecklist";
+import { JobProgressBar } from "../../../shared/ui/JobProgressBar";
+import { useJob } from "../../../shared/ui/useJob";
+import { backupDir } from "../domain/backupSpec";
 import { FolderField } from "./FolderField";
-import { JobProgressBar } from "./JobProgressBar";
-import { useBackupJob } from "./useBackupJob";
 
 const SYSTEM_PREFIX = "system.";
 
@@ -25,7 +26,7 @@ export function BackupDialog({ sid, db, connection, onDone, onClose }: Props) {
   const [collections, setCollections] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [parent, setParent] = useState("");
-  const job = useBackupJob();
+  const job = useJob();
   const { setError } = job;
 
   useEffect(() => {

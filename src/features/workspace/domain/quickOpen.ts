@@ -17,7 +17,7 @@ export interface QuickItem {
 export const QUICK_OPEN_PLACEHOLDERS: Record<QuickOpenMode, string> = {
   connection: "Abrir conexión…",
   database: "Abrir base de datos…",
-  action: "Acción sobre la base de datos…",
+  action: "Acción…",
 };
 
 // Bonuses of a matched character: right after the previous match, or at the start of a word.
@@ -76,40 +76,29 @@ export interface DatabaseCandidate {
 export const databaseItems = (databases: DatabaseCandidate[]): QuickItem[] =>
   databases.map((d) => ({ id: d.key, label: d.db, detail: d.connection }));
 
-export type QuickActionId =
-  | "openShell"
-  | "createCollection"
-  | "dbStats"
-  | "refresh"
-  | "openMongosh"
-  | "backup"
-  | "restore"
-  | "sync";
+export type QuickActionId = "sync" | "backup" | "restore";
 
 interface QuickAction {
   id: QuickActionId;
   label: string;
-  /** Not built yet: listed but disabled, with the reason. */
-  pending?: string;
 }
 
-export const QUICK_DB_ACTIONS: QuickAction[] = [
-  { id: "openShell", label: "Nuevo shell" },
-  { id: "createCollection", label: "Nueva colección…" },
-  { id: "dbStats", label: "Estadísticas" },
-  { id: "refresh", label: "Refrescar" },
-  { id: "openMongosh", label: "Abrir en mongosh" },
+/** Only what the tree can't do in one click: the rest (shell, collections, refresh…) lives in its menus. */
+export const QUICK_ACTIONS: QuickAction[] = [
+  { id: "sync", label: "Sincronizar con otro entorno…" },
   { id: "backup", label: "Backup…" },
   { id: "restore", label: "Restore…" },
-  { id: "sync", label: "Sincronizar con otro entorno…", pending: "Disponible con la tarea de sincronización" },
 ];
 
-/** The quick actions on database `db`; all disabled when there is no database to act on. */
-export const actionItems = (db: string | undefined): QuickItem[] =>
-  QUICK_DB_ACTIONS.map((a) => ({
-    id: a.id,
-    label: a.label,
-    hint: a.pending ? "próximamente" : undefined,
-    title: a.pending,
-    disabled: !db || !!a.pending,
-  }));
+export const NO_CONNECTION = "Abre una conexión primero";
+export const NO_DATABASE = "La conexión no tiene bases de datos";
+
+/**
+ * The quick actions, enabled with just an open connection: sync chooses its databases in its own
+ * window, and backup and restore fall back to the connection's first database when none is selected.
+ */
+export const actionItems = (target: { connection: boolean; database: boolean }): QuickItem[] =>
+  QUICK_ACTIONS.map((a) => {
+    const reason = !target.connection ? NO_CONNECTION : a.id !== "sync" && !target.database ? NO_DATABASE : undefined;
+    return { id: a.id, label: a.label, disabled: !!reason, title: reason };
+  });

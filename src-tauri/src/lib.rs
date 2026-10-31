@@ -1,11 +1,13 @@
 mod backup;
 mod files;
+mod jobs;
 mod mongo;
 mod safe_mode;
 mod secrets;
 mod shell;
 mod ssh_tunnel;
 mod store;
+mod sync;
 mod terminal;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,7 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(mongo::Sessions::default())
         .manage(shell::ShellSessions::default())
-        .manage(backup::BackupJobs::default())
+        .manage(jobs::Jobs::default())
         .invoke_handler(tauri::generate_handler![
             store::load_connections,
             store::save_connections,
@@ -38,7 +40,9 @@ pub fn run() {
             backup::commands::backup_database,
             backup::commands::restore_database,
             backup::commands::read_backup_folder,
-            backup::commands::cancel_backup_job,
+            sync::commands::database_catalog,
+            sync::commands::sync_databases,
+            jobs::events::cancel_job,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

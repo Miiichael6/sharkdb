@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { actionItems, connectionItems, databaseItems, fuzzyRank, fuzzyScore, type QuickItem } from "./quickOpen";
+import {
+  NO_CONNECTION,
+  NO_DATABASE,
+  actionItems,
+  connectionItems,
+  databaseItems,
+  fuzzyRank,
+  fuzzyScore,
+  type QuickItem,
+} from "./quickOpen";
 
 const items = (...labels: string[]): QuickItem[] => labels.map((label) => ({ id: label, label }));
 const labels = (list: QuickItem[]) => list.map((i) => i.label);
@@ -47,9 +56,13 @@ describe("candidates", () => {
     expect(list.map((i) => i.hint)).toEqual(["abierta", undefined]);
   });
 
-  it("disables pending actions, and all of them without a database", () => {
-    const enabled = actionItems("shop").filter((i) => !i.disabled).map((i) => i.id);
-    expect(enabled).toEqual(["openShell", "createCollection", "dbStats", "refresh", "openMongosh", "backup", "restore"]);
-    expect(actionItems(undefined).every((i) => i.disabled)).toBe(true);
+  it("offers only sync, backup and restore, enabled with just an open connection", () => {
+    const enabled = (target: { connection: boolean; database: boolean }) =>
+      actionItems(target).filter((i) => !i.disabled).map((i) => i.id);
+    expect(enabled({ connection: true, database: true })).toEqual(["sync", "backup", "restore"]);
+    // A connection without databases can still be a sync source.
+    expect(enabled({ connection: true, database: false })).toEqual(["sync"]);
+    expect(actionItems({ connection: true, database: false })[1].title).toBe(NO_DATABASE);
+    expect(actionItems({ connection: false, database: false }).map((i) => i.title)).toEqual([NO_CONNECTION, NO_CONNECTION, NO_CONNECTION]);
   });
 });

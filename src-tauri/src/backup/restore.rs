@@ -4,24 +4,16 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use mongodb::bson::{Bson, Document, RawDocumentBuf, doc};
-use mongodb::error::{Error, ErrorKind};
-use mongodb::options::InsertManyOptions;
-use mongodb::results::InsertManyResult;
-use mongodb::{Collection, Database};
+use mongodb::Database;
+use mongodb::bson::Document;
 
 use super::folder;
-use super::format::{CollectionMetadata, DocumentReader};
-use super::jobs::CancelFlag;
-use super::report::{CollectionResult, Progress};
+use super::format::DocumentReader;
+use super::writer::{self, BatchWriter};
+use crate::jobs::CancelFlag;
+use crate::jobs::report::{CollectionResult, Progress};
 use crate::mongo::describe;
 use crate::safe_mode::SafeMode;
-
-/// Un lote de `insert_many` se envía al llegar a cualquiera de los dos topes.
-const BATCH_DOCUMENTS: usize = 1000;
-const BATCH_BYTES: usize = 8 * 1024 * 1024;
-const DUPLICATE_KEY: i32 = 11000;
-const NAMESPACE_EXISTS: i32 = 48;
 
 pub struct RestoreTarget<'a> {
     pub db: &'a Database,
@@ -70,108 +62,27 @@ async fn restore_collection(
     let total = file.metadata().map(|m| m.len()).unwrap_or(0);
     progress(0, total);
 
-    let coll = target.db.collection::<RawDocumentBuf>(collection);
     if target.drop_before {
-        coll.drop(None).await.map_err(describe)?;
+        target.db.collection::<Document>(collection).drop(None).await.map_err(describe)?;
     }
-    create_collection(target.db, &metadata).await?;
+    writer::create_collection(target.db, collection, &metadata.options).await?;
 
     let mut reader = DocumentReader::new(BufReader::new(file));
-    let mut counts = InsertCounts::default();
-    let mut batch = Vec::new();
-    let mut batch_bytes = 0;
-    let mut read_bytes = 0;
+    let mut writer = BatchWriter::new(target.db, collection, target.safe_mode, cancel);
     while let Some(document) = reader.next_document()? {
-        batch_bytes += document.as_bytes().len();
-        batch.push(document);
-        if batch.len() >= BATCH_DOCUMENTS || batch_bytes >= BATCH_BYTES {
-            read_bytes += batch_bytes as u64;
-            insert_batch(target, &coll, &mut batch, &mut counts, cancel).await?;
-            batch_bytes = 0;
-            progress(read_bytes, total);
+        if writer.push(document).await? {
+            progress(writer.sent_bytes(), total);
         }
     }
-    insert_batch(target, &coll, &mut batch, &mut counts, cancel).await?;
+    writer.flush().await?;
 
     let indexes = metadata.restorable_indexes();
-    create_indexes(target.db, collection, &indexes).await?;
+    writer::create_indexes(target.db, collection, &indexes).await?;
     progress(total, total);
     Ok(CollectionResult {
         collection: collection.to_string(),
-        documents: counts.inserted,
-        duplicates: counts.duplicates,
+        documents: writer.inserted(),
+        duplicates: writer.duplicates(),
         indexes: indexes.len(),
     })
-}
-
-#[derive(Default)]
-struct InsertCounts {
-    inserted: u64,
-    duplicates: u64,
-}
-
-async fn insert_batch(
-    target: &RestoreTarget<'_>,
-    coll: &Collection<RawDocumentBuf>,
-    batch: &mut Vec<RawDocumentBuf>,
-    counts: &mut InsertCounts,
-    cancel: &CancelFlag,
-) -> Result<(), String> {
-    if batch.is_empty() {
-        return Ok(());
-    }
-    cancel.check()?;
-    target.safe_mode.ensure_writable()?;
-    // Sin orden: un `_id` repetido no corta el resto del lote, como en `mongorestore`.
-    let options = InsertManyOptions::builder().ordered(false).build();
-    let sent = batch.len() as u64;
-    let duplicates = duplicates_of(coll.insert_many(batch.drain(..), options).await)?;
-    counts.inserted += sent - duplicates;
-    counts.duplicates += duplicates;
-    Ok(())
-}
-
-/// Cuántos documentos del lote se saltaron por `_id` repetido; cualquier otro fallo es un error.
-fn duplicates_of(result: Result<InsertManyResult, Error>) -> Result<u64, String> {
-    let error = match result {
-        Ok(_) => return Ok(0),
-        Err(error) => error,
-    };
-    if let ErrorKind::BulkWrite(failure) = error.kind.as_ref()
-        && failure.write_concern_error.is_none()
-        && let Some(errors) = &failure.write_errors
-        && errors.iter().all(|e| e.code == DUPLICATE_KEY)
-    {
-        return Ok(errors.len() as u64);
-    }
-    Err(describe(error))
-}
-
-/// Crea la colección con sus opciones (capped, validator, collation...); si ya existe se deja.
-async fn create_collection(db: &Database, metadata: &CollectionMetadata) -> Result<(), String> {
-    let mut command = doc! { "create": &metadata.collection };
-    command.extend(metadata.options.clone());
-    match db.run_command(command, None).await {
-        Ok(_) => Ok(()),
-        Err(e) if command_code(&e) == Some(NAMESPACE_EXISTS) => Ok(()),
-        Err(e) => Err(describe(e)),
-    }
-}
-
-async fn create_indexes(db: &Database, collection: &str, indexes: &[Document]) -> Result<(), String> {
-    if indexes.is_empty() {
-        return Ok(());
-    }
-    let indexes: Vec<Bson> = indexes.iter().cloned().map(Bson::Document).collect();
-    db.run_command(doc! { "createIndexes": collection, "indexes": indexes }, None)
-        .await
-        .map(|_| ())
-        .map_err(|e| format!("Índices de “{collection}”: {}", describe(e)))
-}
-
-fn command_code(error: &Error) -> Option<i32> {
-    match error.kind.as_ref() {
-        ErrorKind::Command(c) => Some(c.code),
-        _ => None,
-    }
 }

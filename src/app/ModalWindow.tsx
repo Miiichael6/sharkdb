@@ -5,6 +5,7 @@ import {
   DocumentEditorWindow,
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
+import { SYNC_VIEW, SyncWindow, type SyncWindowData } from "../features/sync/ui/SyncWindow";
 import { OpenDatabaseDialog, type DatabaseChoice } from "../features/workspace/ui/OpenDatabaseDialog";
 import type { ConfirmRequest } from "../shared/domain/confirmation";
 import { CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
@@ -30,6 +31,12 @@ export function ModalWindow({ view }: { view: string }) {
       return (
         <ServicesProvider services={createServices()}>
           <DocumentEditorWindow data={data as DocumentEditorData} onDone={done} />
+        </ServicesProvider>
+      );
+    case SYNC_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <SyncWindow data={data as SyncWindowData} onDone={done} />
         </ServicesProvider>
       );
     default:

@@ -36,6 +36,12 @@ export interface MongoConnection extends AdvancedOptions {
 
 export const TAGS: Tag[] = ["local", "development", "testing", "staging", "production"];
 
+/** The tag of production: a connection with it is never modified, like a protected one. */
+export const PRODUCTION_TAG: Tag = "production";
+
+/** Whether restore and sync must never write to `conn`: marked protected or tagged production. */
+export const neverModified = (conn: Pick<MongoConnection, "protected" | "tag">) => conn.protected || conn.tag === PRODUCTION_TAG;
+
 export const COLORS = [
   "#0f7a3d",
   "#7c3aed",
