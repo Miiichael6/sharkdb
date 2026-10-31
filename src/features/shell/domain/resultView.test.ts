@@ -9,8 +9,10 @@ import {
   rowId,
   tableColumns,
   toggleExpanded,
+  valueText,
   visibleTreeRows,
 } from "./resultView";
+import { formatValue } from "./bsonFormat";
 
 const oid = { $oid: "5f1d7a3c9b1e8a0012345678" };
 const docs = [
@@ -120,6 +122,13 @@ describe("cellText", () => {
     expect(cellText(row("name"), "value", docs[0], "utc")).toBe("Lima");
     expect(cellText(row("_id"), "value", docs[0], "utc")).toBe('ObjectId("5f1d7a3c9b1e8a0012345678")');
     expect(cellText(row("tags"), "value", docs[0], "utc")).toContain('"a"');
+  });
+});
+
+describe("valueText", () => {
+  it("copies strings without quotes, unlike the JSON copy", () => {
+    expect(valueText("Lima", "utc")).toBe("Lima");
+    expect(formatValue("Lima", "utc")).toBe('"Lima"');
   });
 });
 

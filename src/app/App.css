@@ -293,13 +293,25 @@ input[type="checkbox"] {
 
 /* ---------- shared bits ---------- */
 
+/* A connection: MongoDB's leaf on a disc tinted with the connection's colour (`--avatar`). */
 .avatar {
   flex: none;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #fff;
-  font-weight: 600;
+  background:
+    radial-gradient(circle at 30% 25%, rgb(255 255 255 / 0.1), transparent 60%),
+    color-mix(in srgb, var(--avatar) 24%, var(--surface));
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--avatar) 75%, transparent),
+    0 1px 3px rgb(0 0 0 / 0.25);
+}
+.mongo-logo {
+  display: block;
+  flex: none;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25));
 }
 
 .tag {
@@ -1346,6 +1358,10 @@ table.grid {
   padding: 14px;
   background: var(--surface);
 }
+.document-where {
+  flex: none;
+  padding: 0 2px 10px;
+}
 .document-editor {
   flex: 1;
   min-height: 0;
@@ -1536,21 +1552,232 @@ table.grid {
   background: var(--close-hover);
   color: var(--text);
 }
+/* Panes go in a row: one tab, or the two of a split (placed with flex order around the divider). */
 .shell-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
 }
 .details-tab {
   flex: 1;
+  min-width: 0;
   overflow: auto;
 }
 .shell-tab {
-  flex: 1;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+/* Focusable only so Ctrl+Enter reaches it after a click on an empty spot. */
+.shell-tab:focus {
+  outline: none;
+}
+/* The active pane of a split: a thin accent line on top. */
+.shell-tab.pane-active::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 5;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* ---------- split tabs (as in file-manager) ---------- */
+
+/* Divider between panes: 1px seen, 7px to grab. */
+.split-divider {
+  position: relative;
+  flex: none;
+  width: 1px;
+  background: var(--border);
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.split-divider::after {
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+  z-index: 6;
+}
+.split-divider:hover,
+.split-divider:focus-visible,
+body.resizing-columns .split-divider {
+  background: var(--accent);
+}
+body.resizing-columns {
+  cursor: col-resize;
+  user-select: none;
+}
+/* A split in the bar: columns icon and both titles, the active pane's stronger. */
+.tab-split {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+}
+.tab-split-icon {
+  display: flex;
+  flex: none;
+  opacity: 0.7;
+}
+/* Equal halves around the icon, so it stays centred and each name sits centred over its pane. */
+.tab-split-name {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.62;
+  transition: opacity 0.12s ease-out;
+}
+.tab-split-name.current {
+  opacity: 1;
+}
+.tab-track .tab.active .tab-split-name.current {
+  font-weight: 600;
+}
+/* A tab or a collection being dragged (`setGrabbing`). Important: it must beat every element's own
+   cursor (the dragged tab, the editor's text cursor) wherever the pointer goes. */
+body.grabbing,
+body.grabbing * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+/* The tab in the bar while it's dragged out onto the shell area. */
+.tab-track .tab.dragging.out {
+  opacity: 0.45;
+  box-shadow: none;
+}
+/* Drop zones while a tab is dragged over the shell area: the area dims and a glass preview of the
+   side under the pointer slides between the halves, with a chip saying where the tab will open. */
+.split-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  pointer-events: none;
+  animation: split-drop-in 0.18s ease-out both;
+}
+@keyframes split-drop-in {
+  from {
+    opacity: 0;
+  }
+}
+.split-drop-preview {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  opacity: 0;
+  transition:
+    left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease;
+}
+.split-drop-preview::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.12),
+    0 8px 28px -12px color-mix(in srgb, var(--accent) 55%, transparent);
+  backdrop-filter: blur(6px) saturate(1.2);
+  transform: scale(0.985);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.split-drop.armed .split-drop-preview {
+  opacity: 1;
+}
+.split-drop.armed .split-drop-preview::before {
+  transform: none;
+}
+.split-drop-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 48px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 80%, black);
+  transform: translateY(4px);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.split-drop-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.split-drop.armed .split-drop-chip {
+  transform: none;
+}
+/* Card of the dragged tab next to the pointer: the wrapper only moves (no lag), the card fades in tilted. */
+.tab-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  pointer-events: none;
+  will-change: transform;
+}
+.tab-ghost-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  padding: 5px 14px 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow:
+    0 12px 32px -10px rgb(0 0 0 / 0.35),
+    0 2px 6px rgb(0 0 0 / 0.12);
+  opacity: 0;
+  transform: scale(0.85);
+  transform-origin: 0 0;
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tab-ghost-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-ghost.shown .tab-ghost-card {
+  opacity: 1;
+  transform: scale(1) rotate(-2deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .split-drop,
+  .split-drop-preview,
+  .split-drop-preview::before,
+  .split-drop-chip,
+  .tab-ghost-card {
+    animation: none;
+    transition: none;
+  }
 }
 .shell-head {
   display: flex;
@@ -1597,6 +1824,23 @@ button.shell-action {
   flex: none;
   width: 14px;
   height: 14px;
+}
+.where-part .host-chip svg {
+  width: 12px;
+  height: 12px;
+}
+.host-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 17px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .query-editor {
   flex: 1;
@@ -1909,9 +2153,23 @@ button.shell-action {
 .twisty.open svg {
   transform: rotate(90deg);
 }
+/* Type badge before a tree key; same width for all, so the keys line up. */
 .type-icon {
   flex: none;
-  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 11px;
+  font: 700 7px/1 "Cascadia Mono", Consolas, monospace;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+/* Numbers, strings, objects and arrays, boxed as in Robo 3T: border and fill take the type's colour. */
+.type-icon.boxed {
+  border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
 }
 .result-text {
   flex: 1;
@@ -2072,6 +2330,10 @@ button.shell-action {
   box-sizing: border-box;
   padding: 16px;
   background: var(--surface);
+}
+.confirm-where {
+  flex: none;
+  padding-bottom: 12px;
 }
 .confirm-window p {
   flex: 1;

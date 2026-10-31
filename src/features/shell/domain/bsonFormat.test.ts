@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doubleText, formatEditable, formatJson, formatValue, isoDate, summarizeValue } from "./bsonFormat";
+import { doubleText, formatEditable, formatValue, isoDate, summarizeValue } from "./bsonFormat";
 
 const oid = { $oid: "5f1d7a3c9b1e8a0012345678" };
 const date = { $date: { $numberLong: String(Date.UTC(2024, 0, 2, 10, 30)) } };
@@ -30,8 +30,8 @@ describe("formatValue", () => {
       [
         "{",
         '    "_id" : ObjectId("5f1d7a3c9b1e8a0012345678"),',
-        '    "tags" : [',
-        '        "a",',
+        '    "tags" : [ ',
+        '        "a", ',
         '        "b"',
         "    ],",
         '    "empty" : {}',
@@ -84,10 +84,30 @@ describe("doubleText", () => {
   });
 });
 
-describe("formatJson", () => {
-  it("writes valid Extended JSON", () => {
-    const text = formatJson({ _id: oid, n: 1 });
-    expect(JSON.parse(text)).toEqual({ _id: oid, n: 1 });
-    expect(text).toContain('"$oid"');
+describe("copying a document", () => {
+  const doc = { _id: oid, ID: { $numberDouble: "1768481775497" }, month: { $numberInt: "1" }, days: [{ date }, { date }] };
+
+  it("writes dates in the zone chosen in the view", () => {
+    expect(formatValue(doc, "local")).toContain(`ISODate("${isoDate(Date.UTC(2024, 0, 2, 10, 30), "local")}")`);
+  });
+
+  it("copies as Robo 3T does: shell syntax", () => {
+    expect(formatValue(doc, "utc")).toBe(
+      [
+        "{",
+        '    "_id" : ObjectId("5f1d7a3c9b1e8a0012345678"),',
+        '    "ID" : 1768481775497.0,',
+        '    "month" : 1,',
+        '    "days" : [ ',
+        "        {",
+        '            "date" : ISODate("2024-01-02T10:30:00.000Z")',
+        "        }, ",
+        "        {",
+        '            "date" : ISODate("2024-01-02T10:30:00.000Z")',
+        "        }",
+        "    ]",
+        "}",
+      ].join("\n"),
+    );
   });
 });

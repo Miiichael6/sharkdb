@@ -12,10 +12,14 @@ import {
   moveTab,
   openTab,
   renameTab,
+  runCollectionTab,
   updateTab,
+  splitOf,
   type NewTab,
   type ShellTab,
+  type Side,
 } from "../domain/tabs";
+import { activateEntry, activeEntryId, barEntries, openBeside, separateTab, setSplitRatio, splitWithTab } from "../domain/splitTabs";
 import { menuScript, type MenuScriptKind } from "../domain/menuScripts";
 
 export type ShellTabs = ReturnType<typeof useShellTabs>;
@@ -50,6 +54,18 @@ export function useShellTabs() {
     setDetailsShown(false);
   }, []);
 
+  /** Runs the tab already on `init`'s collection, or opens `init` when there's none. */
+  const runCollection = useCallback((init: NewTab) => {
+    setState((s) => runCollectionTab(s, crypto.randomUUID(), init));
+    setDetailsShown(false);
+  }, []);
+
+  /** Opens a tab on `side` of the shown one (which becomes a split). */
+  const openAside = useCallback((init: NewTab, side: Side) => {
+    setState((s) => openBeside(s, crypto.randomUUID(), init, side));
+    setDetailsShown(false);
+  }, []);
+
   const close = useCallback(
     (tab: ShellTab) => {
       setState((s) => closeTab(s, tab.id));
@@ -58,10 +74,18 @@ export function useShellTabs() {
     [shell],
   );
 
+  /** Activates a bar entry (a split comes back to its last active pane). */
   const activate = useCallback((id: string) => {
-    setState((s) => activateTab(s, id));
+    setState((s) => activateEntry(s, id));
     setDetailsShown(false);
   }, []);
+
+  /** Makes a pane of the shown split the active one. */
+  const focus = useCallback((id: string) => setState((s) => activateTab(s, id)), []);
+
+  const split = useCallback((draggedId: string, side: Side) => setState((s) => splitWithTab(s, draggedId, side)), []);
+  const separate = useCallback((id: string) => setState((s) => separateTab(s, id)), []);
+  const setRatio = useCallback((id: string, ratio: number) => setState((s) => setSplitRatio(s, id, ratio)), []);
 
   const showDetails = useCallback(() => setDetailsShown(true), []);
 
@@ -77,14 +101,26 @@ export function useShellTabs() {
     [],
   );
 
+  // The active tab is the active pane of a split, so shortcuts and toolbar actions work on it.
   const active = detailsShown ? undefined : state.tabs.find((t) => t.id === state.activeId);
 
   return {
     tabs: state.tabs,
+    entries: barEntries(state),
+    /** Bar entry being shown; null while the detail panel is. */
+    activeEntryId: detailsShown ? null : activeEntryId(state),
+    /** Split being shown, if any. */
+    activeSplit: active && splitOf(state, active.id),
     active,
     open,
+    runCollection,
+    openAside,
     close,
     activate,
+    focus,
+    split,
+    separate,
+    setRatio,
     showDetails,
     closeSession,
     duplicate,

@@ -13,7 +13,7 @@ Las acciones manuales que borran datos en el servidor se confirman en una sub-ve
 - [ ] Reutiliza `CONFIRM_WORD` / `confirmationMatches` de `confirmation.ts`; sin texto duplicado en cada llamada (R47)
 
 ### Paso 2: Sub-ventana roja
-- [ ] `src/shared/ui/DangerConfirmWindow.tsx` / `App.css`: variante "eliminar" con toda la ventana en rojo (cabecera, borde, fondo tenue, botón); el botón queda deshabilitado hasta escribir `confirmo` en el nivel `typed`. La variante `simple` comparte el estilo rojo, sin campo (R47)
+- [ ] `src/shared/ui/DangerConfirmWindow.tsx` / `App.css`: variante "eliminar" con toda la ventana en rojo (cabecera con icono de alerta ⚠ + `Se va a ELIMINAR`, borde, fondo tenue, botón); conexión y entorno visibles; qué se pierde en renglón aparte; el botón queda deshabilitado hasta escribir `confirmo` en el nivel `typed`. La variante `simple` comparte el estilo rojo, sin campo (R47)
 - [ ] Escape y Cancelar nunca confirman; el foco inicial va al campo, no al botón rojo (R47)
 
 ### Paso 3: Conectar las acciones
@@ -33,10 +33,10 @@ Las acciones manuales que borran datos en el servidor se confirman en una sub-ve
 - [ ] **Cierre de Fase 12**: `npm run tauri dev` arranca
 
 ## Criterios de aceptación
-- [ ] Toda acción `typed` de D12 muestra la sub-ventana en rojo con conexión y entorno, y solo procede tras escribir `confirmo`
+- [ ] Toda acción `typed` de D12 muestra la sub-ventana en rojo con icono de alerta, conexión y entorno, y solo procede tras escribir `confirmo`
 - [ ] Las acciones `simple` se ven en rojo y piden un clic de confirmación
 - [ ] Ninguna acción destructiva puede confirmarse con Enter o Escape por accidente
 
 ## Bitácora
 <!-- Resumida: 1 a 3 entradas de una línea. Solo decisiones no obvias, problemas y desviaciones. -->
-- _(fecha: nota)_
+- 2026-10-31: D12 aprobada tal cual; el usuario pide además icono de alerta en la cabecera (también en la variante `simple`).

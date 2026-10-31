@@ -3,17 +3,22 @@ import { CONFIRM_WORD, confirmWindowHeight, confirmationMatches } from "./confir
 
 describe("confirmWindowHeight", () => {
   it("fits one line", () => {
-    expect(confirmWindowHeight("¿Eliminar?")).toBe(140);
+    expect(confirmWindowHeight({ message: "¿Eliminar?" })).toBe(140);
   });
 
   it("grows with long messages and explicit line breaks", () => {
     const long = "x".repeat(120);
-    expect(confirmWindowHeight(long)).toBe(confirmWindowHeight("¿Eliminar?") + 2 * 20);
-    expect(confirmWindowHeight("a\nb")).toBe(160);
+    expect(confirmWindowHeight({ message: long })).toBe(confirmWindowHeight({ message: "¿Eliminar?" }) + 2 * 20);
+    expect(confirmWindowHeight({ message: "a\nb" })).toBe(160);
   });
 
   it("caps very long messages", () => {
-    expect(confirmWindowHeight("x".repeat(10_000))).toBe(120 + 12 * 20);
+    expect(confirmWindowHeight({ message: "x".repeat(10_000) })).toBe(120 + 12 * 20);
+  });
+
+  it("makes room for the connection, database and collection", () => {
+    const where = { server: { name: "LOCAL", host: "localhost:27017" }, db: "shop", coll: "orders" };
+    expect(confirmWindowHeight({ message: "¿Eliminar?", where })).toBe(140 + 34);
   });
 });
 

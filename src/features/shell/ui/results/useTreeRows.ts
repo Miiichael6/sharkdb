@@ -55,7 +55,8 @@ export function useTreeRows(docs: unknown[], firstNumber: number, zone: DateZone
       ArrowLeft: () => (row.expanded ? toggle(row.id) : row.depth > 0 && select(parentIndex())),
     };
     const action = actions[e.key];
-    if (!action) return;
+    // Ctrl+Enter is left to the shell tab, which runs the script.
+    if (!action || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) return;
     e.preventDefault();
     action();
   };

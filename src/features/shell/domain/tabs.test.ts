@@ -12,6 +12,7 @@ import {
   moveTab,
   openTab,
   renameTab,
+  runCollectionTab,
   updateTab,
   type TabsState,
 } from "./tabs";
@@ -40,6 +41,19 @@ describe("tabs", () => {
     const s = openTab(EMPTY_TABS, "a", { ...on("t"), coll: "c", code: "q", runOnOpen: true });
     expect(s.tabs[0].runOnOpen).toBe(true);
     expect(duplicateTab(s, "a", "copy").tabs.find((t) => t.id === "copy")?.runOnOpen).toBe(false);
+  });
+
+  it("runs the tab already on a collection, or opens one", () => {
+    const orders = { ...on("shop"), coll: "orders", code: "q", runOnOpen: true };
+    const opened = runCollectionTab(three("a"), "x", orders);
+    expect(opened.tabs.find((t) => t.id === "x")).toMatchObject({ coll: "orders", runOnOpen: true, runRequest: 0 });
+
+    const again = runCollectionTab(activateTab(opened, "a"), "y", orders);
+    expect(ids(again)).toEqual(ids(opened));
+    expect(again.activeId).toBe("x");
+    expect(again.tabs.find((t) => t.id === "x")?.runRequest).toBe(1);
+    // Another server's tab on the same names is not it.
+    expect(ids(runCollectionTab(again, "z", { ...orders, sid: "s2" }))).toContain("z");
   });
 
   it("builds the default query for a collection, escaping quotes", () => {

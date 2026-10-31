@@ -8,6 +8,7 @@ import { FOLDER_KINDS, isLeaf, isMissingDatabase, parentKey, type TreeNode } fro
 import { blockedInSafeMode } from "../domain/writeActions";
 import { menuFor, type Action } from "./explorerMenu";
 import { NodeIcon } from "./NodeIcon";
+import { useCollectionDrag } from "./useCollectionDrag";
 import type { Tree } from "./useTree";
 
 export type { Action } from "./explorerMenu";
@@ -15,12 +16,17 @@ export type { Action } from "./explorerMenu";
 interface Props {
   tree: Tree;
   onAction: (action: Action, node: TreeNode) => void;
+  /** Ctrl+Enter on a collection: runs its shell tab (opening one if it has none). */
+  onRunCollection?: (node: TreeNode) => void;
+  /** A collection is being dragged out of the tree (null once dropped). */
+  onDragCollection?: (node: TreeNode | null) => void;
 }
 
-export function Explorer({ tree, onAction }: Props) {
+export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; node: TreeNode } | null>(null);
   const isReadOnly = useReadOnly();
   const rootRef = useRef<HTMLDivElement>(null);
+  const dragStart = useCollectionDrag(onDragCollection);
 
   useEffect(() => {
     if (!menu) return;
@@ -62,7 +68,9 @@ export function Explorer({ tree, onAction }: Props) {
         else go(tree.node(parentKey(current.key)));
         break;
       case "Enter":
-        if (current) tree.toggle(current);
+        if (e.ctrlKey || e.metaKey) {
+          if (current?.kind === "collection") onRunCollection?.(current);
+        } else if (current) tree.toggle(current);
         break;
       case "F5":
         if (current) onAction("refresh", current);
@@ -87,6 +95,7 @@ export function Explorer({ tree, onAction }: Props) {
           className={`tree-row ${tree.selected === n.key ? "selected" : ""} ${missing ? "missing" : ""}`}
           style={{ paddingLeft: 6 + depth * 16 }}
           onClick={() => tree.select(n.key)}
+          onPointerDown={dragStart(n)}
           // Like Robo 3T, double clicking a collection opens a shell with its default query.
           onDoubleClick={() => (n.kind === "collection" ? onAction("openShell", n) : tree.toggle(n))}
           onContextMenu={(e) => {

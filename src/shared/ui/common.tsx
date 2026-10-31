@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { MongoLogo } from "./MongoLogo";
 
 // The app icon (src-tauri/icons/icon.svg): a faceted shark, as [fill, points] in back-to-front order.
 const SHARK_BODY: [string, string][] = [
@@ -74,10 +75,14 @@ export function Logo({ size = 120 }: { size?: number }) {
   );
 }
 
-export function Avatar({ color, label = "Mg", size = 34 }: { color: string; label?: string; size?: number }) {
+/** Share of the avatar the leaf takes. */
+const AVATAR_LOGO_SCALE = 0.62;
+
+/** A MongoDB connection: the leaf on a disc tinted with the connection's colour. */
+export function Avatar({ color, size = 34 }: { color: string; size?: number }) {
   return (
-    <div className="avatar" style={{ background: color, width: size, height: size, fontSize: size * 0.42 }}>
-      {label}
+    <div className="avatar" style={{ "--avatar": color, width: size, height: size } as CSSProperties}>
+      <MongoLogo size={Math.round(size * AVATAR_LOGO_SCALE)} />
     </div>
   );
 }

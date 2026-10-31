@@ -1,3 +1,4 @@
+import { MongoLogo } from "../../../shared/ui/MongoLogo";
 import type { NodeKind } from "../domain/tree";
 
 interface Props {
@@ -10,21 +11,15 @@ interface Props {
 }
 
 /**
- * Solid icon of a tree node: server, database, collection, index… The same set labels them elsewhere.
+ * Solid icon of a tree node: server (MongoDB's leaf), database, collection, index… The same set labels
+ * them elsewhere.
  * Holes are cut with even-odd fills, so they show whatever is behind (row hover, selection).
  */
 export function NodeIcon({ kind, view = false, open = false, size = 15 }: Props) {
   const p = { width: size, height: size, viewBox: "0 0 16 16", fill: "currentColor", "aria-hidden": true, className: `icon icon-${kind}` };
   switch (kind) {
     case "server":
-      return (
-        <svg {...p}>
-          <path
-            fillRule="evenodd"
-            d="M3 1.5h10A1.5 1.5 0 0 1 14.5 3v2.5A1.5 1.5 0 0 1 13 7H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5Zm1.5 2.4a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7ZM3 9h10a1.5 1.5 0 0 1 1.5 1.5V13a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 13v-2.5A1.5 1.5 0 0 1 3 9Zm1.5 2.4a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Z"
-          />
-        </svg>
-      );
+      return <MongoLogo size={size} className="icon icon-server" />;
     case "database":
       return (
         <svg {...p}>

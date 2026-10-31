@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useServices } from "../../../app/services";
 import { StackSplit, type TopFit } from "../../../shared/ui/StackSplit";
-import { NodeIcon } from "../../explorer/ui/NodeIcon";
+import { useServerOf } from "../../connections/ui/useTargetServer";
+import { WhereBar } from "../../connections/ui/WhereBar";
 import { formatScript } from "../domain/formatScript";
 import { elapsedText } from "../domain/outcome";
 import type { ShellTab as Tab } from "../domain/tabs";
@@ -65,7 +66,13 @@ function editorFit(pane: HTMLElement, lines: number): TopFit {
 
 interface Props {
   tab: Tab;
-  active: boolean;
+  shown: boolean;
+  /** Active pane of a split shown side by side. */
+  activePane: boolean;
+  /** Its place in a split. */
+  style?: CSSProperties;
+  /** Clicked or focused: it becomes the active pane. */
+  onFocus: () => void;
   onCodeChange: (code: string) => void;
   onOpenFile: () => void;
   onSave: () => void;
@@ -75,8 +82,9 @@ interface Props {
  * A shell tab: where it runs (server · database · last run time), the script editor (as tall as its
  * script, up to MAX_FIT_LINES, and can be hidden) and its results, resizable.
  */
-export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Props) {
+export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange, onOpenFile, onSave }: Props) {
   const { schema } = useServices();
+  const serverOf = useServerOf();
   const run = useShellRun(tab);
   const view = useResultView();
   const history = useHistoryBrowser(tab.sid);
@@ -104,31 +112,41 @@ export function ShellTab({ tab, active, onCodeChange, onOpenFile, onSave }: Prop
     execute(tab.code);
   }, []);
 
+  // Asked to run again from outside (Ctrl+Enter on its collection in the explorer).
+  const lastRunRequest = useRef(tab.runRequest);
+  useEffect(() => {
+    if (tab.runRequest === lastRunRequest.current) return;
+    lastRunRequest.current = tab.runRequest;
+    execute(tab.code);
+  }, [tab.runRequest]);
+
+  // Ctrl+Enter anywhere in the tab (results, paging) runs the script; the editor runs its selection itself.
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.defaultPrevented || e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || run.running) return;
+    e.preventDefault();
+    execute(tab.code);
+  };
+
   return (
-    <section className="shell-tab" hidden={!active} aria-label={`Shell ${tab.title}`}>
+    <section
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      className={`shell-tab ${activePane ? "pane-active" : ""}`}
+      hidden={!shown}
+      style={style}
+      aria-label={`Shell ${tab.title}`}
+      onPointerDownCapture={onFocus}
+      onFocusCapture={onFocus}
+    >
       <header className="shell-head">
-        <span className="shell-where">
-          <span className="where-part" title="Servidor">
-            <NodeIcon kind="server" size={14} />
-            <strong>{tab.serverLabel}</strong>
-          </span>
-          <span className="where-part" title="Base de datos">
-            <NodeIcon kind="database" size={14} />
-            {tab.db}
-          </span>
-          {tab.coll && (
-            <span className="where-part" title="Colección">
-              <NodeIcon kind="collection" size={14} />
-              {tab.coll}
-            </span>
-          )}
+        <WhereBar where={{ server: serverOf(tab.sid), db: tab.db, coll: tab.coll }}>
           {run.outcome && (
             <span className="where-part muted" title="Tiempo de la consulta">
               <ShellActionIcon action="time" />
               {elapsedText(run.outcome.elapsedMs)}
             </span>
           )}
-        </span>
+        </WhereBar>
         <span className="spacer" />
         {run.running ? (
           <button className="danger shell-action" onClick={run.cancel} title="Detener" aria-label="Detener">

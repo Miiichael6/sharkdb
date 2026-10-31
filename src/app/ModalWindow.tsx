@@ -10,6 +10,7 @@ import {
   type OpenConnectionData,
 } from "../features/connections/ui/OpenConnectionDialog";
 import { TagBadge } from "../features/connections/ui/TagBadge";
+import { WhereBar } from "../features/connections/ui/WhereBar";
 import {
   DOCUMENT_EDITOR_VIEW,
   DocumentEditorWindow,
@@ -53,8 +54,11 @@ export function ModalWindow({ view }: { view: string }) {
 
 function ModalView({ view, data, done }: { view: string; data: unknown; done: (result: unknown) => void }) {
   switch (view) {
-    case CONFIRM_VIEW:
-      return <ConfirmWindow request={data as ConfirmRequest} onDone={done} />;
+    case CONFIRM_VIEW: {
+      const request = data as ConfirmRequest;
+      const where = request.where && <WhereBar where={request.where} className="confirm-where" />;
+      return <ConfirmWindow request={request} where={where} onDone={done} />;
+    }
     case OPEN_CONNECTION_VIEW:
       return <OpenConnectionDialog data={data as OpenConnectionData} onDone={done} />;
     case OPEN_DATABASE_VIEW: {

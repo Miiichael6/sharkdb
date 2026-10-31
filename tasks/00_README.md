@@ -73,11 +73,11 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
   - "Clonar" no es una operación aparte: entre conexiones es el sync; dentro de la misma conexión es "Copiar colección" (09).
 - [x] **D10** Orden de las favoritas → **alfabético** (al usuario le da igual, 2026-10-31) → afecta 23
 - [x] **D11** Quitar una base de la lista → **sí, "Quitar de la lista"** en el menú contextual, inconfundible con "Eliminar base de datos" (grupo, icono y color distintos) (2026-10-31) → afecta 23
-- [ ] **D12** Nivel de confirmación de cada borrado manual (propuesta, falta que el usuario la apruebe) → afecta 25:
+- [x] **D12** Nivel de confirmación de cada borrado manual, aprobada por el usuario (2026-10-31), con icono de alerta en la cabecera → afecta 25:
   - **Rojo + `confirmo`**: eliminar base de datos, eliminar colección, eliminar todos los documentos, eliminar usuario, eliminar índice.
   - **Rojo, sin escribir**: eliminar documentos seleccionados (se usa a menudo), eliminar conexión registrada (no toca el servidor).
   - **Sin rojo** (no borran datos): renombrar colección, reconstruir índices, editar índice, quitar base de la lista (23).
-- [ ] **D13** Shell en paralelo (propuesta, falta que el usuario la apruebe) → afecta 26:
+- [x] **D13** Shell en paralelo → **pestaña dividida como en file-manager**, aprobada por el usuario (2026-10-31) → afecta 26:
   - Como en **file-manager**: una **pestaña dividida** con dos paneles (izquierdo y derecho), que en la barra se ve como una sola pestaña `A | B`; no hay dos barras de pestañas.
   - Se divide **arrastrando** una pestaña sobre el área del shell (vista previa del lado); se separa con **"Separar pestaña"** en su menú.
   - Divisor arrastrable; en ventana estrecha solo se ve el panel activo. El panel de detalles del explorador no se divide.
@@ -111,8 +111,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 22 | [Backup y restore con el mismo flujo que el sync](done/22_backup_restore_como_sync.md) | 9 Operaciones de BD | 21 | ✅ Terminada (prueba manual en QA pendiente) |
 | 23 | [Bases favoritas y temporales por conexión](done/23_bases_favoritas.md) | 11 Bases fijadas | 12, 22 | ✅ Terminada (prueba manual pendiente) |
 | 24 | [Título de ventana y color de la conexión activa](done/24_titulo_y_color_conexion.md) | 11 Bases fijadas | 23 | ✅ Terminada (prueba manual pendiente) |
-| 25 | [Confirmación roja con `confirmo` para borrados manuales](pending/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ⛔ Bloqueada (D12) |
-| 26 | [Dos consultas del shell en paralelo (pestaña dividida)](pending/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ⛔ Bloqueada (D13) |
+| 25 | [Confirmación roja con `confirmo` para borrados manuales](pending/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ⬜ Pendiente |
+| 26 | [Dos consultas del shell en paralelo (pestaña dividida)](done/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ✅ Terminada |
+| 27 | [Validación de documentos por colección (`$jsonSchema`)](pending/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -171,6 +172,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R48 Aplicar ese nivel a cada acción destructiva del explorador, documentos y conexiones (D12) | 25 |
 | R49 Dos pestañas del shell visibles y ejecutándose a la vez, lado a lado, con divisor redimensionable | 26 |
 | R50 Dividir arrastrando una pestaña sobre el área del shell y separar desde el menú de la pestaña (como file-manager) | 26 |
+| R51 Sub-ventana "Validación…" en el menú de colección: `$jsonSchema` editable y botones redondos que alternan con un clic el nivel (`moderate`/`strict`), acción (`error`/`warn`) y campos extra (`rechazar`/`permitir`) | 27 |
+| R52 Respeta safe mode; el error de validación al editar se muestra claro (4.2 no dice qué campo falla) | 27 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -190,5 +193,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 15 → 20 → 21 → 22 → 23 → 24
 18, 21 → 25
 04, 05 → 26
+13, 17, 18 → 27
 12 ────────────────────┘
 ```
