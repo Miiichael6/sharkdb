@@ -2,7 +2,7 @@ import { useId } from "react";
 import { Modal, Spinner } from "../../../shared/ui/common";
 import type { UserEntry } from "../domain/mongo";
 import { BUILTIN_ROLES, userSpecFromForm, type UserSpec } from "../domain/userSpec";
-import { Field } from "./Field";
+import { Field } from "../../../shared/ui/Field";
 import { useSubmit } from "./useSubmit";
 import { useUserForm } from "./useUserForm";
 

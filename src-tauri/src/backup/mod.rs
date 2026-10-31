@@ -3,20 +3,18 @@
 //!
 //! - `format`: lectura/escritura de `<colección>.bson` y `<colección>.metadata.json` (puro).
 //! - `folder`: archivos de una carpeta de backup.
-//! - `dump` / `restore`: el trabajo contra el servidor, por lotes, con progreso y cancelación.
-//! - `jobs`: trabajos en marcha y su bandera de cancelación.
-//! - `commands`: comandos Tauri (`backup_database`, `restore_database`, `read_backup_folder`,
-//!   `cancel_backup_job`).
+//! - `source` / `writer`: leer una colección del servidor y escribirla en otro, por lotes; el
+//!   sync (15) los reutiliza para copiar entre conexiones sin pasar por disco.
+//! - `dump` / `restore`: el trabajo contra el servidor, con progreso y cancelación (`crate::jobs`).
+//! - `commands`: comandos Tauri (`backup_database`, `restore_database`, `read_backup_folder`).
 
 pub mod commands;
 mod dump;
 mod folder;
 mod format;
-mod jobs;
-mod report;
 mod restore;
-
-pub use jobs::BackupJobs;
+pub mod source;
+pub mod writer;
 
 #[cfg(test)]
 mod tests {
@@ -26,7 +24,7 @@ mod tests {
     use mongodb::bson::{Document, doc, oid::ObjectId};
 
     use super::dump::dump;
-    use super::jobs::{CANCELLED, CancelFlag};
+    use crate::jobs::{CANCELLED, CancelFlag};
     use super::restore::{RestoreTarget, restore};
     use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
 

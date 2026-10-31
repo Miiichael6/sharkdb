@@ -39,6 +39,7 @@ export type Action =
   | "removeFunction"
   | "backupDatabase"
   | "restoreDatabase"
+  | "syncDatabase"
   | MenuScriptKind;
 
 type MenuItem = { label: string; action: Action; danger?: boolean; disabled?: boolean } | "sep";
@@ -74,6 +75,7 @@ function menuFor(n: TreeNode): MenuItem[] {
         "sep",
         { label: "Backup…", action: "backupDatabase" },
         { label: "Restaurar…", action: "restoreDatabase" },
+        { label: "Sincronizar con otro entorno…", action: "syncDatabase" },
       ];
     case "collections":
       return [
@@ -100,6 +102,7 @@ function menuFor(n: TreeNode): MenuItem[] {
         { label: "Duplicar colección…", action: "duplicateCollection" },
         { label: "Copiar colección a base de datos…", action: "copyCollection" },
         { label: "Eliminar colección…", action: "dropCollection", danger: true },
+        { label: "Sincronizar con otro entorno…", action: "syncDatabase" },
         "sep",
         { label: "Estadísticas", action: "collStats" },
         { label: "Añadir índice…", action: "addIndex" },

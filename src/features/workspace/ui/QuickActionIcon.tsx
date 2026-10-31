@@ -1,7 +1,6 @@
 import type { QuickActionId } from "../domain/quickOpen";
-import { ToolbarIcon } from "./ToolbarIcon";
 
-// Same outlines and size as the toolbar, whose own icons are reused for the actions it also has.
+// Same outlines and size as the toolbar icons.
 const props = {
   width: 16,
   height: 16,
@@ -15,28 +14,6 @@ const props = {
 
 export function QuickActionIcon({ id }: { id: QuickActionId }) {
   switch (id) {
-    case "openShell":
-      return (
-        <svg {...props}>
-          <path d="m3 4.5 3.5 3.5L3 11.5M8 12h5" />
-        </svg>
-      );
-    case "createCollection":
-      return (
-        <svg {...props}>
-          <path d="M8 3v10M3 8h10" />
-        </svg>
-      );
-    case "dbStats":
-      return (
-        <svg {...props}>
-          <path d="M2.5 13.5h11M4.5 11V8M8 11V4M11.5 11V6.5" />
-        </svg>
-      );
-    case "refresh":
-      return <ToolbarIcon id="refresh" />;
-    case "openMongosh":
-      return <ToolbarIcon id="openMongosh" />;
     case "backup":
       return (
         <svg {...props}>

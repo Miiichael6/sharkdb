@@ -108,7 +108,7 @@ export function WorkspaceToolbar(props: Props) {
     openMongosh: () => target && controls.openMongosh(target.sid, target.db),
     openConnection: () => quickOpen.open("connection"),
     openDatabase: () => quickOpen.open("database"),
-    quickActions: () => target?.db && quickOpen.open("action"),
+    quickActions: () => target && quickOpen.open("action"),
     refresh: controls.refreshAll,
     safeMode: toggleSafeMode,
     logs: layout.toggleLogs,
@@ -134,6 +134,12 @@ export function WorkspaceToolbar(props: Props) {
       disabled: !targetDatabase,
       onSelect: () => targetDatabase && controls.runAction("restoreDatabase", targetDatabase),
     },
+    {
+      label: "Sincronizar con otro entorno…",
+      disabled: !session,
+      onSelect: () =>
+        session && controls.runAction("syncDatabase", targetDatabase ?? serverNode(session.conn.id, displayName(session.conn))),
+    },
     { label: layout.logsOpen ? "Ocultar logs" : "Mostrar logs", onSelect: layout.toggleLogs },
     { label: "Acerca de Robo3B", onSelect: () => setAboutOpen(true) },
   ];
@@ -143,7 +149,7 @@ export function WorkspaceToolbar(props: Props) {
       <Toolbar
         handlers={handlers}
         pressed={{ toggleSidebar: !layout.sidebarHidden, logs: layout.logsOpen, safeMode: !!session?.safeMode }}
-        disabled={{ databases: !target, openMongosh: !target || !!session?.safeMode, quickActions: !target?.db, safeMode: !session }}
+        disabled={{ databases: !target, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
         menuItems={menuItems}
         status={status}
       />

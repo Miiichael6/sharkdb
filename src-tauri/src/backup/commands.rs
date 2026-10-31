@@ -1,38 +1,22 @@
 //! Comandos Tauri de backup/restore: finos, solo resuelven la sesión, registran el trabajo para
-//! poder cancelarlo y emiten el progreso como evento.
+//! poder cancelarlo (`crate::jobs`) y emiten el progreso como evento.
 
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, State};
+use serde::Deserialize;
+use tauri::{AppHandle, State};
 
 use super::dump::dump;
 use super::folder::{self, BackupEntry};
-use super::jobs::BackupJobs;
-use super::report::{CollectionResult, Progress};
 use super::restore::{RestoreTarget, restore};
+use crate::jobs::Jobs;
+use crate::jobs::events::emitter;
+use crate::jobs::report::CollectionResult;
 use crate::mongo::{self, Sessions};
 use crate::store;
 
-/// Evento con el avance de un trabajo; el frontend filtra por `job`.
-const PROGRESS_EVENT: &str = "backup-progress";
-const NO_COLLECTIONS: &str = "Elige al menos una colección";
-const PROTECTED: &str = "La conexión de destino está protegida: no se restaura sobre ella";
-
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ProgressEvent<'a> {
-    job: &'a str,
-    #[serde(flatten)]
-    progress: Progress,
-}
-
-fn emitter<'a>(app: &'a AppHandle, job: &'a str) -> impl Fn(Progress) + 'a {
-    move |progress| {
-        // Perder un aviso de progreso no debe tumbar el trabajo.
-        let _ = app.emit(PROGRESS_EVENT, ProgressEvent { job, progress });
-    }
-}
+pub const NO_COLLECTIONS: &str = "Elige al menos una colección";
+const PROTECTED: &str = "La conexión de destino está protegida o es de producción: no se restaura sobre ella";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +39,7 @@ pub struct RestoreRequest {
     drop_before: bool,
 }
 
-fn require_collections(collections: &[String]) -> Result<(), String> {
+pub fn require_collections(collections: &[String]) -> Result<(), String> {
     if collections.is_empty() { Err(NO_COLLECTIONS.into()) } else { Ok(()) }
 }
 
@@ -63,7 +47,7 @@ fn require_collections(collections: &[String]) -> Result<(), String> {
 pub async fn backup_database(
     app: AppHandle,
     sessions: State<'_, Sessions>,
-    jobs: State<'_, BackupJobs>,
+    jobs: State<'_, Jobs>,
     job: String,
     request: BackupRequest,
 ) -> Result<Vec<CollectionResult>, String> {
@@ -79,7 +63,7 @@ pub async fn backup_database(
 pub async fn restore_database(
     app: AppHandle,
     sessions: State<'_, Sessions>,
-    jobs: State<'_, BackupJobs>,
+    jobs: State<'_, Jobs>,
     job: String,
     request: RestoreRequest,
 ) -> Result<Vec<CollectionResult>, String> {
@@ -100,9 +84,4 @@ pub async fn restore_database(
 #[tauri::command]
 pub fn read_backup_folder(dir: PathBuf) -> Result<Vec<BackupEntry>, String> {
     folder::list_entries(&dir)
-}
-
-#[tauri::command]
-pub fn cancel_backup_job(jobs: State<'_, BackupJobs>, job: String) {
-    jobs.cancel(&job);
 }

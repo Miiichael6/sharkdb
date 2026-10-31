@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
 import { LogPanel } from "../../../shared/ui/LogPanel";
+import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
@@ -10,6 +11,8 @@ import { BackupDialog } from "../../backup/ui/BackupDialog";
 import { RestoreDialog } from "../../backup/ui/RestoreDialog";
 import { displayName } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
+import { syncSummary } from "../../sync/domain/syncPlan";
+import { SYNC_VIEW, SYNC_WINDOW, type SyncWindowData, type SyncWindowResult } from "../../sync/ui/SyncWindow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
@@ -87,6 +90,21 @@ export function Workspace(props: Props) {
     [terminal, fail, log],
   );
 
+  /** The sync runs in its own window, which keeps this one disabled until it closes. */
+  const openSync = async (n: TreeNode) => {
+    const data: SyncWindowData = { sessions, origin: { sid: n.sid, db: n.db, collection: n.coll } };
+    let result: SyncWindowResult | null;
+    try {
+      result = await openModalWindow<SyncWindowResult>(SYNC_VIEW, data, SYNC_WINDOW);
+    } catch (e) {
+      log.error("No se pudo abrir la ventana de sincronización", e);
+      return;
+    }
+    // Refreshed even without a result: a cancelled sync may have replaced some collections.
+    actions.refreshAll();
+    if (result) ok(syncSummary(connectionName(result.target.sid), result.target.databases, result.results));
+  };
+
   const onAction = (action: Action, n: TreeNode) => {
     // Covers every entry point (menu, palette, toolbar); the backend would reject it anyway.
     if (isReadOnly(n.sid) && blockedInSafeMode(action)) fail(SAFE_MODE_ERROR);
@@ -95,6 +113,7 @@ export function Workspace(props: Props) {
     else if (action === "openMongosh") openMongosh(n.sid, n.db);
     else if ((action === "backupDatabase" || action === "restoreDatabase") && n.db)
       setOperation({ kind: action === "backupDatabase" ? "backup" : "restore", node: n });
+    else if (action === "syncDatabase") void openSync(n);
     else actions.onAction(action, n);
   };
 

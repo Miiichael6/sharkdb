@@ -20,9 +20,13 @@ import { createCommandSchemaSource } from "../features/shell/infrastructure/comm
 import { tauriHistoryStore } from "../features/shell/infrastructure/tauriHistoryStore";
 import { tauriScriptFiles } from "../features/shell/infrastructure/tauriScriptFiles";
 import { tauriShellGateway } from "../features/shell/infrastructure/tauriShellGateway";
+import { createSyncService, type SyncService } from "../features/sync/application/syncService";
+import { tauriSyncGateway } from "../features/sync/infrastructure/tauriSyncGateway";
 import { createTerminalService, type TerminalService } from "../features/workspace/application/terminalService";
 import { tauriTerminalGateway } from "../features/workspace/infrastructure/tauriTerminalGateway";
+import { createJobRunner } from "../shared/application/jobRunner";
 import { tauriCommandRunner } from "../shared/infrastructure/commandRunner";
+import { tauriJobEvents } from "../shared/infrastructure/tauriJobEvents";
 
 export interface Services {
   connections: ConnectionService;
@@ -34,9 +38,11 @@ export interface Services {
   documents: DocumentService;
   terminal: TerminalService;
   backup: BackupService;
+  sync: SyncService;
 }
 
 export function createServices(): Services {
+  const startJob = createJobRunner(tauriJobEvents);
   return {
     connections: createConnectionService(tauriConnectionStore, tauriSessionGateway, tauriFilePicker),
     explorer: createExplorerService(createCommandMongoAdmin(tauriCommandRunner)),
@@ -46,7 +52,8 @@ export function createServices(): Services {
     scriptFiles: createScriptFileService(tauriScriptFiles),
     documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner)),
     terminal: createTerminalService(tauriTerminalGateway),
-    backup: createBackupService(tauriBackupGateway, tauriFolderPicker),
+    backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),
+    sync: createSyncService(tauriSyncGateway, startJob),
   };
 }
 

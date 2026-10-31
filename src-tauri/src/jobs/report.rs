@@ -1,9 +1,9 @@
-//! Lo que un backup o un restore cuenta mientras avanza y al terminar.
+//! Lo que un trabajo (backup, restore, sync) cuenta mientras avanza y al terminar.
 
 use serde::Serialize;
 
-/// Avance dentro de la colección en curso. `done`/`total` miden documentos en el backup y bytes
-/// del `.bson` en el restore; el frontend solo calcula la proporción.
+/// Avance dentro de la colección en curso. `done`/`total` miden documentos en el backup y el sync,
+/// y bytes del `.bson` en el restore; el frontend solo calcula la proporción.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Progress {

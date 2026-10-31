@@ -5,13 +5,14 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use mongodb::Database;
-use mongodb::bson::{Document, RawDocumentBuf, doc};
+use mongodb::bson::RawDocumentBuf;
 use mongodb::options::FindOptions;
 
 use super::folder;
-use super::format::{self, CollectionMetadata};
-use super::jobs::CancelFlag;
-use super::report::{CollectionResult, Progress};
+use super::format;
+use super::source::read_metadata;
+use crate::jobs::CancelFlag;
+use crate::jobs::report::{CollectionResult, Progress};
 use crate::mongo::describe;
 
 /// Cada cuántos documentos se avisa del progreso.
@@ -19,7 +20,6 @@ const PROGRESS_EVERY: u64 = 1000;
 const FIND_BATCH_SIZE: u32 = 1000;
 /// Los datos se escriben aquí y se renombran al acabar: un backup cortado no deja un `.bson` a medias.
 const PARTIAL_SUFFIX: &str = ".partial";
-const COLLECTION_TYPE: &str = "collection";
 
 /// Vuelca `collections` de `db` en `dir` (que se crea si no existe).
 pub async fn dump(
@@ -103,34 +103,6 @@ async fn write_documents(
     }
     out.flush().map_err(|e| write_error(path, e))?;
     Ok(documents)
-}
-
-/// Opciones (de `listCollections`) e índices (de `listIndexes`) de una colección.
-async fn read_metadata(db: &Database, collection: &str) -> Result<CollectionMetadata, String> {
-    let listed = first_batch(db, doc! { "listCollections": 1, "filter": { "name": collection } }).await?;
-    let info = listed
-        .into_iter()
-        .next()
-        .ok_or_else(|| format!("La colección “{collection}” no existe"))?;
-    if info.get_str("type").unwrap_or(COLLECTION_TYPE) != COLLECTION_TYPE {
-        return Err(format!("“{collection}” no es una colección (las vistas no se copian)"));
-    }
-    let indexes = first_batch(db, doc! { "listIndexes": collection }).await?;
-    Ok(CollectionMetadata {
-        collection: collection.to_string(),
-        options: info.get_document("options").cloned().unwrap_or_default(),
-        indexes,
-    })
-}
-
-/// Documentos del primer lote de un comando con cursor; los dos que se usan caben en uno.
-async fn first_batch(db: &Database, command: Document) -> Result<Vec<Document>, String> {
-    let reply = db.run_command(command, None).await.map_err(describe)?;
-    let batch = reply
-        .get_document("cursor")
-        .and_then(|c| c.get_array("firstBatch"))
-        .map_err(|e| e.to_string())?;
-    Ok(batch.iter().filter_map(|d| d.as_document().cloned()).collect())
 }
 
 fn partial_path(path: &Path) -> PathBuf {

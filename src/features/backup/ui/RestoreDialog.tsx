@@ -2,16 +2,17 @@ import { useState, type FormEvent } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { formatBytes } from "../../../shared/format";
+import type { CollectionResult } from "../../../shared/domain/jobs";
+import { CollectionChecklist } from "../../../shared/ui/CollectionChecklist";
 import { Modal, Spinner } from "../../../shared/ui/common";
 import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { JobProgressBar } from "../../../shared/ui/JobProgressBar";
+import { useJob } from "../../../shared/ui/useJob";
 import type { Session } from "../../connections/domain/session";
 import { TagBadge } from "../../connections/ui/TagBadge";
-import { Field } from "../../explorer/ui/Field";
-import { folderName, restoreTargets, type BackupEntry, type CollectionResult } from "../domain/backupSpec";
-import { CollectionChecklist } from "./CollectionChecklist";
+import { Field } from "../../../shared/ui/Field";
+import { folderName, restoreTargets, type BackupEntry } from "../domain/backupSpec";
 import { FolderField } from "./FolderField";
-import { JobProgressBar } from "./JobProgressBar";
-import { useBackupJob } from "./useBackupJob";
 
 export interface RestoreTarget {
   sid: string;
@@ -38,7 +39,7 @@ export function RestoreDialog({ sessions, initial, onDone, onClose }: Props) {
   const [entries, setEntries] = useState<BackupEntry[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [dropBefore, setDropBefore] = useState(false);
-  const job = useBackupJob();
+  const job = useJob();
   const target = targets.find((t) => t.sid === sid);
 
   const readFolder = async (folder: string) => {

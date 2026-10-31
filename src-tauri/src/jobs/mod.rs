@@ -1,5 +1,11 @@
-//! Trabajos de backup/restore en marcha y su cancelación: como en el shell (03), una bandera
-//! atómica que el trabajo mira entre lote y lote y que otro comando pone a `true`.
+//! Trabajos largos (backup, restore, sync) en marcha y su cancelación: como en el shell (03), una
+//! bandera atómica que el trabajo mira entre lote y lote y que otro comando pone a `true`.
+//!
+//! - `report`: el progreso y el resultado por colección.
+//! - `events`: el progreso como evento Tauri y el comando `cancel_job`.
+
+pub mod events;
+pub mod report;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,9 +33,9 @@ impl CancelFlag {
 
 /// Trabajos en marcha, por el id que les da el frontend.
 #[derive(Default)]
-pub struct BackupJobs(Mutex<HashMap<String, CancelFlag>>);
+pub struct Jobs(Mutex<HashMap<String, CancelFlag>>);
 
-impl BackupJobs {
+impl Jobs {
     /// Registra un trabajo; se da de baja solo al soltar el guardián.
     pub fn start(&self, job: &str) -> Result<JobGuard<'_>, String> {
         let flag = CancelFlag::default();
@@ -54,7 +60,7 @@ impl BackupJobs {
 }
 
 pub struct JobGuard<'a> {
-    jobs: &'a BackupJobs,
+    jobs: &'a Jobs,
     job: String,
     flag: CancelFlag,
 }
@@ -77,7 +83,7 @@ mod tests {
 
     #[test]
     fn cancelling_reaches_the_running_job_until_it_ends() {
-        let jobs = BackupJobs::default();
+        let jobs = Jobs::default();
         let guard = jobs.start("a").unwrap();
         assert!(jobs.start("a").is_err());
         assert_eq!(guard.cancel_flag().check(), Ok(()));

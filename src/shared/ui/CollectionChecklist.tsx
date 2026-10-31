@@ -10,7 +10,7 @@ interface Props {
   disabled?: boolean;
 }
 
-/** The collections a backup or restore covers, with a toggle for all of them. */
+/** The collections a job (backup, restore, sync) covers, with a toggle for all of them. */
 export function CollectionChecklist({ items, selected, onChange, disabled }: Props) {
   const all = items.length > 0 && selected.length === items.length;
   const toggle = (name: string, checked: boolean) =>

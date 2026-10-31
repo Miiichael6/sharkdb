@@ -1,6 +1,6 @@
-import { progressPercent, type JobProgress } from "../domain/backupSpec";
+import { progressPercent, type JobProgress } from "../domain/jobs";
 
-/** Overall progress of a running backup or restore, with the collection in course. */
+/** Overall progress of a running job (backup, restore, sync), with the collection in course. */
 export function JobProgressBar({ progress }: { progress: JobProgress | null }) {
   const percent = progress ? progressPercent(progress) : 0;
   return (

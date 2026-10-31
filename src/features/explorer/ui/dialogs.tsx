@@ -3,7 +3,7 @@ import { errorMessage } from "../../../shared/errors";
 import { Modal, Spinner } from "../../../shared/ui/common";
 import { defaultIndexName, parseJsonObject } from "../domain/indexSpec";
 import type { IndexSpec } from "../domain/mongo";
-import { Field } from "./Field";
+import { Field } from "../../../shared/ui/Field";
 import { useSubmit } from "./useSubmit";
 
 export interface PromptField {

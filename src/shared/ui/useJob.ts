@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { errorMessage } from "../../../shared/errors";
-import type { RunningJob } from "../application/backupService";
-import type { CollectionResult, JobProgress } from "../domain/backupSpec";
+import type { RunningJob } from "../application/jobRunner";
+import type { CollectionResult, JobProgress } from "../domain/jobs";
+import { errorMessage } from "../errors";
 
-/** Runs one backup or restore at a time, keeping its progress and error for the dialog. */
-export function useBackupJob() {
+/** Runs one job (backup, restore, sync) at a time, keeping its progress and error for the dialog. */
+export function useJob() {
   const [running, setRunning] = useState<RunningJob | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [error, setError] = useState("");
