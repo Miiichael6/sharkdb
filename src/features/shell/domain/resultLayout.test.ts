@@ -5,7 +5,7 @@ import { resultEntries, resultLayout, resultTitle, type ResultEntry } from "./re
 const value = (line: number, source = `x${line}`): ScriptResult => ({ kind: "value", value: line, line, source });
 const print = (line: number, text: string): ScriptResult => ({ kind: "print", text, line, source: `x${line}` });
 const error: ScriptError = { kind: "script", message: "ReferenceError: y is not defined", line: 3, column: 1 };
-const outcome = (results: ScriptResult[], err: ScriptError | null = null): ScriptOutcome => ({ results, error: err, truncated: false, elapsedMs: 1 });
+const outcome = (results: ScriptResult[], err: ScriptError | null = null): ScriptOutcome => ({ results, error: err, truncated: false, elapsedMs: 1, queryMs: null });
 const line = (text: string) => ({ text, json: false });
 const statement = (source: string, line = 3): ResultEntry => ({ kind: "statement", line, source, prints: [], value: null });
 const printed = (values: unknown[], line = 1): ScriptResult => ({ kind: "print", text: "…", values, line, source: `x${line}` });

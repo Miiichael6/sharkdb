@@ -5,7 +5,7 @@ import { StackSplit, type TopFit } from "../../../shared/ui/StackSplit";
 import { useServerOf } from "../../connections/ui/useTargetServer";
 import { WhereBar } from "../../connections/ui/WhereBar";
 import { formatScript } from "../domain/formatScript";
-import { elapsedText } from "../domain/outcome";
+import { timingText } from "../domain/outcome";
 import { SCRIPT_START } from "../domain/runOrigin";
 import type { ShellTab as Tab } from "../domain/tabs";
 import { shellCompletionSource } from "./completionSource";
@@ -153,9 +153,9 @@ export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange,
       <header className="shell-head">
         <WhereBar where={{ server: serverOf(tab.sid), db: tab.db, coll: tab.coll }}>
           {run.outcome && (
-            <span className="where-part muted" title="Tiempo de la consulta">
+            <span className="where-part muted" title="Tiempo de la consulta y de carga de los resultados">
               <ShellActionIcon action="time" />
-              {elapsedText(run.outcome.elapsedMs)}
+              {timingText(run.outcome)}
             </span>
           )}
         </WhereBar>

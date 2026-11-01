@@ -1,15 +1,17 @@
 //! API del shell (`db`, colecciones, cursores). Las clases viven en `prelude.js`; aquí se
 //! instalan sobre las nativas de un `MongoBridge` y se traducen los ganchos de cada ejecución.
 
+mod cursor_result;
+
 use std::rc::Rc;
 
 use rquickjs::{Ctx, Function, Object, Value};
 
+use self::cursor_result::cursor_result;
 use super::bridge::MongoBridge;
-use super::convert::js_to_bson;
 use super::errors::{describe_thrown, to_bson_reported};
 use super::module::{RunHooks, ShellModule};
-use super::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptOutput};
+use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutput};
 
 const SOURCE: &str = include_str!("prelude.js");
 /// Global oculto con los ganchos que define `prelude.js`.
@@ -33,10 +35,11 @@ impl ShellModule for Prelude {
 }
 
 /// Una ejecución sobre la base de datos `db`; el valor final que sea un cursor se entrega con
-/// un primer lote de `first_batch` documentos.
+/// un primer lote de `first_batch` documentos, leído de `bridge`.
 pub struct ShellRun<'a> {
     pub db: &'a str,
     pub first_batch: usize,
+    pub bridge: &'a dyn MongoBridge,
 }
 
 impl RunHooks for ShellRun<'_> {
@@ -59,7 +62,7 @@ impl RunHooks for ShellRun<'_> {
         let field = |name: &str| described.get::<_, Value>(name).map_err(|_| script_error());
         let kind: String = described.get("kind").map_err(|_| script_error())?;
         let result = match kind.as_str() {
-            "cursor" => cursor_result(ctx, &described).map_err(|_| script_error())?,
+            "cursor" => cursor_result(ctx, &described, self.bridge)?,
             "write" => ScriptOutput::Write {
                 value: to_bson_reported(ctx, &field("value")?)?,
             },
@@ -73,17 +76,4 @@ impl RunHooks for ShellRun<'_> {
 
 fn hook<'js>(ctx: &Ctx<'js>, name: &str) -> rquickjs::Result<Function<'js>> {
     ctx.globals().get::<_, Object>(SHELL_GLOBAL)?.get(name)
-}
-
-fn cursor_result<'js>(ctx: &Ctx<'js>, described: &Object<'js>) -> rquickjs::Result<ScriptOutput> {
-    let documents: Vec<Value> = described.get("documents")?;
-    Ok(ScriptOutput::Cursor {
-        ns: described.get("ns")?,
-        cursor_id: described.get::<_, Option<CursorId>>("id")?,
-        documents: documents
-            .iter()
-            .map(|doc| js_to_bson(ctx, doc))
-            .collect::<rquickjs::Result<_>>()?,
-        exhausted: described.get("exhausted")?,
-    })
 }

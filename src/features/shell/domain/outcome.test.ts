@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { elapsedText, missingForPage, pageOf, READ_ONLY_TEXT, scriptErrorText } from "./outcome";
+import { elapsedText, missingForPage, pageOf, READ_ONLY_TEXT, scriptErrorText, timingText } from "./outcome";
 
 const docs = (n: number) => Array.from({ length: n }, (_, i) => ({ _id: i }));
 
@@ -50,5 +50,15 @@ describe("elapsedText", () => {
     expect(elapsedText(12)).toBe("0.012 s");
     expect(elapsedText(2350)).toBe("2.350 s");
     expect(elapsedText(0)).toBe("0.000 s");
+  });
+});
+
+describe("timingText", () => {
+  it("splits query and load time when the script queried the server", () => {
+    expect(timingText({ elapsedMs: 76, queryMs: 6 })).toBe("0.006 s · carga 0.070 s");
+  });
+
+  it("shows only the total when there was no query", () => {
+    expect(timingText({ elapsedMs: 12, queryMs: null })).toBe("0.012 s");
   });
 });
