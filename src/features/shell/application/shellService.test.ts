@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { CursorResult } from "../domain/outcome";
+import type { CursorResult, ScriptResult } from "../domain/outcome";
 import type { ShellGateway } from "./ports";
 import { createShellService } from "./shellService";
 
 const SHELL = { sid: "s1", tab: "t1" };
+const PRINTED: ScriptResult = { kind: "print", text: "hola", line: 1, source: "print('hola')" };
 const CURSOR_ID = 7;
 const docs = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => ({ _id: from + i }));
 
@@ -14,7 +15,7 @@ function fakeGateway() {
   const gateway: ShellGateway = {
     async execute(shell, db, code) {
       calls.push(`execute ${shell.tab} ${db} ${code}`);
-      return { results: [{ kind: "print", text: "hola" }], error: null, elapsedMs: 3 };
+      return { results: [PRINTED], error: null, truncated: false, elapsedMs: 3 };
     },
     async nextBatch(shell, cursorId, size) {
       calls.push(`next ${shell.tab} ${cursorId} ${size}`);
@@ -43,7 +44,7 @@ describe("shellService", () => {
     const outcome = await shell.execute(SHELL, "test", "print('hola')");
     await shell.cancel(SHELL);
     await shell.close(SHELL);
-    expect(outcome.results).toEqual([{ kind: "print", text: "hola" }]);
+    expect(outcome.results).toEqual([PRINTED]);
     expect(calls).toEqual(["execute t1 test print('hola')", "cancel t1", "closeShell t1"]);
   });
 

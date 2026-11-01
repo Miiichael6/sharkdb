@@ -1,10 +1,11 @@
 import { SwimmingShark } from "../../../../shared/ui/common";
-import { scriptErrorText, type ScriptResult } from "../../domain/outcome";
+import { resultEntries, resultLayout, TRUNCATED_TEXT, type ResultEntry } from "../../domain/resultLayout";
 import type { RunState } from "../useShellRun";
-import { CursorResult } from "./CursorResult";
+import { ResultEntryView } from "./ResultEntryView";
 import { ResultsToolbar } from "./ResultsToolbar";
+import { ResultTabs } from "./ResultTabs";
+import { StackedResults } from "./StackedResults";
 import type { ResultViewState } from "./useResultView";
-import { ValueResult } from "./ValueResult";
 
 interface Props {
   /** Session the script ran in. */
@@ -13,35 +14,34 @@ interface Props {
   view: ResultViewState;
 }
 
-function ResultItem({ sid, result, index, run, view }: Props & { result: ScriptResult; index: number }) {
-  switch (result.kind) {
-    case "print":
-      return <pre className="output-print">{result.text}</pre>;
-    case "cursor": {
-      const pager = run.pagers.get(index);
-      return pager ? <CursorResult sid={sid} pager={pager} view={view} /> : null;
-    }
+/** One result fills the area as it always did; two stack; three or more go into sub-tabs. */
+function LaidOutResults({ sid, run, view, entries }: Props & { entries: ResultEntry[] }) {
+  switch (resultLayout(entries)) {
+    case "tabs":
+      return <ResultTabs sid={sid} entries={entries} run={run} view={view} />;
+    case "stacked":
+      return <StackedResults sid={sid} entries={entries} run={run} view={view} />;
     default:
-      return <ValueResult value={result.value} view={view} />;
+      return (
+        <div className="script-output">
+          {entries.length ? <ResultEntryView sid={sid} entry={entries[0]} run={run} view={view} /> : <div className="muted small">El script no devolvió nada.</div>}
+        </div>
+      );
   }
 }
 
-/** What the last run printed and returned, stacked in order, under the view toolbar. */
+/** What the last run printed and returned, one result per statement. */
 function RunOutput({ sid, run, view }: Props) {
   if (run.running) return <div className="script-output center"><SwimmingShark /></div>;
   if (run.failure) return <div className="script-output"><div className="output-error">{run.failure}</div></div>;
   if (!run.outcome) {
     return <div className="script-output center muted small">Ctrl+Enter o F5 ejecuta la selección o todo el script</div>;
   }
-  const { results, error } = run.outcome;
   return (
-    <div className="script-output">
-      {results.map((r, i) => (
-        <ResultItem key={i} sid={sid} result={r} index={i} run={run} view={view} />
-      ))}
-      {error && <div className={`output-error${error.kind === "readOnly" ? " read-only" : ""}`}>{scriptErrorText(error)}</div>}
-      {!error && !results.length && <div className="muted small">El script no devolvió nada.</div>}
-    </div>
+    <>
+      <LaidOutResults sid={sid} run={run} view={view} entries={resultEntries(run.outcome)} />
+      {run.outcome.truncated && <div className="results-truncated muted small">{TRUNCATED_TEXT}</div>}
+    </>
   );
 }
 

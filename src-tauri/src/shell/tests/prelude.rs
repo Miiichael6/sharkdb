@@ -3,8 +3,8 @@ use std::rc::Rc;
 use mongodb::bson::{Bson, doc};
 
 use super::fake_bridge::FakeBridge;
-use super::{prints, test_limits, value};
-use crate::shell::outcome::{ScriptOutcome, ScriptResult};
+use super::{outputs, prints, test_limits, value};
+use crate::shell::outcome::{ScriptOutcome, ScriptOutput};
 use crate::shell::session::{FIRST_BATCH_SIZE, ShellSession};
 use crate::shell::watchdog::Watchdog;
 
@@ -54,13 +54,13 @@ fn final_cursor_returns_first_batch_and_stays_open() {
     let (mut session, bridge) = session();
     let outcome = run_ok(&mut session, "db.x.find({})");
     let [
-        ScriptResult::Cursor {
+        ScriptOutput::Cursor {
             ns,
             cursor_id,
             documents,
             exhausted,
         },
-    ] = &outcome.results[..]
+    ] = &outputs(&outcome)[..]
     else {
         panic!("se esperaba un cursor: {:?}", outcome.results);
     };
@@ -71,18 +71,42 @@ fn final_cursor_returns_first_batch_and_stays_open() {
 
     let outcome = run_ok(&mut session, "db.x.find({}).limit(3)");
     let [
-        ScriptResult::Cursor {
+        ScriptOutput::Cursor {
             cursor_id,
             documents,
             exhausted,
             ..
         },
-    ] = &outcome.results[..]
+    ] = &outputs(&outcome)[..]
     else {
         panic!("se esperaba un cursor: {:?}", outcome.results);
     };
     assert_eq!((documents.len(), *exhausted, *cursor_id), (3, true, None));
     assert!(bridge.retained.borrow().is_empty());
+}
+
+#[test]
+fn each_find_leaves_its_own_open_cursor() {
+    let (mut session, bridge) = session();
+    let outcome = run_ok(
+        &mut session,
+        "db.getCollection('a').find({})
+db.b.find({})
+
+db.c.find({})",
+    );
+    let cursors: Vec<_> = outcome
+        .results
+        .iter()
+        .filter_map(|result| match &result.output {
+            ScriptOutput::Cursor { ns, cursor_id, .. } => Some((result.line, ns.as_str(), *cursor_id)),
+            _ => None,
+        })
+        .collect();
+    let summary: Vec<_> = cursors.iter().map(|(line, ns, _)| (*line, *ns)).collect();
+    assert_eq!(summary, [(1, "test.a"), (2, "test.b"), (4, "test.c")]);
+    let ids: Vec<_> = cursors.iter().map(|(_, _, id)| id.expect("abierto")).collect();
+    assert_eq!(*bridge.retained.borrow(), ids);
 }
 
 #[test]
@@ -120,7 +144,7 @@ fn use_switches_db_for_the_rest_of_the_script() {
 fn insert_one_sends_insert_command_and_returns_write_result() {
     let (mut session, _) = session();
     let outcome = run_ok(&mut session, "db.x.insertOne({ _id: 7, a: 'b' })");
-    let [ScriptResult::Write { value }] = &outcome.results[..] else {
+    let [ScriptOutput::Write { value }] = &outputs(&outcome)[..] else {
         panic!("se esperaba una escritura: {:?}", outcome.results);
     };
     assert_eq!(

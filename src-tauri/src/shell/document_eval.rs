@@ -13,7 +13,7 @@ use serde::{Serialize, Serializer};
 use super::engine::{Engine, EngineLimits};
 use super::errors::to_bson_reported;
 use super::module::RunHooks;
-use super::outcome::{ScriptError, ScriptErrorKind, ScriptResult};
+use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutput};
 use super::watchdog::Watchdog;
 
 const BYTES_PER_MB: usize = 1024 * 1024;
@@ -46,8 +46,8 @@ pub fn evaluate(text: &str) -> DocumentEval {
     if let Some(error) = outcome.error {
         return failed(at_original_position(error));
     }
-    let document = outcome.results.into_iter().find_map(|result| match result {
-        ScriptResult::Value { value } => Some(value),
+    let document = outcome.results.into_iter().find_map(|result| match result.output {
+        ScriptOutput::Value { value } => Some(value),
         _ => None,
     });
     match document {
@@ -91,9 +91,9 @@ impl RunHooks for DocumentOnly {
         &self,
         ctx: &Ctx<'js>,
         value: Value<'js>,
-    ) -> Result<Option<ScriptResult>, ScriptError> {
+    ) -> Result<Option<ScriptOutput>, ScriptError> {
         match to_bson_reported(ctx, &value)? {
-            value @ Bson::Document(_) => Ok(Some(ScriptResult::Value { value })),
+            value @ Bson::Document(_) => Ok(Some(ScriptOutput::Value { value })),
             _ => Err(ScriptError::new(ScriptErrorKind::Script, NOT_A_DOCUMENT)),
         }
     }

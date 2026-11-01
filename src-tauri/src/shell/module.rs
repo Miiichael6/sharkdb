@@ -3,21 +3,21 @@
 
 use rquickjs::{Ctx, Value};
 
-use super::outcome::{ScriptError, ScriptResult};
+use super::outcome::{ScriptError, ScriptOutput};
 
 /// Módulo que el motor instala en cada contexto JS nuevo (tipos BSON, `print`, API `db`...).
 pub trait ShellModule {
     fn install(&self, ctx: &Ctx<'_>) -> rquickjs::Result<()>;
 }
 
-/// Lo que se hace antes de cada script y cómo se traduce su valor final.
+/// Lo que se hace antes de cada script y cómo se traduce el valor de cada sentencia.
 pub trait RunHooks {
     fn before_run(&self, ctx: &Ctx<'_>) -> rquickjs::Result<()>;
 
-    /// `None` si el script no deja nada que mostrar (`undefined`).
+    /// `None` si la sentencia no deja nada que mostrar (`undefined`).
     fn final_result<'js>(
         &self,
         ctx: &Ctx<'js>,
         value: Value<'js>,
-    ) -> Result<Option<ScriptResult>, ScriptError>;
+    ) -> Result<Option<ScriptOutput>, ScriptError>;
 }

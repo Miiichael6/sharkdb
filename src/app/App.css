@@ -2417,6 +2417,91 @@ button.shell-action {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* Two results share the height, one under the other, each in its own frame. */
+.stacked-results {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  user-select: text;
+}
+.stacked-result {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.stacked-result > .doc-result {
+  flex: 1 1 0;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+}
+.stacked-result > .output-print,
+.stacked-result > .output-value,
+.stacked-result > .output-error {
+  padding: 6px 8px;
+}
+/* Three or more results: one sub-tab each; hidden tabs stay mounted to keep their page. */
+.result-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Same segmented control as the shell tabs (`.tab-track`, `.tab`, `.tab-close`). */
+.result-tab-bar {
+  gap: 4px;
+  background: transparent;
+}
+/* Many results: tabs fill the track while they fit, then keep this width and the track scrolls
+   (wheel or the arrows). No scrollbar: it would cut into the rounded track. */
+.result-tab-bar .tab-track {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.result-tab-bar .tab-track::-webkit-scrollbar {
+  height: 0;
+}
+.result-tab-bar .tab-track .tab {
+  flex: 1 0 160px;
+}
+.result-tab-arrow {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+.result-tab-arrow:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.result-tab-arrow:disabled {
+  opacity: 0.35;
+}
+.result-tab-bar .tab.error {
+  color: var(--error-fg);
+}
+.result-tab-panel[hidden] {
+  display: none;
+}
+.results-truncated {
+  padding: 4px 12px;
+  border-top: 1px solid var(--border);
+}
 
 /* ---------- results ---------- */
 

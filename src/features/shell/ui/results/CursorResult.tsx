@@ -12,17 +12,21 @@ interface Props {
   sid: string;
   pager: CursorPager;
   view: ResultViewState;
+  /** Replaces the namespace in the header when several results share the panel. */
+  title?: string;
 }
 
-/** A cursor left as the script's value: its namespace, the page bar and the page's documents. */
-export function CursorResult({ sid, pager, view }: Props) {
+/** A cursor left as a statement's value: its namespace, the page bar and the page's documents. */
+export function CursorResult({ sid, pager, view, title }: Props) {
   const { paging, setPaging, page, loading, error, reload } = useCursorPage(pager);
   const documentMenu = useDocumentMenu(targetOfNamespace(sid, pager.ns), pager, reload, view.zone);
 
   return (
     <section className="doc-result" aria-label={`Resultado de ${pager.ns}`}>
       <header className="result-head">
-        <span className="mono">{pager.ns}</span>
+        <span className="mono" title={pager.ns}>
+          {title ?? pager.ns}
+        </span>
         {loading && <Spinner />}
         <span className="spacer" />
         <PagingBar paging={paging} shown={page?.documents.length ?? 0} hasMore={!!page?.hasMore} disabled={loading} onChange={setPaging} />
