@@ -1,5 +1,5 @@
-// App data lives as JSON in <app config dir>: saved connections in connections.json and each
-// connection's query history in history/<connection id>.json. The frontend owns the shapes;
+// App data lives as JSON in <app config dir>: saved connections in connections.json, backup
+// schedules in backup-schedules.json and each connection's query history in history/<connection id>.json. The frontend owns the shapes;
 // here they are just opaque JSON values, except for the secrets `secrets` keeps out of the file.
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 use crate::secrets::{self, KeyringVault};
 
 const CONNECTIONS_FILE: &str = "connections.json";
+const SCHEDULES_FILE: &str = "backup-schedules.json";
 const HISTORY_DIR: &str = "history";
 
 pub(crate) fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -76,6 +77,16 @@ pub fn save_connections(app: AppHandle, mut connections: Value) -> Result<(), St
     secrets::seal(&mut connections, &KeyringVault)?;
     write_json(&path, &connections)?;
     secrets::forget_removed(&before, &connections, &KeyringVault)
+}
+
+#[tauri::command]
+pub fn load_backup_schedules(app: AppHandle) -> Result<Value, String> {
+    read_json(&config_dir(&app)?.join(SCHEDULES_FILE), Value::Array(vec![]))
+}
+
+#[tauri::command]
+pub fn save_backup_schedules(app: AppHandle, schedules: Value) -> Result<(), String> {
+    write_json(&config_dir(&app)?.join(SCHEDULES_FILE), &schedules)
 }
 
 /// Tag of production connections: like a protected one, it's never modified.

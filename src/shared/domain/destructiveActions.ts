@@ -13,7 +13,8 @@ export type DestructiveAction =
   | "dropIndex"
   | "removeFunction"
   | "removeDocuments"
-  | "deleteConnection";
+  | "deleteConnection"
+  | "deleteSchedule";
 
 /** What gets deleted: the connection, plus the database, collection and item inside it when they apply. */
 export interface DestructiveTarget {
@@ -116,6 +117,13 @@ const ACTIONS: Record<DestructiveAction, ActionText> = {
     subject: (t) => `la conexión “${t.server.name}”`,
     loses: () => "Solo la conexión guardada en la app; el servidor y sus datos no se tocan.",
     confirmLabel: () => "Eliminar conexión",
+  },
+  deleteSchedule: {
+    level: "simple",
+    title: () => "Eliminar backup programado",
+    subject: (t) => `el backup programado “${t.name}”`,
+    loses: () => "Solo la programación: las copias ya guardadas en su carpeta no se tocan.",
+    confirmLabel: () => "Eliminar programación",
   },
 };
 

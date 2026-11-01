@@ -21,6 +21,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             store::load_connections,
             store::save_connections,
+            store::load_backup_schedules,
+            store::save_backup_schedules,
             store::load_history,
             store::save_history,
             files::read_script,

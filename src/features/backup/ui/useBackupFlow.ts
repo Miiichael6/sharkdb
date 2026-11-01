@@ -9,40 +9,52 @@ import { connectOnRequest } from "../../connections/ui/connectOnRequest";
 import { backupConfirmation, type BackupRequest } from "../domain/backupSpec";
 import { BACKUP_VIEW, BACKUP_WINDOW, type BackupChoice } from "./backupViews";
 
-interface Options {
+export interface BackupWindowsContext {
   connections: MongoConnection[];
   sessions: Session[];
   /** Lends connection `id`: its session when it's open, otherwise one opened apart. */
   borrowSession: (id: string) => Promise<BorrowedSession>;
+}
+
+interface Options extends BackupWindowsContext {
   /** Runs the confirmed backup in the background; settles when it ends. */
   run: (request: BackupRequest) => Promise<unknown> | undefined;
 }
 
 /**
- * The backup in two windows, like the sync: the selection, then "Se va a GUARDAR en {carpeta}" with
- * the confirmation word. "Volver" reopens the selection with what was chosen.
+ * The backup in two windows, like the sync: the selection (starting from `initial` when given), then
+ * "Se va a GUARDAR en {carpeta}" with the confirmation word. "Volver" reopens the selection with what
+ * was chosen. `use` gets the confirmed request; what the windows borrowed is given back once the
+ * promise it returns settles.
  */
+export async function chooseBackup(
+  { connections, sessions, borrowSession }: BackupWindowsContext,
+  origin: SelectionOrigin,
+  use: (request: BackupRequest) => Promise<unknown> | undefined,
+  initial?: BackupRequest,
+) {
+  const opened = connectOnRequest(sessions, borrowSession);
+  let settled: Promise<unknown> | undefined;
+  try {
+    const choice = await selectThenConfirm<BackupChoice>(
+      (previous) =>
+        openModalWindow(
+          BACKUP_VIEW,
+          { connections, sessions: opened.sessions(), origin, initial: previous?.request ?? initial },
+          { ...BACKUP_WINDOW, onRequest: opened.connect },
+        ),
+      ({ request, plan }) => backupConfirmation(plan, connectionEndpoint(connections, request.sid).name, request.dir),
+    );
+    if (choice) settled = use(choice.request);
+  } finally {
+    void Promise.resolve(settled).finally(opened.release);
+  }
+}
+
+/** The backup windows, then the confirmed backup runs in the background. */
 export function useBackupFlow({ connections, sessions, borrowSession, run }: Options) {
   return useCallback(
-    async (origin: SelectionOrigin) => {
-      const opened = connectOnRequest(sessions, borrowSession);
-      let settled: Promise<unknown> | undefined;
-      try {
-        const choice = await selectThenConfirm<BackupChoice>(
-          (previous) =>
-            openModalWindow(
-              BACKUP_VIEW,
-              { connections, sessions: opened.sessions(), origin, initial: previous?.request },
-              { ...BACKUP_WINDOW, onRequest: opened.connect },
-            ),
-          ({ request, plan }) => backupConfirmation(plan, connectionEndpoint(connections, request.sid).name, request.dir),
-        );
-        if (choice) settled = run(choice.request);
-      } finally {
-        // What the windows borrowed is given back once the operation ends (or when nothing runs).
-        void Promise.resolve(settled).finally(opened.release);
-      }
-    },
+    (origin: SelectionOrigin) => chooseBackup({ connections, sessions, borrowSession }, origin, run),
     [connections, sessions, borrowSession, run],
   );
 }

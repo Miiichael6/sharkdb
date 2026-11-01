@@ -25,6 +25,8 @@ export const HOST_ICON = icon("M1.2 1.8h9.6v6.4H1.2zM6 8.2v2M3.8 10.4h4.4");
 export const INFO_ICON = icon("M6 1.2a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6M6 5.4v3M6 3.6v.1");
 /** "Ver log": lines of a page. */
 export const LOG_ICON = icon("M2 1.5h8v9H2zM4 4h4M4 6h4M4 8h2.5");
+/** "Duplicar": two sheets, one over the other. */
+export const DUPLICATE_ICON = icon("M4 4h6.5v6.5H4zM8 4V1.5H1.5V8H4");
 /** "Desconectar": a plug pulled apart. */
 export const DISCONNECT_ICON = icon("M1.5 10.5 3.5 8.5M3 6l3 3M2.8 6.2l1.3-1.3a1.8 1.8 0 0 1 2.6 0l.4.4M10.5 1.5 8.5 3.5M9.2 5.8 7.9 7.1a1.8 1.8 0 0 1-2.6 0l-.4-.4M6 3l3 3");
 

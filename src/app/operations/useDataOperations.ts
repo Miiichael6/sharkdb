@@ -15,11 +15,19 @@ import { useOperations } from "./useOperations";
  */
 export function useDataOperations(connections: MongoConnection[], onTargetChanged: () => void) {
   const { sync, backup, operations } = useServices();
-  const { start } = useOperations();
+  const { start, cancel, operations: list } = useOperations();
 
   // Registered connections, not sessions: a sync may have just connected its ends.
   const connection = (sid: string): OperationEndpoint => connectionEndpoint(connections, sid);
   const refreshAtEnd = (started: StartedOperation | null) => started?.settled.then(onTargetChanged);
+  const startBackup = (request: BackupRequest) => {
+    const spec = { kind: "backup", title: "Backup", source: connection(request.sid), target: folderEndpoint(request.dir) } as const;
+    return start(
+      spec,
+      (onProgress) => backup.backup(request, onProgress),
+      (results) => backupSummary(request.dir, request.databases.length, results),
+    );
+  };
 
   return {
     /** Why nothing can start writing to `sid` now: another operation already writes there. */
@@ -33,13 +41,13 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
         start(spec, (onProgress) => sync.sync(request, onProgress), (results) => syncSummary(target.name, request.databases.length, results)),
       );
     },
-    backup(request: BackupRequest) {
-      const spec = { kind: "backup", title: "Backup", source: connection(request.sid), target: folderEndpoint(request.dir) } as const;
-      return start(
-        spec,
-        (onProgress) => backup.backup(request, onProgress),
-        (results) => backupSummary(request.dir, request.databases.length, results),
-      )?.settled;
+    /** The backup as an operation, to follow or cancel it; null when it didn't start. */
+    startBackup,
+    backup: (request: BackupRequest) => startBackup(request)?.settled,
+    /** Cancels operation `id`, once confirmed, if it's still there. */
+    cancel(id: string) {
+      const op = list.find((o) => o.id === id);
+      return op ? cancel(op) : Promise.resolve();
     },
     restore(request: RestoreRequest) {
       const target = connection(request.targetSid);
