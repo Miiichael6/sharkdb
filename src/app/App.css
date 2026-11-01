@@ -399,6 +399,90 @@ input[type="checkbox"] {
   }
 }
 
+/* The sad shark (SadShark): nose down, sinking a little, fins hanging and one bubble rising from its mouth. */
+/* The panel stretches to the tab's height so the empty sea centres in what is left under the hint. */
+.panel-fill {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 100%;
+}
+.empty-sea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+.sad-shark {
+  width: 320px;
+  height: 284px;
+  overflow: visible;
+}
+.shark-sad {
+  transform-box: view-box;
+  transform-origin: 512px 512px;
+  animation: shark-sulk 4s ease-in-out infinite;
+}
+.shark-sad .shark-fins {
+  animation: shark-droop 4s ease-in-out infinite;
+}
+.sad-bubble {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubble-rise 4s ease-in infinite;
+}
+@keyframes shark-sulk {
+  0%,
+  100% {
+    transform: translateY(18px) rotate(7deg);
+  }
+  50% {
+    transform: translateY(30px) rotate(9deg);
+  }
+}
+@keyframes shark-droop {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(-13deg);
+  }
+}
+@keyframes bubble-rise {
+  0% {
+    transform: translate(0, 40px) scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(18px, -380px) scale(1.15);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shark-sad {
+    animation: none;
+    transform: translateY(18px) rotate(7deg);
+  }
+  .shark-sad .shark-fins {
+    animation: none;
+    transform: rotate(-8deg);
+  }
+  .sad-bubble {
+    animation: none;
+    transform: translateY(-160px);
+  }
+}
+
 .search {
   border-radius: 999px;
   padding: 6px 14px;

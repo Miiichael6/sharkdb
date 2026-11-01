@@ -76,8 +76,21 @@ const TAIL_WAG = SHARK_BODY.slice(0, SHARK_TAIL).map(([, points]) =>
   ).join(";"),
 );
 
-/** The shark's facets; swimming wags the tail and flaps the fins (slower when calm), staring gives it a hunter's look. */
-function Shark({ swimming = false, calm = false, staring = false }: { swimming?: boolean; calm?: boolean; staring?: boolean }) {
+/**
+ * The shark's facets; swimming wags the tail and flaps the fins (slower when calm), staring gives it a hunter's look
+ * and sad drops its fins, its brow and its gaze.
+ */
+function Shark({
+  swimming = false,
+  calm = false,
+  staring = false,
+  sad = false,
+}: {
+  swimming?: boolean;
+  calm?: boolean;
+  staring?: boolean;
+  sad?: boolean;
+}) {
   // Each facet is stroked in its own color so no seams show between them.
   const facet = ([fill, points]: [string, string], i: number) => (
     <polygon key={i} points={points} fill={fill} stroke={fill} />
@@ -90,7 +103,7 @@ function Shark({ swimming = false, calm = false, staring = false }: { swimming?:
     </polygon>
   );
   return (
-    <g className={swimming ? `shark-swim${calm ? " shark-calm" : ""}` : undefined}>
+    <g className={swimming ? `shark-swim${calm ? " shark-calm" : ""}` : sad ? "shark-sad" : undefined}>
       <g strokeWidth={2} strokeLinejoin="round">
         {SHARK_BODY.map(bodyFacet)}
         <g className="shark-fins">{SHARK_FINS.map(facet)}</g>
@@ -108,6 +121,13 @@ function Shark({ swimming = false, calm = false, staring = false }: { swimming?:
           <circle cx="820" cy="487" r="5.5" fill="#FFFFFF" />
           <polygon points="784,450 842,454 838,477 786,464" fill="#6EC1F5" stroke="#6EC1F5" strokeWidth={2} />
           <line x1="788" y1="464" x2="836" y2="477" stroke="#15437F" strokeWidth={5} strokeLinecap="round" />
+        </>
+      ) : sad ? (
+        // The brow rises towards the snout, the opposite of the hunter's, the eye looks down and a tear falls.
+        <>
+          <circle cx="804" cy="490" r="7" fill="#FFFFFF" />
+          <line x1="782" y1="452" x2="826" y2="418" stroke="#15437F" strokeWidth={7} strokeLinecap="round" />
+          <path d="M796 512 Q 784 534 796 542 Q 808 534 796 512 Z" fill="#BFE6FF" />
         </>
       ) : (
         <circle cx="805" cy="472" r="7" fill="#FFFFFF" />
@@ -167,6 +187,19 @@ export function SwimmingShark() {
   return (
     <svg className="swimming-shark" viewBox="0 130 1000 760" role="img" aria-label="Ejecutando">
       <Shark swimming staring />
+    </svg>
+  );
+}
+
+/** The shark alone in an empty sea, fins down, with one bubble rising: nothing open yet. */
+export function SadShark({ label }: { label: string }) {
+  return (
+    <svg className="sad-shark" viewBox="0 0 1060 940" role="img" aria-label={label}>
+      <g className="sad-bubble">
+        <circle cx="962" cy="540" r="28" fill="#8FD3FF" fillOpacity={0.25} stroke="#6EC1F5" strokeWidth={6} />
+        <circle cx="952" cy="530" r="7" fill="#FFFFFF" />
+      </g>
+      <Shark sad />
     </svg>
   );
 }

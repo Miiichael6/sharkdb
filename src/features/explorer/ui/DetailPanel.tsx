@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useServices } from "../../../app/services";
 import { formatBytes } from "../../../shared/format";
 import { errorMessage } from "../../../shared/errors";
-import { Spinner } from "../../../shared/ui/common";
+import { SadShark, Spinner } from "../../../shared/ui/common";
 import type { ExplorerService } from "../application/explorerService";
 import type { Doc, IndexSpec } from "../domain/mongo";
 import type { TreeNode } from "../domain/tree";
@@ -100,7 +100,7 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
   if (!content) return <div className="panel center"><Spinner /></div>;
 
   return (
-    <div className="panel">
+    <div className={content.type === "serverHint" ? "panel panel-fill" : "panel"}>
       <div className="panel-head">
         <h2>{content.title}</h2>
         {node.kind === "server" && (
@@ -114,7 +114,14 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
 
       {content.type === "hint" && <p className="muted">{content.text}</p>}
       {content.type === "serverHint" && (
-        <p className="muted">{childCount ?? "…"} bases de datos. Clic derecho para más opciones.</p>
+        <>
+          <p className="muted">{childCount ?? "…"} bases de datos. Clic derecho para más opciones.</p>
+          {/* This panel only shows while no tab is open: the sea is empty. */}
+          <div className="empty-sea">
+            <SadShark label="No hiciste ninguna consulta" />
+            <p className="muted">No hiciste ninguna consulta, ni un pez en el mar.</p>
+          </div>
+        </>
       )}
       {content.type === "json" && <pre className="json">{JSON.stringify(content.data, null, 2)}</pre>}
       {content.type === "code" && <pre className="json">{content.code}</pre>}
