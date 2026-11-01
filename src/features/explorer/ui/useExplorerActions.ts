@@ -14,7 +14,7 @@ import { useServerOf } from "../../connections/ui/useTargetServer";
 import { duplicateName, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
-import { childKey, parentKey, serverKey, type NodeKind, type TreeNode } from "../domain/tree";
+import { childKey, parentKey, serverKey, type TreeNode } from "../domain/tree";
 import type { PanelMode } from "./DetailPanel";
 import type { PromptField } from "./dialogs";
 import type { Action } from "./Explorer";
@@ -67,13 +67,6 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
 
   const closeDialog = () => setDialog(null);
 
-  const ancestor = (n: TreeNode, kind: NodeKind): TreeNode | undefined => {
-    for (let k: string | null = n.key; k; k = parentKey(k)) {
-      const node = tree.node(k);
-      if (node?.kind === kind) return node;
-    }
-  };
-
   const refreshKey = (key: string | null | undefined) => {
     const n = tree.node(key ?? null);
     if (n) tree.refresh(n);
@@ -90,7 +83,7 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     n.kind === "indexes" ? n.key : n.kind === "index" ? parentKey(n.key)! : childKey(n.key, "indexes", "Indexes");
 
   const collectionsFolderKey = (n: TreeNode) =>
-    ancestor(n, "collections")?.key ?? childKey(ancestor(n, "database")!.key, "collections", "Collections");
+    tree.ancestor(n, "collections")?.key ?? childKey(tree.ancestor(n, "database")!.key, "collections", "Collections");
 
   const usersFolderKey = (n: TreeNode) => (n.kind === "users" ? n.key : parentKey(n.key));
 
@@ -138,7 +131,7 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
   const submitIndex = async (spec: IndexSpec) => {
     if (dialog?.kind !== "index") return;
     const { node: n, initial } = dialog;
-    const coll = ancestor(n, "collection");
+    const coll = tree.ancestor(n, "collection");
     if (initial) await explorer.replaceIndex(n.sid, n.db!, n.coll!, initial, spec);
     else await explorer.createIndex(n.sid, n.db!, n.coll!, spec);
     setDialog(null);

@@ -19,15 +19,17 @@ interface Props {
 
 /**
  * "Bases de datos", the content of its own window: every database of one connection, with a star
- * that makes it a favorite and a multiple selection that opens the chosen ones as temporary. The
- * arrows move, Space toggles, Enter or a double click opens; Escape closes unless the choice is mandatory.
+ * that makes it a favorite and a check per database the explorer shows: it opens with the explorer's
+ * current list checked, and Abrir applies it (new ones open as temporary, unchecked ones leave). A
+ * favorite stays checked while it has its star. A click only checks or unchecks its row (Shift adds a
+ * range); the arrows move, Space toggles; Escape closes unless the choice is mandatory.
  */
 export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Props) {
   const [error, setError] = useState("");
   const form = useOpenDatabaseForm({ data, onFavorites, onError: (e) => setError(errorMessage(e)) });
   const [creating, setCreating] = useState(form.emptyServer);
   const listRef = useRef<HTMLUListElement>(null);
-  const { selected, anchor } = form.selection;
+  const { anchor } = form.selection;
 
   useEffect(() => {
     listRef.current?.querySelector(".anchor")?.scrollIntoView({ block: "nearest" });
@@ -40,12 +42,12 @@ export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Prop
     return () => window.removeEventListener("keydown", onKey);
   }, [onDone, data.mandatory]);
 
-  const open = (databases = selected) => onDone({ databases });
-  const canOpen = selected.length > 0 || form.favorites.length > 0;
+  const open = (databases = form.checked) => onDone({ databases });
+  const canOpen = form.checked.length > 0;
 
   const create = async (db: string, coll: string) => {
     await onCreate(db, coll);
-    open([db]);
+    open([...form.checked, db]);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -85,13 +87,12 @@ export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Prop
                 key={name}
                 name={name}
                 favorite={form.favorites.includes(name)}
-                selected={selected.includes(name)}
+                checked={form.isChecked(name)}
                 anchor={name === anchor}
                 missing={form.isMissing(name)}
                 onClick={(e) => form.click(name, e)}
                 onToggle={() => form.toggle(name)}
                 onToggleStar={() => form.toggleStar(name)}
-                onOpen={() => open([name])}
               />
             ))}
             {!form.rows.length && (
@@ -106,10 +107,11 @@ export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Prop
       <div className="modal-footer">
         <button onClick={() => onDone(null)}>{data.mandatory ? "Cancelar" : "Cerrar"}</button>
         <span className="spacer" />
+        {!creating && form.canClear && <button onClick={form.clear}>Desmarcar</button>}
         {!creating && <button onClick={() => setCreating(true)}>Crear base de datos…</button>}
         {!creating && (
           <button className="primary" onClick={() => open()} disabled={!canOpen}>
-            {selected.length ? `Abrir (${selected.length})` : "Abrir"}
+            {canOpen ? `Abrir (${form.checked.length})` : "Abrir"}
           </button>
         )}
       </div>

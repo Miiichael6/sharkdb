@@ -14,8 +14,8 @@ import { useServices } from "./services";
 const WINDOW = { title: "Bases de datos", width: 440, height: 520 };
 
 /**
- * The databases chosen to open as temporary in `session` (maybe none, when only stars changed), or
- * null when the window was closed. A mandatory window has no X: its Cancelar is the only way out.
+ * The databases `session` must show in the explorer (the checked ones, favorites included), or null
+ * when the window was closed (the stars may have changed anyway). A mandatory window has no X: its Cancelar is the only way out.
  */
 export type ChooseDatabases = (session: Session, mandatory: boolean) => Promise<string[] | null>;
 
@@ -27,10 +27,12 @@ export function useDatabaseWindow(saveFavorites: (sid: string, favorites: string
     const sid = session.conn.id;
     const all = await explorer.listDatabases(sid);
     // The system databases are always in the System folder: they're never offered as a choice.
+    const favorites = userDatabases(explorer.favoritesOf(sid));
     const data: OpenDatabaseData = {
       connection: displayName(session.conn),
       databases: userDatabases(all.map((d) => d.name)),
-      favorites: userDatabases(explorer.favoritesOf(sid)),
+      favorites,
+      shown: [...favorites, ...userDatabases(explorer.temporariesOf(sid))],
       mandatory,
     };
     const onRequest = async (body: unknown) => {

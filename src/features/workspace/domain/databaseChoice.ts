@@ -7,6 +7,8 @@ export interface OpenDatabaseData {
   /** Every database of the server. */
   databases: string[];
   favorites: string[];
+  /** The user databases the explorer shows now (favorites and temporary): they start checked. */
+  shown: string[];
   /** The connection has nothing to show yet: there is no X or Escape, and Cancelar closes the connection. */
   mandatory: boolean;
 }
@@ -17,7 +19,7 @@ export type OpenDatabaseRequest =
   /** MongoDB creates a database with its first collection. */
   | { kind: "create"; db: string; coll: string };
 
-/** The databases to open as temporary (none when only stars changed). Closing gives null instead. */
+/** The databases the explorer must show: every checked row, favorites included. Closing gives null instead. */
 export interface OpenDatabaseResult {
   databases: string[];
 }
@@ -32,17 +34,9 @@ export interface ListSelection {
   anchor?: string;
 }
 
-export interface ClickModifiers {
-  ctrl: boolean;
-  shift: boolean;
-}
-
 export const NO_SELECTION: ListSelection = { selected: [] };
 
-/** Only `name`, as a plain click or an arrow key does. */
-export const selectOnly = (name: string): ListSelection => ({ selected: [name], anchor: name });
-
-/** Adds or removes `name`, as Ctrl+click or its checkbox does. */
+/** Adds or removes `name`, as a click on its row or its checkbox does. */
 export function toggleRow(selection: ListSelection, name: string): ListSelection {
   const selected = selection.selected.includes(name)
     ? selection.selected.filter((s) => s !== name)
@@ -50,15 +44,13 @@ export function toggleRow(selection: ListSelection, name: string): ListSelection
   return { selected, anchor: name };
 }
 
-/** A click on a row of `rows` (in display order): plain, Ctrl to toggle, Shift for the range from the anchor. */
-export function clickRow(rows: string[], selection: ListSelection, name: string, { ctrl, shift }: ClickModifiers): ListSelection {
+/** A click on a row of `rows` (in display order): it toggles the row, or with Shift adds the range from the anchor. */
+export function clickRow(rows: string[], selection: ListSelection, name: string, shift: boolean): ListSelection {
   const from = selection.anchor ? rows.indexOf(selection.anchor) : -1;
-  if (shift && from >= 0) {
-    const to = rows.indexOf(name);
-    const range = rows.slice(Math.min(from, to), Math.max(from, to) + 1);
-    return { selected: range, anchor: selection.anchor };
-  }
-  return ctrl ? toggleRow(selection, name) : selectOnly(name);
+  if (!shift || from < 0) return toggleRow(selection, name);
+  const to = rows.indexOf(name);
+  const range = rows.slice(Math.min(from, to), Math.max(from, to) + 1);
+  return { selected: [...new Set([...selection.selected, ...range])], anchor: selection.anchor };
 }
 
 /** The row `step` places away from the anchor (or the first one), kept inside the list. */

@@ -26,9 +26,11 @@ type Content =
   | { type: "json"; title: string; data: unknown }
   | { type: "code"; title: string; code: string }
   | { type: "indexes"; title: string; indexes: IndexSpec[] }
-  | { type: "hint"; title: string; text: string };
+  | { type: "hint"; title: string; text: string }
+  /** The server's hint: its count comes from the tree, which may load after the panel. */
+  | { type: "serverHint"; title: string };
 
-async function loadContent(mongo: ExplorerService, n: TreeNode, mode: PanelMode, childCount?: number): Promise<Content> {
+async function loadContent(mongo: ExplorerService, n: TreeNode, mode: PanelMode): Promise<Content> {
   switch (mode) {
     case "serverStatus":
       return { type: "json", title: "Estado del servidor", data: await mongo.serverStatus(n.sid) };
@@ -43,11 +45,7 @@ async function loadContent(mongo: ExplorerService, n: TreeNode, mode: PanelMode,
     case "default":
       switch (n.kind) {
         case "server":
-          return {
-            type: "hint",
-            title: n.label,
-            text: `${childCount ?? "…"} bases de datos. Clic derecho para más opciones.`,
-          };
+          return { type: "serverHint", title: n.label };
         case "database":
           return { type: "stats", title: `Estadísticas de ${n.db}`, data: await mongo.dbStats(n.sid, n.db!) };
         case "collection":
@@ -88,14 +86,13 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
     let alive = true;
     setContent(null);
     setError("");
-    loadContent(explorer, node, mode, childCount).then(
+    loadContent(explorer, node, mode).then(
       (c) => alive && setContent(c),
       (e) => alive && setError(errorMessage(e)),
     );
     return () => {
       alive = false;
     };
-    // childCount only feeds the server hint; don't refetch for it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.key, mode, version]);
 
@@ -116,6 +113,9 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
       </div>
 
       {content.type === "hint" && <p className="muted">{content.text}</p>}
+      {content.type === "serverHint" && (
+        <p className="muted">{childCount ?? "…"} bases de datos. Clic derecho para más opciones.</p>
+      )}
       {content.type === "json" && <pre className="json">{JSON.stringify(content.data, null, 2)}</pre>}
       {content.type === "code" && <pre className="json">{content.code}</pre>}
       {content.type === "stats" && (

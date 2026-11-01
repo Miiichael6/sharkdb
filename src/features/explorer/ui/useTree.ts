@@ -2,7 +2,8 @@
 // hook knows nothing about MongoDB.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../../shared/errors";
-import { isLeaf, isWithin, parentKey, type TreeNode } from "../domain/tree";
+import { filterCollections } from "../domain/collectionFilter";
+import { isLeaf, isWithin, parentKey, type NodeKind, type TreeNode } from "../domain/tree";
 
 export type ChildLoader = (n: TreeNode) => Promise<TreeNode[]>;
 
@@ -12,8 +13,15 @@ export interface Tree {
   expanded: Set<string>;
   loading: Set<string>;
   errors: Map<string, string>;
+  /** Text typed in each `Collections` folder's filter box; it outlives refreshes. */
+  filters: Map<string, string>;
   selected: string | null;
   node: (key: string | null) => TreeNode | undefined;
+  /** The closest node of `kind` among `n` and its ancestors. */
+  ancestor: (n: TreeNode, kind: NodeKind) => TreeNode | undefined;
+  /** Children of `key` on screen: all of them, or only those its filter lets through. */
+  shownChildren: (key: string) => TreeNode[] | undefined;
+  setFilter: (folderKey: string, text: string) => void;
   /** Nodes currently on screen, in display order (for keyboard navigation). */
   visible: () => TreeNode[];
   select: (key: string | null) => void;
@@ -33,6 +41,7 @@ export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
   const [expanded, setExpanded] = useState(new Set<string>());
   const [loading, setLoading] = useState(new Set<string>());
   const [errors, setErrors] = useState(new Map<string, string>());
+  const [filters, setFilters] = useState(new Map<string, string>());
   const [selected, setSelected] = useState<string | null>(null);
 
   // Registry of every node seen so far, so keys can be resolved back to nodes.
@@ -133,16 +142,36 @@ export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootKeys]);
 
+  const shownChildren = useCallback(
+    (key: string) => {
+      const kids = children.get(key);
+      return kids && filterCollections(kids, filters.get(key) ?? "");
+    },
+    [children, filters],
+  );
+
+  const setFilter = useCallback(
+    (folderKey: string, text: string) => setFilters((m) => new Map(m).set(folderKey, text)),
+    [],
+  );
+
+  const ancestor = (n: TreeNode, kind: NodeKind) => {
+    for (let k: string | null = n.key; k; k = parentKey(k)) {
+      const node = registry.current.get(k);
+      if (node?.kind === kind) return node;
+    }
+  };
+
   const visible = useCallback(() => {
     const out: TreeNode[] = [];
     const walk = (nodes: TreeNode[]) =>
       nodes.forEach((n) => {
         out.push(n);
-        if (expanded.has(n.key)) walk(children.get(n.key) ?? []);
+        if (expanded.has(n.key)) walk(shownChildren(n.key) ?? []);
       });
     walk(roots);
     return out;
-  }, [roots, expanded, children]);
+  }, [roots, expanded, shownChildren]);
 
   return {
     roots,
@@ -150,8 +179,12 @@ export function useTree(roots: TreeNode[], loadChildren: ChildLoader): Tree {
     expanded,
     loading,
     errors,
+    filters,
     selected,
     node: (key) => (key ? registry.current.get(key) : undefined),
+    ancestor,
+    shownChildren,
+    setFilter,
     visible,
     select: setSelected,
     toggle,

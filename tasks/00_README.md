@@ -114,7 +114,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 25 | [Confirmación roja con `confirmo` para borrados manuales](done/25_confirmacion_destructiva.md) | 12 Operaciones destructivas | 18, 21 | ✅ Terminada |
 | 26 | [Dos consultas del shell en paralelo (pestaña dividida)](done/26_shell_en_paralelo.md) | 13 Shell en paralelo | 04, 05 | ✅ Terminada |
 | 27 | [Validación de documentos por colección (`$jsonSchema`)](done/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ✅ Terminada |
-| 28 | [Filtrar colecciones del árbol escribiendo](pending/28_filtro_colecciones.md) | 15 Explorador | 23 | ⬜ Pendiente |
+| 28 | [Filtrar colecciones del árbol escribiendo](done/28_filtro_colecciones.md) | 15 Explorador | 23 | ✅ Terminada |
 | 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
