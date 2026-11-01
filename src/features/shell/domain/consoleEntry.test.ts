@@ -13,7 +13,7 @@ const outcomeOf = (results: ScriptResult[], error: ScriptOutcome["error"] = null
   queryMs: null,
 });
 
-const at = (line: number) => ({ line, source: `s${line}` });
+const at = (line: number) => ({ line, source: `s${line}`, elapsedMs: 1 });
 
 const kindsOf = (results: ScriptResult[]) => consoleEntries(outcomeOf(results)).map((e) => e.kind);
 

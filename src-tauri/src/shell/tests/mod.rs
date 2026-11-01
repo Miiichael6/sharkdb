@@ -4,9 +4,13 @@ mod convert;
 mod document_eval;
 mod engine;
 mod fake_bridge;
+mod host;
 mod live;
+mod live_compat;
 mod live_documents;
 mod prelude;
+mod prelude_shortcuts;
+mod prelude_writes;
 mod runtime;
 
 use std::rc::Rc;

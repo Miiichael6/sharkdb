@@ -6,8 +6,8 @@ const error = (line: number | null, column: number | null): ScriptError => ({ ki
 
 const outcome = (err: ScriptError | null = null): ScriptOutcome => ({
   results: [
-    { kind: "value", value: 1, line: 1, source: "1" },
-    { kind: "print", text: "x", line: 3, source: "print('x')" },
+    { kind: "value", value: 1, line: 1, source: "1", elapsedMs: 1 },
+    { kind: "print", text: "x", line: 3, source: "print('x')", elapsedMs: 1 },
   ],
   error: err,
   truncated: false,

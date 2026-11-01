@@ -19,7 +19,7 @@ async fn cancel_stops_a_running_script_from_another_thread() {
         FakeBridge::shared() as Rc<dyn MongoBridge>
     })
     .unwrap();
-    let (outcome, _) = tokio::join!(runtime.run(DB.into(), "while (true) {}".into()), async {
+    let (outcome, _) = tokio::join!(runtime.run(DB.into(), "while (true) {}".into(), None), async {
         tokio::time::sleep(Duration::from_millis(100)).await;
         runtime.cancel();
     });
@@ -31,6 +31,7 @@ async fn cancel_stops_a_running_script_from_another_thread() {
     let next = runtime.run(
         DB.into(),
         "var x = []; for (let i = 0; i < 3; i++) x.push(ObjectId()); x.length".into(),
+        None,
     );
     assert_eq!(value(&next.await.unwrap()), Some(Bson::Double(3.0)));
 }

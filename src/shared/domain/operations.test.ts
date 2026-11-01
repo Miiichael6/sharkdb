@@ -97,9 +97,9 @@ describe("texts", () => {
   });
 
   it("asks before closing with operations running", () => {
-    expect(closeWithRunningConfirmation(1).message).toBe("Hay 1 operación en curso; se cancelará. ¿Cerrar Robo3B?");
+    expect(closeWithRunningConfirmation(1).message).toBe("Hay 1 operación en curso; se cancelará. ¿Cerrar SharkDB?");
     expect(closeWithRunningConfirmation(3)).toMatchObject({
-      message: "Hay 3 operaciones en curso; se cancelarán. ¿Cerrar Robo3B?",
+      message: "Hay 3 operaciones en curso; se cancelarán. ¿Cerrar SharkDB?",
       confirmLabel: "Cancelar y cerrar",
       dismissLabel: "Seguir",
     });

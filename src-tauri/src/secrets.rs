@@ -3,7 +3,9 @@
 // `<connection id>:<field>`, and put back when the file is read.
 use serde_json::Value;
 
-const SERVICE: &str = "robo3b";
+const SERVICE: &str = "sharkdb";
+/// Where the app kept them while it was called Robo3B: `get` moves each one over the first time it's read.
+const OLD_SERVICE: &str = "robo3b";
 
 /// Where secrets live. The real one is the OS keyring; tests use an in-memory map.
 pub trait Vault {
@@ -14,30 +16,48 @@ pub trait Vault {
 
 pub struct KeyringVault;
 
-fn keyring_entry(account: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, account).map_err(|e| format!("Almacén de credenciales: {e}"))
+fn keyring_entry(service: &str, account: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(service, account).map_err(|e| format!("Almacén de credenciales: {e}"))
+}
+
+fn read_secret(entry: &keyring::Entry) -> Result<Option<String>, String> {
+    match entry.get_password() {
+        Ok(secret) => Ok(Some(secret)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("Almacén de credenciales: {e}")),
+    }
 }
 
 impl Vault for KeyringVault {
     fn get(&self, account: &str) -> Result<Option<String>, String> {
-        match keyring_entry(account)?.get_password() {
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(format!("Almacén de credenciales: {e}")),
+        if let Some(secret) = read_secret(&keyring_entry(SERVICE, account)?)? {
+            return Ok(Some(secret));
         }
+        let old = keyring_entry(OLD_SERVICE, account)?;
+        let Some(secret) = read_secret(&old)? else {
+            return Ok(None);
+        };
+        self.set(account, &secret)?;
+        // Already saved under the new name; `delete` retries the old copy if it stays.
+        let _ = old.delete_credential();
+        Ok(Some(secret))
     }
 
     fn set(&self, account: &str, secret: &str) -> Result<(), String> {
-        keyring_entry(account)?
+        keyring_entry(SERVICE, account)?
             .set_password(secret)
             .map_err(|e| format!("Almacén de credenciales: {e}"))
     }
 
     fn delete(&self, account: &str) -> Result<(), String> {
-        match keyring_entry(account)?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(format!("Almacén de credenciales: {e}")),
+        // Also the old copy, or `get` would bring a deleted secret back.
+        for service in [SERVICE, OLD_SERVICE] {
+            match keyring_entry(service, account)?.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => {}
+                Err(e) => return Err(format!("Almacén de credenciales: {e}")),
+            }
         }
+        Ok(())
     }
 }
 
@@ -281,9 +301,21 @@ mod tests {
     #[test]
     #[ignore = "uses the real OS credential store"]
     fn keyring_vault_round_trip() {
-        let account = "robo3b-test:password";
+        let account = "sharkdb-test:password";
         KeyringVault.set(account, "s3cret").unwrap();
         assert_eq!(KeyringVault.get(account).unwrap().as_deref(), Some("s3cret"));
+        KeyringVault.delete(account).unwrap();
+        assert_eq!(KeyringVault.get(account).unwrap(), None);
+    }
+
+    #[test]
+    #[ignore = "uses the real OS credential store"]
+    fn keyring_vault_moves_secrets_saved_by_robo3b() {
+        let account = "sharkdb-test:old-password";
+        keyring_entry(OLD_SERVICE, account).unwrap().set_password("s3cret").unwrap();
+        assert_eq!(KeyringVault.get(account).unwrap().as_deref(), Some("s3cret"));
+        assert_eq!(read_secret(&keyring_entry(OLD_SERVICE, account).unwrap()).unwrap(), None);
+        assert_eq!(read_secret(&keyring_entry(SERVICE, account).unwrap()).unwrap().as_deref(), Some("s3cret"));
         KeyringVault.delete(account).unwrap();
         assert_eq!(KeyringVault.get(account).unwrap(), None);
     }

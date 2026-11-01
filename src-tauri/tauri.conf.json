@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Robo3B",
+  "productName": "SharkDB",
   "version": "0.1.0",
-  "identifier": "com.robo3b.app",
+  "identifier": "com.sharkdb.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Robo3B",
+        "title": "SharkDB",
         "width": 760,
         "height": 500,
         "minWidth": 640,

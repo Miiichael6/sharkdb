@@ -11,7 +11,7 @@ use crate::shell::convert::js_to_bson;
 use crate::shell::errors::describe_thrown;
 use crate::shell::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptOutput};
 
-/// Método del `Cursor` de `prelude.js` que lo marca como agotado.
+/// Método del `Cursor` de `cursor.js` que lo marca como agotado.
 const EXHAUST: &str = "_exhaust";
 
 /// Lo que `Cursor._take` describe: lo ya leído y cuántos documentos faltan para el primer lote.

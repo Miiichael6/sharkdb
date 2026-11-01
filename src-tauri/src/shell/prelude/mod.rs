@@ -1,5 +1,6 @@
-//! API del shell (`db`, colecciones, cursores). Las clases viven en `prelude.js`; aquí se
-//! instalan sobre las nativas de un `MongoBridge` y se traducen los ganchos de cada ejecución.
+//! API del shell (`db`, colecciones, cursores, bulk, `rs`/`sh`). Las clases viven en los `.js`
+//! de esta carpeta, uno por área; aquí se instalan sobre las nativas de un `MongoBridge` y se
+//! traducen los ganchos de cada ejecución.
 
 mod cursor_result;
 
@@ -13,8 +14,18 @@ use super::errors::{describe_thrown, to_bson_reported};
 use super::module::{RunHooks, ShellModule};
 use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutput};
 
-const SOURCE: &str = include_str!("prelude.js");
-/// Global oculto con los ganchos que define `prelude.js`.
+/// Piezas del prelude en orden de dependencia: cada una deja en `lib` lo que usan las siguientes.
+const SOURCES: [&str; 8] = [
+    include_str!("common.js"),
+    include_str!("writes.js"),
+    include_str!("cursor.js"),
+    include_str!("bulk.js"),
+    include_str!("collection.js"),
+    include_str!("database.js"),
+    include_str!("cluster.js"),
+    include_str!("shell.js"),
+];
+/// Global oculto con los ganchos que define `shell.js`.
 const SHELL_GLOBAL: &str = "__shell";
 
 pub struct Prelude {
@@ -29,8 +40,12 @@ impl Prelude {
 
 impl ShellModule for Prelude {
     fn install(&self, ctx: &Ctx<'_>) -> rquickjs::Result<()> {
-        let setup: Function = ctx.eval(SOURCE)?;
-        setup.call((self.bridge.natives(ctx)?,))
+        let natives = self.bridge.natives(ctx)?;
+        let lib = Object::new(ctx.clone())?;
+        SOURCES.iter().try_for_each(|source| {
+            let setup: Function = ctx.eval(*source)?;
+            setup.call((natives.clone(), lib.clone()))
+        })
     }
 }
 

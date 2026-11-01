@@ -2,6 +2,7 @@
 //! ejecuta en su `ShellSession` y responde por un `oneshot`. La cancelación se hace desde fuera
 //! con una bandera atómica.
 
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,13 +18,14 @@ use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
 use super::session::ShellSession;
 use super::watchdog::Watchdog;
 
-const THREAD_NAME: &str = "robo3b-shell";
+const THREAD_NAME: &str = "sharkdb-shell";
 const STOPPED: &str = "El motor de la sesión se ha detenido";
 
 enum Job {
     Run {
         db: String,
         code: String,
+        script_dir: Option<PathBuf>,
         reply: oneshot::Sender<ScriptOutcome>,
     },
     NextBatch {
@@ -73,9 +75,20 @@ impl ShellRuntime {
     }
 
     /// Ejecuta un script; los trabajos de una misma sesión se hacen en orden, uno a uno.
-    pub async fn run(&self, db: String, code: String) -> Result<ScriptOutcome, String> {
+    /// `script_dir` es la carpeta del fichero abierto en la pestaña, para `load`.
+    pub async fn run(
+        &self,
+        db: String,
+        code: String,
+        script_dir: Option<PathBuf>,
+    ) -> Result<ScriptOutcome, String> {
         let (reply, outcome) = oneshot::channel();
-        self.send(Job::Run { db, code, reply })?;
+        self.send(Job::Run {
+            db,
+            code,
+            script_dir,
+            reply,
+        })?;
         outcome.await.map_err(|_| STOPPED.to_string())
     }
 
@@ -113,7 +126,12 @@ impl Drop for ShellRuntime {
 
 fn handle_job(session: &mut ShellSession, job: Job) {
     match job {
-        Job::Run { db, code, reply } => drop(reply.send(session.run(&db, &code))),
+        Job::Run {
+            db,
+            code,
+            script_dir,
+            reply,
+        } => drop(reply.send(session.run(&db, &code, script_dir))),
         Job::NextBatch {
             cursor,
             size,

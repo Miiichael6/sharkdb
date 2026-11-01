@@ -6,11 +6,13 @@ import { OperationsProvider } from "./app/operations/useOperations";
 import "./app/themes/loadThemes";
 import { createServices, ServicesProvider } from "./app/services";
 import { currentModalView } from "./shared/ui/modalWindow";
+import { moveRenamedStorage } from "./shared/ui/renamedStorage";
 import { initTheme } from "./shared/ui/theme";
 import { LogProvider } from "./shared/ui/useLog";
 import { NotificationsProvider } from "./shared/ui/useNotifications";
 
 // Before the first render, so no window flashes in the other theme.
+moveRenamedStorage();
 initTheme();
 const modal = currentModalView();
 

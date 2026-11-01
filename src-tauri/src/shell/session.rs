@@ -1,10 +1,13 @@
 //! Sesión de shell: el motor con la API `db` instalada sobre un `MongoBridge`. Ejecuta scripts
 //! (reescribiendo `use`/`show`) y pagina los cursores que quedan como resultado.
 
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use super::bridge::MongoBridge;
 use super::engine::{Engine, EngineLimits};
+use super::host::Host;
+use super::module::ShellModule;
 use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
 use super::prelude::{Prelude, ShellRun};
 use super::syntax;
@@ -15,6 +18,7 @@ pub const FIRST_BATCH_SIZE: usize = 50;
 
 pub struct ShellSession {
     engine: Engine,
+    host: Host,
     bridge: Rc<dyn MongoBridge>,
     watchdog: Watchdog,
     limits: EngineLimits,
@@ -26,19 +30,24 @@ impl ShellSession {
         watchdog: Watchdog,
         bridge: Rc<dyn MongoBridge>,
     ) -> rquickjs::Result<Self> {
+        let host = Host::new(watchdog.clone());
         let prelude = Rc::new(Prelude::new(bridge.clone()));
-        let engine = Engine::new(limits, watchdog.clone(), vec![prelude])?;
+        let modules: Vec<Rc<dyn ShellModule>> = vec![Rc::new(host.clone()), prelude];
+        let engine = Engine::new(limits, watchdog.clone(), modules)?;
         Ok(Self {
             engine,
+            host,
             bridge,
             watchdog,
             limits,
         })
     }
 
-    /// Ejecuta `code` con `db` apuntando a la base de datos indicada. Los cursores que el script
-    /// dejó abiertos se cierran, salvo el que queda como resultado.
-    pub fn run(&mut self, db: &str, code: &str) -> ScriptOutcome {
+    /// Ejecuta `code` con `db` apuntando a la base de datos indicada; `load` resuelve las rutas
+    /// relativas desde `script_dir`. Los cursores que el script dejó abiertos se cierran, salvo
+    /// los que quedan como resultado.
+    pub fn run(&mut self, db: &str, code: &str, script_dir: Option<PathBuf>) -> ScriptOutcome {
+        self.host.set_script_dir(script_dir);
         let hooks = ShellRun {
             db,
             first_batch: FIRST_BATCH_SIZE,

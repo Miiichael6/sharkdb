@@ -130,7 +130,7 @@ export function createExplorerService(admin: MongoAdmin) {
     return copyCollection(request);
   }
 
-  /** The validation the collection has on the server, however it was set (robo3B, a script, another app). */
+  /** The validation the collection has on the server, however it was set (SharkDB, a script, another app). */
   const validationOf = async (ref: CollectionRef): Promise<CollectionValidation> =>
     readValidation(await admin.collectionOptions(ref.sid, ref.db, ref.coll));
 

@@ -18,7 +18,7 @@ import { useHistoryBrowser } from "./useHistoryBrowser";
 import { useShellRun } from "./useShellRun";
 
 /** Whether the script editor was last hidden (new tabs start the same way). */
-const EDITOR_HIDDEN_KEY = "robo3b.shellEditorHidden";
+const EDITOR_HIDDEN_KEY = "sharkdb.shellEditorHidden";
 
 function readEditorHidden(): boolean {
   try {

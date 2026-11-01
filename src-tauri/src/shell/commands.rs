@@ -3,6 +3,7 @@
 //! al ejecutar su primer script y se suelta al cerrar la pestaña o desconectar.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -90,12 +91,18 @@ pub async fn execute_script(
     tab: String,
     db: String,
     code: String,
+    script_path: Option<String>,
 ) -> Result<ScriptOutcome, String> {
     let shell = match shells.get(&sid, &tab) {
         Some(shell) => shell,
         None => shells.get_or_spawn(&sid, &tab, mongo::session_with_safe_mode(&sessions, &sid).await?)?,
     };
-    shell.run(db, code).await
+    shell.run(db, code, script_path.as_deref().and_then(folder_of)).await
+}
+
+/// Carpeta del script abierto en la pestaña, desde la que `load` resuelve rutas relativas.
+fn folder_of(script_path: &str) -> Option<PathBuf> {
+    Path::new(script_path).parent().map(Path::to_path_buf)
 }
 
 #[tauri::command]

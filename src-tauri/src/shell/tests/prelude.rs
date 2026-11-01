@@ -8,23 +8,23 @@ use crate::shell::outcome::{ScriptOutcome, ScriptOutput};
 use crate::shell::session::{FIRST_BATCH_SIZE, ShellSession};
 use crate::shell::watchdog::Watchdog;
 
-const DB: &str = "test";
+pub(super) const DB: &str = "test";
 
-fn session() -> (ShellSession, Rc<FakeBridge>) {
+pub(super) fn session() -> (ShellSession, Rc<FakeBridge>) {
     let bridge = FakeBridge::shared();
     let watchdog = Watchdog::new(Default::default());
     let session = ShellSession::new(test_limits(), watchdog, bridge.clone()).expect("sesión");
     (session, bridge)
 }
 
-fn run_ok(session: &mut ShellSession, code: &str) -> ScriptOutcome {
-    let outcome = session.run(DB, code);
+pub(super) fn run_ok(session: &mut ShellSession, code: &str) -> ScriptOutcome {
+    let outcome = session.run(DB, code, None);
     assert_eq!(outcome.error, None, "script: {code}");
     outcome
 }
 
 /// Primera llamada que recibió el servidor falso, como documento.
-fn first_call(session: &mut ShellSession) -> mongodb::bson::Document {
+pub(super) fn first_call(session: &mut ShellSession) -> mongodb::bson::Document {
     let calls = value(&run_ok(session, "__calls")).expect("llamadas");
     calls.as_array().expect("array")[0]
         .as_document()
@@ -200,7 +200,7 @@ fn insert_one_sends_insert_command_and_returns_write_result() {
     );
     assert_eq!(
         first_call(&mut session).get_document("command"),
-        Ok(&doc! { "insert": "x", "documents": [{ "_id": 7.0, "a": "b" }] })
+        Ok(&doc! { "insert": "x", "documents": [{ "_id": 7.0, "a": "b" }], "ordered": true })
     );
 }
 
@@ -223,7 +223,7 @@ fn get_shard_version_asks_admin_for_the_namespace() {
 #[test]
 fn get_shard_distribution_fails_on_an_unsharded_collection() {
     let (mut session, _) = session();
-    let outcome = session.run(DB, "db.getCollection('x').getShardDistribution()");
+    let outcome = session.run(DB, "db.getCollection('x').getShardDistribution()", None);
     let error = outcome.error.expect("se esperaba un error");
     assert!(
         error.message.contains("test.x no está fragmentada"),

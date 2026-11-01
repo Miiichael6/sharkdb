@@ -13,7 +13,7 @@ use crate::safe_mode::SafeMode;
 
 const ADMIN_DB: &str = "admin";
 /// Marca de las colecciones provisionales en las que se escribe antes de reemplazar.
-const STAGING_MARK: &str = "robo3b-staging";
+const STAGING_MARK: &str = "sharkdb-staging";
 
 /// La conexión que se modifica, con su safe mode, que se vuelve a mirar antes de cada lote y antes de reemplazar.
 pub struct Destination<'a> {
@@ -71,6 +71,6 @@ mod tests {
 
     #[test]
     fn staging_collection_keeps_the_name_and_marks_the_run() {
-        assert_eq!(staging_name("orders", "abc"), "orders.robo3b-staging-abc");
+        assert_eq!(staging_name("orders", "abc"), "orders.sharkdb-staging-abc");
     }
 }
