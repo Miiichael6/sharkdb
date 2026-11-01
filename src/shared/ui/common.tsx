@@ -24,53 +24,102 @@ const SHARK_BODY: [string, string][] = [
   ["#2468B5", "745,562 905,655 848,684"],
   ["#1C559E", "745,562 848,684 700,640 620,618"],
   ["#15437F", "335,576 270,662 292,566"],
+];
+/** The tail fin: the first facets of the body. */
+const SHARK_TAIL = 4;
+/** The lower fins, drawn over the body and flapped while swimming. */
+const SHARK_FINS: [string, string][] = [
   ["#15437F", "600,612 550,600 440,795"],
   ["#2468B5", "550,600 500,590 440,795"],
-  ["#2A0A14", "928,520 745,562 905,655"],
-  ["#14040A", "745,562 836.5,541 825,608.5"],
-  ["#D23A50", "928,520 745,562 761,571.3 925,537.5"],
-  ["#B82E44", "905,655 745,562 763.3,557.8 907.8,638.8"],
 ];
-const SHARK_TEETH = [
-  "777,554.7 801.6,549 784.9,568.8",
-  "807,547.8 831.6,542.1 812,573.4",
-  "837,540.9 861.6,535.2 839.1,578.1",
-  "867,534 891.6,528.3 866.1,582.7",
-  "897,527.1 921.6,521.5 893.2,587.3",
-  "779.3,581.9 800.3,594.1 790.7,572.9",
-  "804.9,596.8 825.9,609 816.8,579.2",
-  "830.5,611.7 851.5,623.9 842.9,585.4",
-  "856.1,626.6 877.1,638.8 869,591.6",
-  "881.7,641.5 902.7,653.7 895.1,597.9",
+// Upper and lower teeth interlock and fill the whole mouth; the zigzag marks where they meet.
+const SHARK_TEETH: [string, string][] = [
+  ["#FFFFFF", "745,562 795.5,550.4 770.4,576.7"],
+  ["#FFFFFF", "795.5,550.4 832.9,541.8 806.1,597.5"],
+  ["#FFFFFF", "832.9,541.8 866.6,534.1 836.9,615.4"],
+  ["#FFFFFF", "866.6,534.1 898.1,526.9 865.3,631.9"],
+  ["#FFFFFF", "898.1,526.9 928,520 892.1,647.5"],
+  ["#C9DFF1", "770.4,576.7 806.1,597.5 795.5,550.4"],
+  ["#C9DFF1", "806.1,597.5 836.9,615.4 832.9,541.8"],
+  ["#C9DFF1", "836.9,615.4 865.3,631.9 866.6,534.1"],
+  ["#C9DFF1", "865.3,631.9 892.1,647.5 898.1,526.9"],
+  ["#C9DFF1", "892.1,647.5 905,655 928,520"],
 ];
-const SHARK_BROW: [string, string][] = [
-  ["#15437F", "742,446 895,478 884,502 764,474"],
-  ["#0F3466", "764,474 884,502 830,490"],
-];
+const SHARK_TEETH_SEAM =
+  "745,562 770.4,576.7 795.5,550.4 806.1,597.5 832.9,541.8 836.9,615.4 866.6,534.1 865.3,631.9 898.1,526.9 892.1,647.5 928,520";
 
-export function Logo({ size = 120 }: { size?: number }) {
+/** Where the tail meets the body: points left of it bend, the ones on the joint stay put so no gap opens. */
+const TAIL_JOINT_X = 200;
+const TAIL_PIVOT = [209, 516];
+const TAIL_SWING_DEG = 11;
+const TAIL_STEPS = 16;
+
+function bendTail(points: string, deg: number) {
+  const a = (deg * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(a), Math.sin(a)];
+  const [px, py] = TAIL_PIVOT;
+  return points
+    .split(" ")
+    .map((p) => {
+      const [x, y] = p.split(",").map(Number);
+      if (x >= TAIL_JOINT_X) return p;
+      const [dx, dy] = [x - px, y - py];
+      return `${(px + dx * cos - dy * sin).toFixed(1)},${(py + dx * sin + dy * cos).toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+/** One full wag per tail facet, as SMIL `values`. */
+const TAIL_WAG = SHARK_BODY.slice(0, SHARK_TAIL).map(([, points]) =>
+  Array.from({ length: TAIL_STEPS + 1 }, (_, k) =>
+    bendTail(points, TAIL_SWING_DEG * Math.sin((2 * Math.PI * k) / TAIL_STEPS)),
+  ).join(";"),
+);
+
+/** The shark's facets; swimming wags the tail and flaps the fins (slower when calm), staring gives it a hunter's look. */
+function Shark({ swimming = false, calm = false, staring = false }: { swimming?: boolean; calm?: boolean; staring?: boolean }) {
   // Each facet is stroked in its own color so no seams show between them.
   const facet = ([fill, points]: [string, string], i: number) => (
     <polygon key={i} points={points} fill={fill} stroke={fill} />
   );
+  const bodyFacet = ([fill, points]: [string, string], i: number) => (
+    <polygon key={i} points={points} fill={fill} stroke={fill}>
+      {swimming && i < SHARK_TAIL && (
+        <animate attributeName="points" dur={calm ? "1.2s" : "0.5s"} repeatCount="indefinite" values={TAIL_WAG[i]} />
+      )}
+    </polygon>
+  );
   return (
-    <svg width={size} height={size} viewBox="57 42 900 900" aria-hidden>
+    <g className={swimming ? `shark-swim${calm ? " shark-calm" : ""}` : undefined}>
       <g strokeWidth={2} strokeLinejoin="round">
-        {SHARK_BODY.map(facet)}
-        {SHARK_TEETH.map((points, i) => (
-          <polygon key={i} points={points} fill="#FFFFFF" stroke="#FFFFFF" />
-        ))}
+        {SHARK_BODY.map(bodyFacet)}
+        <g className="shark-fins">{SHARK_FINS.map(facet)}</g>
+        {SHARK_TEETH.map(facet)}
       </g>
+      <polyline points={SHARK_TEETH_SEAM} fill="none" stroke="#8FB7DA" strokeWidth={3} strokeLinejoin="round" />
       <g fill="none" stroke="#15437F" strokeWidth={9} strokeLinecap="round">
         <line x1="702" y1="476" x2="690" y2="548" />
         <line x1="676" y1="482" x2="664" y2="556" />
         <line x1="650" y1="488" x2="638" y2="564" />
       </g>
-      <circle cx="812" cy="482" r="20" fill="#0A1220" />
-      <circle cx="804" cy="490" r="4.5" fill="#EAF6FF" />
-      <g strokeWidth={2} strokeLinejoin="round">
-        {SHARK_BROW.map(facet)}
-      </g>
+      <circle cx="812" cy="480" r="22" fill="#0A1220" />
+      {staring ? (
+        <>
+          <circle cx="820" cy="487" r="5.5" fill="#FFFFFF" />
+          <polygon points="784,450 842,454 838,477 786,464" fill="#6EC1F5" stroke="#6EC1F5" strokeWidth={2} />
+          <line x1="788" y1="464" x2="836" y2="477" stroke="#15437F" strokeWidth={5} strokeLinecap="round" />
+        </>
+      ) : (
+        <circle cx="805" cy="472" r="7" fill="#FFFFFF" />
+      )}
+    </g>
+  );
+}
+
+export function Logo({ size = 120, swimming = false }: { size?: number; swimming?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="57 42 900 900" overflow="visible" aria-hidden>
+      <Shark swimming={swimming} calm />
     </svg>
   );
 }
@@ -111,4 +160,13 @@ export function Modal({
 
 export function Spinner() {
   return <span className="spinner" aria-label="Cargando" />;
+}
+
+/** The shark swimming in place, for a script that is still running. */
+export function SwimmingShark() {
+  return (
+    <svg className="swimming-shark" viewBox="0 130 1000 760" role="img" aria-label="Ejecutando">
+      <Shark swimming staring />
+    </svg>
+  );
 }

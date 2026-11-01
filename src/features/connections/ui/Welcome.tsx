@@ -93,7 +93,7 @@ export function Welcome(props: Props) {
   return (
     <div className="welcome">
       <aside className="welcome-side" data-tauri-drag-region>
-        <Logo size={190} />
+        <Logo size={190} swimming />
         <h1>Robo3B</h1>
         <span className="muted">Versión 0.1.0</span>
         <p className="side-hint">Cliente de escritorio para MongoDB</p>

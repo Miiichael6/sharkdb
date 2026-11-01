@@ -1,4 +1,4 @@
-import { Spinner } from "../../../../shared/ui/common";
+import { SwimmingShark } from "../../../../shared/ui/common";
 import { scriptErrorText, type ScriptResult } from "../../domain/outcome";
 import type { RunState } from "../useShellRun";
 import { CursorResult } from "./CursorResult";
@@ -28,7 +28,7 @@ function ResultItem({ sid, result, index, run, view }: Props & { result: ScriptR
 
 /** What the last run printed and returned, stacked in order, under the view toolbar. */
 function RunOutput({ sid, run, view }: Props) {
-  if (run.running) return <div className="script-output center"><Spinner /></div>;
+  if (run.running) return <div className="script-output center"><SwimmingShark /></div>;
   if (run.failure) return <div className="script-output"><div className="output-error">{run.failure}</div></div>;
   if (!run.outcome) {
     return <div className="script-output center muted small">Ctrl+Enter o F5 ejecuta la selección o todo el script</div>;

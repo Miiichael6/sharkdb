@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiburón nadando</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: linear-gradient(#0b2a4a, #061629 70%, #040e1c); }
+  .rays { position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(100deg, rgba(143,211,255,.05) 0 40px, transparent 40px 140px);
+    animation: rays 9s ease-in-out infinite alternate; }
+  @keyframes rays { to { transform: translateX(60px); } }
+  .swim { position: fixed; top: 32vh; left: 0; width: min(46vw, 460px);
+    animation: across 10s linear infinite; }
+  @keyframes across { from { transform: translateX(-110%); } to { transform: translateX(110vw); } }
+  .bob { animation: bob 2s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(26px) rotate(2deg); } }
+  svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .fin { transform-origin: 560px 605px; animation: flap .9s ease-in-out infinite alternate; }
+  @keyframes flap { from { transform: rotate(-6deg); } to { transform: rotate(8deg); } }
+  .bubble { position: fixed; bottom: -30px; border-radius: 50%;
+    border: 2px solid rgba(143,211,255,.5); animation: rise linear infinite; }
+  @keyframes rise { to { transform: translateY(-115vh) translateX(30px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } .swim { left: 25vw; } }
+</style></head>
+<body>
+<div class="rays"></div>
+<div class="swim"><div class="bob">
+<svg viewBox="40 160 940 660" aria-label="Tiburón nadando">
+<g class="tail">
+  <polygon points="205.0,492.0 70.0,270.0 135.0,520.0" fill="#56B0EE" stroke="#56B0EE" stroke-width="2" stroke-linejoin="round"><animate attributeName="points" dur="0.55s" repeatCount="indefinite" values="205.0,492.0 70.0,270.0 135.0,520.0;205.0,492.0 88.4,260.5 134.9,514.6;205.0,492.0 104.6,253.5 135.1,509.9;205.0,492.0 115.6,249.3 135.5,506.9;205.0,492.0 119.5,248.0 135.6,505.8;205.0,492.0 115.6,249.3 135.5,506.9;205.0,492.0 104.6,253.5 135.1,509.9;205.0,492.0 88.4,260.5 134.9,514.6;205.0,492.0 70.0,270.0 135.0,520.0;205.0,492.0 52.3,280.9 135.5,525.4;205.0,492.0 38.0,291.1 136.2,530.0;205.0,492.0 28.8,298.4 136.9,533.0;205.0,492.0 25.6,301.0 137.1,534.0;205.0,492.0 28.8,298.4 136.9,533.0;205.0,492.0 38.0,291.1 136.2,530.0;205.0,492.0 52.3,280.9 135.5,525.4;205.0,492.0 70.0,270.0 135.0,520.0"/></polygon>
+  <polygon points="205.0,492.0 70.0,270.0 175.0,455.0" fill="#6EC1F5" stroke="#6EC1F5" stroke-width="2" stroke-linejoin="round"><animate attributeName="points" dur="0.55s" repeatCount="indefinite" values="205.0,492.0 70.0,270.0 175.0,455.0;205.0,492.0 88.4,260.5 179.6,452.7;205.0,492.0 104.6,253.5 183.6,451.0;205.0,492.0 115.6,249.3 186.3,450.0;205.0,492.0 119.5,248.0 187.3,449.6;205.0,492.0 115.6,249.3 186.3,450.0;205.0,492.0 104.6,253.5 183.6,451.0;205.0,492.0 88.4,260.5 179.6,452.7;205.0,492.0 70.0,270.0 175.0,455.0;205.0,492.0 52.3,280.9 170.6,457.7;205.0,492.0 38.0,291.1 167.1,460.2;205.0,492.0 28.8,298.4 164.8,462.0;205.0,492.0 25.6,301.0 164.0,462.6;205.0,492.0 28.8,298.4 164.8,462.0;205.0,492.0 38.0,291.1 167.1,460.2;205.0,492.0 52.3,280.9 170.6,457.7;205.0,492.0 70.0,270.0 175.0,455.0"/></polygon>
+  <polygon points="205.0,492.0 135.0,520.0 212.0,540.0" fill="#2468B5" stroke="#2468B5" stroke-width="2" stroke-linejoin="round"><animate attributeName="points" dur="0.55s" repeatCount="indefinite" values="205.0,492.0 135.0,520.0 212.0,540.0;205.0,492.0 134.9,514.6 212.0,540.0;205.0,492.0 135.1,509.9 212.0,540.0;205.0,492.0 135.5,506.9 212.0,540.0;205.0,492.0 135.6,505.8 212.0,540.0;205.0,492.0 135.5,506.9 212.0,540.0;205.0,492.0 135.1,509.9 212.0,540.0;205.0,492.0 134.9,514.6 212.0,540.0;205.0,492.0 135.0,520.0 212.0,540.0;205.0,492.0 135.5,525.4 212.0,540.0;205.0,492.0 136.2,530.0 212.0,540.0;205.0,492.0 136.9,533.0 212.0,540.0;205.0,492.0 137.1,534.0 212.0,540.0;205.0,492.0 136.9,533.0 212.0,540.0;205.0,492.0 136.2,530.0 212.0,540.0;205.0,492.0 135.5,525.4 212.0,540.0;205.0,492.0 135.0,520.0 212.0,540.0"/></polygon>
+  <polygon points="212.0,540.0 135.0,520.0 95.0,720.0" fill="#1C559E" stroke="#1C559E" stroke-width="2" stroke-linejoin="round"><animate attributeName="points" dur="0.55s" repeatCount="indefinite" values="212.0,540.0 135.0,520.0 95.0,720.0;212.0,540.0 134.9,514.6 80.3,711.1;212.0,540.0 135.1,509.9 68.4,702.7;212.0,540.0 135.5,506.9 60.8,696.7;212.0,540.0 135.6,505.8 58.2,694.5;212.0,540.0 135.5,506.9 60.8,696.7;212.0,540.0 135.1,509.9 68.4,702.7;212.0,540.0 134.9,514.6 80.3,711.1;212.0,540.0 135.0,520.0 95.0,720.0;212.0,540.0 135.5,525.4 110.3,727.8;212.0,540.0 136.2,530.0 123.7,733.6;212.0,540.0 136.9,533.0 132.8,736.9;212.0,540.0 137.1,534.0 136.0,738.0;212.0,540.0 136.9,533.0 132.8,736.9;212.0,540.0 136.2,530.0 123.7,733.6;212.0,540.0 135.5,525.4 110.3,727.8;212.0,540.0 135.0,520.0 95.0,720.0"/></polygon>
+</g>
+<g class="fin">
+  <polygon points="600.0,612.0 550.0,600.0 440.0,795.0" fill="#15437F" stroke="#15437F" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="550.0,600.0 500.0,590.0 440.0,795.0" fill="#2468B5" stroke="#2468B5" stroke-width="2" stroke-linejoin="round"/>
+</g>
+  <polygon points="560.0,385.0 470.0,190.0 495.0,390.0" fill="#6EC1F5" stroke="#6EC1F5" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="495.0,390.0 470.0,190.0 455.0,258.0 474.0,280.0 440.0,326.0 430.0,397.0" fill="#3A8FD6" stroke="#3A8FD6" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="945.0,498.0 720.0,400.0 640.0,492.0" fill="#6EC1F5" stroke="#6EC1F5" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="720.0,400.0 560.0,385.0 640.0,492.0" fill="#8FD3FF" stroke="#8FD3FF" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="560.0,385.0 640.0,492.0 420.0,500.0" fill="#56B0EE" stroke="#56B0EE" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="560.0,385.0 430.0,397.0 420.0,500.0" fill="#6EC1F5" stroke="#6EC1F5" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="430.0,397.0 320.0,440.0 420.0,500.0" fill="#4AA6E8" stroke="#4AA6E8" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="320.0,440.0 205.0,492.0 420.0,500.0" fill="#3A92DC" stroke="#3A92DC" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="945.0,498.0 640.0,492.0 745.0,562.0 928.0,520.0" fill="#3A92DC" stroke="#3A92DC" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="640.0,492.0 745.0,562.0 620.0,618.0" fill="#2F7FCC" stroke="#2F7FCC" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="640.0,492.0 620.0,618.0 420.0,500.0" fill="#3486D2" stroke="#3486D2" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="420.0,500.0 620.0,618.0 330.0,578.0" fill="#2468B5" stroke="#2468B5" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="420.0,500.0 330.0,578.0 212.0,540.0" fill="#1C559E" stroke="#1C559E" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="420.0,500.0 205.0,492.0 212.0,540.0" fill="#2F7FCC" stroke="#2F7FCC" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="745.0,562.0 905.0,655.0 848.0,684.0" fill="#2468B5" stroke="#2468B5" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="745.0,562.0 848.0,684.0 700.0,640.0 620.0,618.0" fill="#1C559E" stroke="#1C559E" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="335.0,576.0 270.0,662.0 292.0,566.0" fill="#15437F" stroke="#15437F" stroke-width="2" stroke-linejoin="round"/>
+  <g>
+    <polygon points="745.0,562.0 795.5,550.4 770.4,576.7" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="795.5,550.4 832.9,541.8 806.1,597.5" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="832.9,541.8 866.6,534.1 836.9,615.4" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="866.6,534.1 898.1,526.9 865.3,631.9" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="898.1,526.9 928.0,520.0 892.1,647.5" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="770.4,576.7 806.1,597.5 795.5,550.4" fill="#C9DFF1" stroke="#C9DFF1" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="806.1,597.5 836.9,615.4 832.9,541.8" fill="#C9DFF1" stroke="#C9DFF1" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="836.9,615.4 865.3,631.9 866.6,534.1" fill="#C9DFF1" stroke="#C9DFF1" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="865.3,631.9 892.1,647.5 898.1,526.9" fill="#C9DFF1" stroke="#C9DFF1" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="892.1,647.5 905.0,655.0 928.0,520.0" fill="#C9DFF1" stroke="#C9DFF1" stroke-width="2" stroke-linejoin="round"/>
+    <polyline points="745.0,562.0 770.4,576.7 795.5,550.4 806.1,597.5 832.9,541.8 836.9,615.4 866.6,534.1 865.3,631.9 898.1,526.9 892.1,647.5 928.0,520.0" fill="none" stroke="#8FB7DA" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+  <g fill="none" stroke="#15437F" stroke-width="9" stroke-linecap="round"><line x1="702" y1="476" x2="690" y2="548"/><line x1="676" y1="482" x2="664" y2="556"/><line x1="650" y1="488" x2="638" y2="564"/></g>
+  <circle cx="812" cy="480" r="22" fill="#0A1220"/>
+  <circle cx="805" cy="472" r="7" fill="#FFFFFF"/>
+</svg>
+</div></div>
+<script>
+  for (let i = 0; i < 18; i++) {
+    const b = document.createElement('span'), s = 6 + Math.random() * 16;
+    b.className = 'bubble';
+    Object.assign(b.style, { width: s + 'px', height: s + 'px', left: Math.random() * 100 + 'vw',
+      animationDuration: 6 + Math.random() * 8 + 's', animationDelay: -Math.random() * 14 + 's' });
+    document.body.appendChild(b);
+  }
+</script>
+</body></html>

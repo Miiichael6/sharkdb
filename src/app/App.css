@@ -359,6 +359,46 @@ input[type="checkbox"] {
   }
 }
 
+/* The shark swimming in place (SwimmingShark): the tail wags via SMIL, the body bobs and the fins flap here. */
+.swimming-shark {
+  width: 140px;
+  height: 106px;
+  overflow: visible;
+}
+.shark-swim {
+  transform-box: view-box;
+  transform-origin: 512px 512px;
+  animation: shark-bob 1.8s ease-in-out infinite;
+}
+.shark-fins {
+  transform-box: view-box;
+  transform-origin: 560px 605px;
+  animation: shark-flap 0.9s ease-in-out infinite alternate;
+}
+.shark-calm {
+  animation-duration: 3.4s;
+}
+.shark-calm .shark-fins {
+  animation-duration: 1.8s;
+}
+@keyframes shark-bob {
+  0%,
+  100% {
+    transform: translateY(-14px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(14px) rotate(2deg);
+  }
+}
+@keyframes shark-flap {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(8deg);
+  }
+}
+
 .search {
   border-radius: 999px;
   padding: 6px 14px;
@@ -3122,7 +3162,9 @@ button.ops-section-head:hover:not(:disabled) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ops-status.running::before {
+  .ops-status.running::before,
+  .shark-swim,
+  .shark-fins {
     animation: none;
   }
 }
