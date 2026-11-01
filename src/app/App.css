@@ -1042,6 +1042,11 @@ input[type="checkbox"] {
 .tb-btn:only-child {
   width: 40px;
 }
+/* The settings gear is a circle of its own. */
+.tb-btn[data-action="settings"]:only-child {
+  width: 26px;
+  padding: 0;
+}
 .tb-btn:hover:not(:disabled) {
   background: var(--surface-2);
   color: var(--text);
@@ -1329,6 +1334,24 @@ input[type="checkbox"] {
 .panel {
   padding: 16px 20px 24px;
   user-select: text;
+}
+/* JSON or code: the editor takes the rest of the height and scrolls inside. */
+.panel-code {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+}
+.detail-code {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.detail-code.nested-code {
+  flex: none;
+  height: 360px;
 }
 .panel.center {
   display: grid;
@@ -2107,7 +2130,8 @@ button.shell-action {
 /* The shell, the document editor and the validation editor stay dark in the light theme too: the dark palette, scoped to the editor. */
 :root[data-theme="light"] .query-editor,
 :root[data-theme="light"] .document-editor,
-:root[data-theme="light"] .validation-editor {
+:root[data-theme="light"] .validation-editor,
+:root[data-theme="light"] .detail-code {
   --syn-background: #16171d;
   --syn-foreground: #f8f8f0;
   --syn-line-highlight: rgb(255 255 255 / 0.045);
@@ -2616,6 +2640,10 @@ button.shell-action {
   width: 100%;
   box-sizing: border-box;
 }
+.db-dialog .modal-footer button {
+  padding: 4px 11px;
+  font-size: 0.92em;
+}
 .db-dialog-list {
   list-style: none;
   margin: 10px 0 0;
@@ -2742,8 +2770,29 @@ button.shell-action {
   color: var(--warn);
 }
 .db-dialog-connection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 8px;
   color: var(--muted);
+}
+.db-dialog-target,
+.db-dialog-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.db-dialog-host {
+  margin-left: 8px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 0.92em;
+}
+.db-dialog .db-toggle-all {
+  padding: 3px 10px;
+  font-size: 0.92em;
+  color: var(--text);
 }
 .db-dialog-connection b {
   color: var(--text);
@@ -3106,6 +3155,7 @@ button.link:hover:not(:disabled) {
 }
 .with-ops {
   display: flex;
+  flex: 1;
   height: 100%;
   min-height: 0;
 }

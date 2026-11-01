@@ -1,5 +1,5 @@
 // Opens the "Bases de datos" window of a connection and answers what it asks (stars, creation).
-import { displayName } from "../features/connections/domain/connection";
+import { displayName, hostLabel } from "../features/connections/domain/connection";
 import type { Session } from "../features/connections/domain/session";
 import { userDatabases } from "../features/explorer/domain/mongo";
 import type {
@@ -11,7 +11,7 @@ import { openModalWindow } from "../shared/ui/modalWindow";
 import { OPEN_DATABASE_VIEW } from "./ModalWindow";
 import { useServices } from "./services";
 
-const WINDOW = { title: "Bases de datos", width: 440, height: 520 };
+const WINDOW = { title: "Bases de datos", width: 520, height: 520 };
 
 /**
  * The databases `session` must show in the explorer (the checked ones, favorites included), or null
@@ -30,6 +30,7 @@ export function useDatabaseWindow(saveFavorites: (sid: string, favorites: string
     const favorites = userDatabases(explorer.favoritesOf(sid));
     const data: OpenDatabaseData = {
       connection: displayName(session.conn),
+      host: hostLabel(session.conn),
       databases: userDatabases(all.map((d) => d.name)),
       favorites,
       shown: [...favorites, ...userDatabases(explorer.temporariesOf(sid))],

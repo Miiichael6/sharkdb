@@ -4,6 +4,8 @@
 export interface OpenDatabaseData {
   /** Name of the connection, shown at the top. */
   connection: string;
+  /** Its `host:port`, shown next to the name. */
+  host: string;
   /** Every database of the server. */
   databases: string[];
   favorites: string[];

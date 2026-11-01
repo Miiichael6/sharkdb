@@ -71,10 +71,15 @@ export function useOpenDatabaseForm({ data, onFavorites, onError }: Options) {
     toggleStar,
     click,
     toggle: (name: string) => !favorites.includes(name) && setSelection((s) => toggleRow(s, name)),
-    /** Some row can be unchecked: the favorites can't. */
-    canClear: selection.selected.some((name) => !favorites.includes(name)),
-    /** Unchecks every row but the favorites. */
-    clear: () => setSelection((s) => ({ ...s, selected: [] })),
+    /** Every shown row is checked (the search narrows them): the toggle unchecks instead. */
+    allChecked: rows.length > 0 && rows.every(isChecked),
+    /** Checks every shown row, or unchecks them (but the favorites) when all are checked already. */
+    toggleAll: () =>
+      setSelection((s) =>
+        rows.every(isChecked)
+          ? { ...s, selected: s.selected.filter((name) => !rows.includes(name)) }
+          : { ...s, selected: [...s.selected, ...rows.filter((name) => !isChecked(name))] },
+      ),
     move,
     emptyServer: !data.databases.length,
   };

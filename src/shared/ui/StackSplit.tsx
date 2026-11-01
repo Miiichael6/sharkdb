@@ -90,7 +90,8 @@ export function StackSplit(props: Props) {
       <div
         className="stack-top"
         ref={topBox}
-        style={bottomHidden ? { flexGrow: 1 } : { flexBasis: topPx === null ? `${initialRatio * 100}%` : `${topPx}px` }}
+        // Alone it takes exactly the box's height (basis 0), never its content's: that one scrolls inside.
+        style={bottomHidden ? { flex: "1 1 0" } :{ flexBasis: topPx === null ? `${initialRatio * 100}%` : `${topPx}px` }}
         hidden={topHidden}
       >
         {top}

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useServices } from "../../../app/services";
 import { formatBytes } from "../../../shared/format";
 import { errorMessage } from "../../../shared/errors";
+import { CodeEditor } from "../../../shared/ui/CodeEditor";
 import { SadShark, Spinner } from "../../../shared/ui/common";
+import { formatValue } from "../../shell/domain/bsonFormat";
 import type { ExplorerService } from "../application/explorerService";
 import type { Doc, IndexSpec } from "../domain/mongo";
 import type { TreeNode } from "../domain/tree";
@@ -99,8 +101,10 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
   if (error) return <div className="panel"><p className="test error">{error}</p></div>;
   if (!content) return <div className="panel center"><Spinner /></div>;
 
+  const layout =
+    content.type === "serverHint" ? "panel panel-fill" : content.type === "json" || content.type === "code" ? "panel panel-code" : "panel";
   return (
-    <div className={content.type === "serverHint" ? "panel panel-fill" : "panel"}>
+    <div className={layout}>
       <div className="panel-head">
         <h2>{content.title}</h2>
         {node.kind === "server" && (
@@ -123,8 +127,8 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
           </div>
         </>
       )}
-      {content.type === "json" && <pre className="json">{JSON.stringify(content.data, null, 2)}</pre>}
-      {content.type === "code" && <pre className="json">{content.code}</pre>}
+      {content.type === "json" && <CodeView text={formatValue(content.data, "utc")} />}
+      {content.type === "code" && <CodeView text={content.code} />}
       {content.type === "stats" && (
         <>
           <StatsGrid data={content.data} />
@@ -141,7 +145,12 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
   );
 }
 
-const isBytes = (k: string) => /size$/i.test(k) && k !== "scaleFactor";
+/** JSON or code as "Ver documento" shows it: the read-only dark editor, which scrolls on its own. */
+function CodeView({ text, className = "detail-code" }: { text: string; className?: string }) {
+  return <CodeEditor className={className} value={text} readOnly alwaysDark />;
+}
+
+const isBytes =(k: string) => /size$/i.test(k) && k !== "scaleFactor";
 
 function StatsGrid({ data }: { data: Doc }) {
   const scalars = Object.entries(data).filter(([, v]) => v === null || typeof v !== "object");
@@ -159,7 +168,7 @@ function StatsGrid({ data }: { data: Doc }) {
       {nested.length > 0 && (
         <details className="nested">
           <summary>Más detalles</summary>
-          <pre className="json">{JSON.stringify(Object.fromEntries(nested), null, 2)}</pre>
+          <CodeView text={formatValue(Object.fromEntries(nested), "utc")} className="detail-code nested-code" />
         </details>
       )}
     </>

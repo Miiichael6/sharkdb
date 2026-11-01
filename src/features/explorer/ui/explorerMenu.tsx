@@ -3,7 +3,19 @@ import type { ReactNode } from "react";
 import type { MenuScriptKind } from "../../shell/domain/menuScripts";
 import { isSystemDatabase } from "../domain/mongo";
 import { isMissingDatabase, type TreeNode } from "../domain/tree";
-import { DROP_ICON, REMOVE_FROM_LIST_ICON } from "./menuIcons";
+import {
+  CREATE_ICON,
+  DISCONNECT_ICON,
+  DROP_ICON,
+  EXTERNAL_ICON,
+  HOST_ICON,
+  INFO_ICON,
+  LOG_ICON,
+  REFRESH_ICON,
+  REMOVE_FROM_LIST_ICON,
+  SHELL_ICON,
+  STATUS_ICON,
+} from "./menuIcons";
 
 export type Action =
   | "openShell"
@@ -50,17 +62,17 @@ export function menuFor(n: TreeNode): MenuItem[] {
   switch (n.kind) {
     case "server":
       return [
-        { label: "Abrir shell", action: "openShell" },
-        { label: "Abrir en mongosh", action: "openMongosh" },
-        { label: "Refrescar", action: "refresh" },
-        { label: "Crear base de datos…", action: "createDatabase" },
+        { label: "Abrir shell", action: "openShell", icon: SHELL_ICON },
+        { label: "Abrir en mongosh", action: "openMongosh", icon: EXTERNAL_ICON },
+        { label: "Refrescar", action: "refresh", icon: REFRESH_ICON },
+        { label: "Crear base de datos…", action: "createDatabase", icon: CREATE_ICON },
         "sep",
-        { label: "Estado del servidor", action: "serverStatus" },
-        { label: "Info del host", action: "hostInfo" },
-        { label: "Versión de MongoDB", action: "buildInfo" },
+        { label: "Estado del servidor", action: "serverStatus", icon: STATUS_ICON },
+        { label: "Info del host", action: "hostInfo", icon: HOST_ICON },
+        { label: "Versión de MongoDB", action: "buildInfo", icon: INFO_ICON },
         "sep",
-        { label: "Ver log", action: "showLog" },
-        { label: "Desconectar", action: "disconnect" },
+        { label: "Ver log", action: "showLog", icon: LOG_ICON },
+        { label: "Desconectar", action: "disconnect", danger: true, icon: DISCONNECT_ICON },
       ];
     case "systemDbs":
       return [];

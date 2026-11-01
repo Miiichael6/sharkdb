@@ -30,6 +30,7 @@ import { useOperations } from "./operations/useOperations";
 import { useCurrentTarget } from "./useCurrentTarget";
 import type { ChooseDatabases } from "./useDatabaseWindow";
 import { useQuickOpen } from "./useQuickOpen";
+import { useServices } from "./services";
 
 interface Props {
   controls: WorkspaceControls;
@@ -54,6 +55,7 @@ export function WorkspaceToolbar(props: Props) {
   const [aboutOpen, setAboutOpen] = useState(false);
   // Turning safe mode off on a protected connection asks first.
   const log = useLog();
+  const { explorer } = useServices();
 
   const target = useCurrentTarget(tabs.active, controls.selected);
   const session = target && sessions.find((s) => s.conn.id === target.sid);
@@ -75,6 +77,8 @@ export function WorkspaceToolbar(props: Props) {
   const selectedSession = sessions.find((s) => s.conn.id === controls.selectedConnection);
   const showDatabases = async () => {
     if (!selectedSession) return;
+    const sid = selectedSession.conn.id;
+    const starsBefore = explorer.favoritesOf(sid).join("\n");
     let chosen: string[] | null;
     try {
       chosen = await props.onChooseDatabases(selectedSession, false);
@@ -82,9 +86,11 @@ export function WorkspaceToolbar(props: Props) {
       log.error("No se pudo abrir la lista de bases de datos", e);
       return;
     }
-    // The stars may have changed even when the window was just closed: the tree reloads anyway.
-    const sid = selectedSession.conn.id;
-    if (!chosen) return controls.openDatabases(sid, []);
+    // Closed without Abrir: the checks are dropped, the tree reloads only if a star changed.
+    if (!chosen) {
+      if (explorer.favoritesOf(sid).join("\n") !== starsBefore) controls.openDatabases(sid, []);
+      return;
+    }
     layout.showSidebar();
     controls.showDatabases(sid, chosen);
   };

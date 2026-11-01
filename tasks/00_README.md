@@ -81,6 +81,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
   - Como en **file-manager**: una **pestaña dividida** con dos paneles (izquierdo y derecho), que en la barra se ve como una sola pestaña `A | B`; no hay dos barras de pestañas.
   - Se divide **arrastrando** una pestaña sobre el área del shell (vista previa del lado); se separa con **"Separar pestaña"** en su menú.
   - Divisor arrastrable; en ventana estrecha solo se ve el panel activo. El panel de detalles del explorador no se divide.
+- [x] **D14** Temas incluidos → **la propuesta, aceptada por el usuario** (2026-10-31); los actuales se quedan como una opción más → afecta 30:
+  - **Aplicación**: Oscuro (actual), Claro (actual), Según el sistema, y además Nord, Solarized claro y Dracula.
+  - **Código y vistas JSON**: Monokai Vibrant (actual), One Dark, GitHub claro, Dracula y Solarized oscuro.
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -116,6 +119,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 27 | [Validación de documentos por colección (`$jsonSchema`)](done/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ✅ Terminada |
 | 28 | [Filtrar colecciones del árbol escribiendo](done/28_filtro_colecciones.md) | 15 Explorador | 23 | ✅ Terminada |
 | 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
+| 30 | [Temas de color para la aplicación y el código](pending/30_temas_app_y_codigo.md) | 16 Temas | – | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -178,6 +182,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R52 Respeta safe mode; el error de validación al editar se muestra claro (4.2 no dice qué campo falla) | 27 |
 | R53 Filtrar las colecciones de una base escribiendo parte del nombre, con contador y resaltado | 28 |
 | R54 El error de validación dice qué campo y qué regla fallan (`errInfo.details` en 5.0+, comprobación propia en 4.2) | 29 |
+| R55 Varios temas de color para la aplicación, elegidos en Configuración (el actual es uno de ellos) | 30 |
+| R57 "Tema…" en la tuerca abre una sub-ventana con los dos selectores y vista previa del código y de la interfaz | 30 |
+| R56 Varios temas para el código y las vistas JSON, independientes del de la aplicación (el actual es uno de ellos) | 30 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -199,5 +206,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 04, 05 → 26
 13, 17, 18 → 27 → 29
 23 → 28
+30 (independiente)
 12 ────────────────────┘
 ```
