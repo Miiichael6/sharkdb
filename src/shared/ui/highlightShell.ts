@@ -1,7 +1,7 @@
-import { javascriptLanguage } from "@codemirror/lang-javascript";
 import { highlightCode } from "@lezer/highlight";
 import { StyleModule } from "style-mod";
 import { codeHighlight } from "./codeTheme";
+import { shellLanguage } from "./shellLanguage";
 
 export interface Token {
   text: string;
@@ -24,7 +24,7 @@ export function highlightShell(code: string): Token[] {
   const tokens: Token[] = [];
   highlightCode(
     wrapped,
-    javascriptLanguage.parser.parse(wrapped),
+    shellLanguage.parser.parse(wrapped),
     codeHighlight,
     (text, className) => tokens.push({ text, className }),
     () => tokens.push({ text: "\n", className: "" }),

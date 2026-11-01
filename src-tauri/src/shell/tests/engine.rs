@@ -36,6 +36,67 @@ fn printjson_uses_shell_format() {
 }
 
 #[test]
+fn print_writes_objects_in_shell_format() {
+    let outcome = run(
+        &mut engine(),
+        "print('doc:', { a: 1, id: ObjectId('65a1b2c3d4e5f6a7b8c9d0e1') }, [1, 'x'], null, 2)",
+    );
+    assert_eq!(
+        prints(&outcome),
+        [
+            "doc: {\n\t\"a\" : 1,\n\t\"id\" : ObjectId(\"65a1b2c3d4e5f6a7b8c9d0e1\")\n} [\n\t1,\n\t\"x\"\n] null 2"
+        ]
+    );
+}
+
+/// Valores de cada `print`, en orden.
+fn printed_values(outcome: &ScriptOutcome) -> Vec<Vec<Bson>> {
+    outcome
+        .results
+        .iter()
+        .filter_map(|result| match &result.output {
+            ScriptOutput::Print { values, .. } => Some(values.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn print_sends_its_values_only_when_something_is_not_text() {
+    let outcome = run(
+        &mut engine(),
+        "print('a', 'b'); print('doc:', { a: 1 }, [2], null); printjson({ a: 1 })",
+    );
+    assert_eq!(
+        printed_values(&outcome),
+        [
+            vec![],
+            vec![
+                Bson::String("doc:".into()),
+                Bson::Document(mongodb::bson::doc! { "a": 1.0 }),
+                Bson::Array(vec![Bson::Double(2.0)]),
+                Bson::Null,
+            ],
+            vec![],
+        ]
+    );
+}
+
+#[test]
+fn printjson_marks_its_text_as_json() {
+    let outcome = run(&mut engine(), "print({ a: 1 }); printjson({ a: 1 })");
+    let json: Vec<_> = outcome
+        .results
+        .iter()
+        .filter_map(|result| match &result.output {
+            ScriptOutput::Print { json, .. } => Some(*json),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(json, [false, true]);
+}
+
+#[test]
 fn globals_survive_between_runs() {
     let mut engine = engine();
     assert_eq!(run(&mut engine, "var counter = 41;").error, None);
@@ -141,6 +202,17 @@ fn each_expression_leaves_its_own_result_with_line_and_source() {
     );
     let sources: Vec<_> = outcome.results.iter().map(|r| r.source.as_str()).collect();
     assert_eq!(sources, ["1 + 1;", "'b'.toUpperCase()", "a"]);
+}
+
+#[test]
+fn a_leading_string_leaves_its_value() {
+    let outcome = run(&mut engine(), "\"hola\"
+1 + 1");
+    assert_eq!(outcome.error, None);
+    assert_eq!(
+        located_values(&outcome),
+        [(1, Bson::String("hola".into())), (2, Bson::Double(2.0))]
+    );
 }
 
 #[test]

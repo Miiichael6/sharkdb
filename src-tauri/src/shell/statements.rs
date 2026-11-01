@@ -5,7 +5,7 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Statement as Node;
 use oxc_parser::Parser;
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::{GetSpan, SourceType, Span};
 
 /// Una sentencia de primer nivel y dónde empieza en el script.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,23 +38,31 @@ pub fn split(code: &str) -> Vec<Statement<'_>> {
     if parsed.fatal_error || parsed.diagnostics.has_errors() {
         return whole_script(code);
     }
-    parsed
-        .program
-        .body
+    let program = &parsed.program;
+    // Un string suelto al principio (`"hola"`) es una directiva, como `"use strict"`: el parser no
+    // lo pone en `body`, pero en el shell es una expresión más y su valor se muestra.
+    let directives = program
+        .directives
         .iter()
-        .map(|node| {
-            let span = node.span();
-            let start = span.start as usize;
-            let (line, column) = position(code, start);
-            Statement {
-                code: &code[start..span.end as usize],
-                line,
-                column,
-                is_expression: matches!(node, Node::ExpressionStatement(_)),
-                is_hoisted: matches!(node, Node::FunctionDeclaration(_)),
-            }
-        })
-        .collect()
+        .map(|directive| statement_at(code, directive.span, true, false));
+    let body = program.body.iter().map(|node| {
+        let is_expression = matches!(node, Node::ExpressionStatement(_));
+        let is_hoisted = matches!(node, Node::FunctionDeclaration(_));
+        statement_at(code, node.span(), is_expression, is_hoisted)
+    });
+    directives.chain(body).collect()
+}
+
+fn statement_at(code: &str, span: Span, is_expression: bool, is_hoisted: bool) -> Statement<'_> {
+    let start = span.start as usize;
+    let (line, column) = position(code, start);
+    Statement {
+        code: &code[start..span.end as usize],
+        line,
+        column,
+        is_expression,
+        is_hoisted,
+    }
 }
 
 fn whole_script(code: &str) -> Vec<Statement<'_>> {
@@ -121,6 +129,24 @@ mod tests {
     fn padding_keeps_line_and_column() {
         let statement = &split("a();\r\n  b()")[1];
         assert_eq!(statement.padded(), "\n  b()");
+    }
+
+    #[test]
+    fn a_leading_string_is_an_expression() {
+        let statements = split("\"hola\"
+db.a.find()");
+        let summary: Vec<_> = statements.iter().map(|s| (s.code, s.line, s.is_expression)).collect();
+        assert_eq!(summary, [("\"hola\"", 1, true), ("db.a.find()", 2, true)]);
+    }
+
+    #[test]
+    fn use_strict_before_code_keeps_the_rest() {
+        let statements = split("'use strict';
+var a = 1;
+a");
+        let codes: Vec<_> = statements.iter().map(|s| s.code).collect();
+        assert_eq!(codes, ["'use strict';", "var a = 1;", "a"]);
+        assert_eq!(statements[2].line, 3);
     }
 
     #[test]

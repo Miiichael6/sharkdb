@@ -1,7 +1,8 @@
 import { useMemo, type KeyboardEvent, type MouseEvent } from "react";
 import { ColumnHeader } from "../../../../shared/ui/ColumnHeader";
 import { useColumnWidths } from "../../../../shared/ui/useColumnWidths";
-import { VirtualList } from "../../../../shared/ui/VirtualList";
+import { columnWindow } from "../../../../shared/domain/columnWindow";
+import { VirtualList, type Strip } from "../../../../shared/ui/VirtualList";
 import { summarizeValue, type DateZone } from "../../domain/bsonFormat";
 import { bsonValue } from "../../domain/bsonValue";
 import { lookup, tableColumns } from "../../domain/resultView";
@@ -13,7 +14,9 @@ import type { ResultTarget } from "./useResultMenu";
 const NUMBER_COLUMN = { id: "#", label: "#" };
 const NUMBER_WIDTH = 56;
 const COLUMN_WIDTH = 180;
-const defaultWidth = (id: string) => (id === NUMBER_COLUMN.id ? NUMBER_WIDTH : COLUMN_WIDTH);
+/** Width drawn past each side of the visible strip, so sideways scrolling doesn't show blanks. */
+const OVERSCAN_PX = 400;
+const defaultWidth =(id: string) => (id === NUMBER_COLUMN.id ? NUMBER_WIDTH : COLUMN_WIDTH);
 
 interface Props {
   docs: unknown[];
@@ -44,9 +47,15 @@ export function TableView({ docs, firstNumber, zone, onContextMenu, onDeleteDocu
     onDeleteDocuments(docPick.pickedDocs());
   };
 
-  const renderRow = (index: number) => {
+  const renderRow = (index: number, strip: Strip) => {
     const doc = docs[index];
     const isPicked = docPick.picked.has(index);
+    const { first, end, before, after } = columnWindow(
+      columns.map((c) => widthOf(c.id)),
+      widthOf(NUMBER_COLUMN.id),
+      strip.left - OVERSCAN_PX,
+      strip.width + 2 * OVERSCAN_PX,
+    );
     return (
       <div
         key={index}
@@ -60,7 +69,8 @@ export function TableView({ docs, firstNumber, zone, onContextMenu, onDeleteDocu
         <div className="grid-cell muted" role="rowheader" style={{ width: widthOf(NUMBER_COLUMN.id) }}>
           {firstNumber + index}
         </div>
-        {columns.map((c) => {
+        {before > 0 && <div style={{ width: before, flex: "none" }} />}
+        {columns.slice(first, end).map((c) => {
           const found = lookup(doc, c.path);
           const text = found ? summarizeValue(found.value, zone) : "";
           return (
@@ -83,6 +93,7 @@ export function TableView({ docs, firstNumber, zone, onContextMenu, onDeleteDocu
             </div>
           );
         })}
+        {after > 0 && <div style={{ width: after, flex: "none" }} />}
       </div>
     );
   };

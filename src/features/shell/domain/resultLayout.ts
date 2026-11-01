@@ -1,4 +1,5 @@
 // How a run's results are shown: one result per statement, stacked or in sub-tabs like Robo 3T.
+import { bsonValue, isContainer } from "./bsonValue";
 import type { ScriptError, ScriptOutcome, ScriptResult } from "./outcome";
 
 /** Results shown one under another; from one more on, they go into sub-tabs. */
@@ -21,11 +22,17 @@ export interface EntryValue {
   index: number;
 }
 
+/** A printed line; `json` when it came from `printjson`, to show as code. */
+export interface PrintedLine {
+  text: string;
+  json: boolean;
+}
+
 export interface StatementEntry {
   kind: "statement";
   line: number;
   source: string;
-  prints: string[];
+  prints: PrintedLine[];
   value: EntryValue | null;
 }
 
@@ -36,21 +43,59 @@ export type ResultEntry = StatementEntry | { kind: "error"; error: ScriptError }
 export function resultEntries(outcome: ScriptOutcome): ResultEntry[] {
   const entries: ResultEntry[] = [];
   let current: StatementEntry | null = null;
-  outcome.results.forEach((result, index) => {
+  for (const { result, index } of shownResults(outcome.results)) {
     if (!current || !belongsTo(current, result)) {
       current = { kind: "statement", line: result.line, source: result.source, prints: [], value: null };
       entries.push(current);
     }
-    if (result.kind === "print") current.prints.push(result.text);
+    if (result.kind === "print") current.prints.push({ text: result.text, json: result.json ?? false });
     else current.value = { result, index };
-  });
+  }
   if (outcome.error) entries.push({ kind: "error", error: outcome.error });
   return entries;
 }
 
-/** A statement's value comes after its prints, so once it has one the next result is another statement. */
+/**
+ * What each statement shows, as Robo 3T does: what it returns, and nothing it printed; else, when its last
+ * print is a document, only that document, in the tree like a returned value; else all it printed, as text.
+ * The Console view keeps everything.
+ */
+function shownResults(results: readonly ScriptResult[]): EntryValue[] {
+  const statements = new Map<string, ScriptResult[]>();
+  for (const result of results) {
+    const own = statements.get(statementKey(result));
+    if (own) own.push(result);
+    else statements.set(statementKey(result), [result]);
+  }
+  return results.flatMap((result, index) => {
+    const own = statements.get(statementKey(result)) ?? [];
+    if (own.some((other) => other.kind !== "print")) return result.kind === "print" ? [] : [{ result, index }];
+    const last = own[own.length - 1];
+    const document = printedDocument(last);
+    if (!document) return [{ result, index }];
+    return result === last ? [{ result: document, index }] : [];
+  });
+}
+
+function statementKey(result: ScriptResult): string {
+  return JSON.stringify([result.line, result.source]);
+}
+
+/** `print(doc)` as a value; several documents go as an array. Null for a print with text (`printjson` always). */
+function printedDocument(result: ScriptResult): ScriptResult | null {
+  if (result.kind !== "print" || !result.values?.length) return null;
+  if (!result.values.every((value) => isContainer(bsonValue(value)))) return null;
+  const value = result.values.length === 1 ? result.values[0] : result.values;
+  return { kind: "value", value, line: result.line, source: result.source };
+}
+
+/** Only prints join an entry: a value always gets its own, so the tree or table never shares a frame with text. */
 function belongsTo(entry: StatementEntry, result: ScriptResult): boolean {
-  return !entry.value && entry.line === result.line && entry.source === result.source;
+  return result.kind === "print" && !entry.value && sameStatement(entry, result);
+}
+
+function sameStatement(entry: StatementEntry, result: ScriptResult): boolean {
+  return entry.line === result.line && entry.source === result.source;
 }
 
 export function resultLayout(entries: readonly ResultEntry[]): ResultLayout {

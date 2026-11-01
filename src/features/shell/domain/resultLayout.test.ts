@@ -6,16 +6,29 @@ const value = (line: number, source = `x${line}`): ScriptResult => ({ kind: "val
 const print = (line: number, text: string): ScriptResult => ({ kind: "print", text, line, source: `x${line}` });
 const error: ScriptError = { kind: "script", message: "ReferenceError: y is not defined", line: 3, column: 1 };
 const outcome = (results: ScriptResult[], err: ScriptError | null = null): ScriptOutcome => ({ results, error: err, truncated: false, elapsedMs: 1 });
+const line = (text: string) => ({ text, json: false });
 const statement = (source: string, line = 3): ResultEntry => ({ kind: "statement", line, source, prints: [], value: null });
+const printed = (values: unknown[], line = 1): ScriptResult => ({ kind: "print", text: "…", values, line, source: `x${line}` });
 
 describe("resultEntries", () => {
-  it("groups each statement's prints with the value it returned", () => {
-    const entries = resultEntries(outcome([print(1, "a"), print(1, "b"), value(1), print(2, "c"), value(3)]));
+  it("groups each statement's prints, and drops them when it returns a value, as Robo 3T does", () => {
+    const entries = resultEntries(outcome([print(1, "a"), printed([{ a: 1 }]), value(1), print(2, "c"), value(3)]));
     expect(entries).toEqual([
-      { kind: "statement", line: 1, source: "x1", prints: ["a", "b"], value: { result: value(1), index: 2 } },
-      { kind: "statement", line: 2, source: "x2", prints: ["c"], value: null },
+      { kind: "statement", line: 1, source: "x1", prints: [], value: { result: value(1), index: 2 } },
+      { kind: "statement", line: 2, source: "x2", prints: [line("c")], value: null },
       { kind: "statement", line: 3, source: "x3", prints: [], value: { result: value(3), index: 4 } },
     ]);
+  });
+
+  it("shows only the last print when it prints documents, in the tree like a returned value", () => {
+    const doc = { a: 1 };
+    const entries = resultEntries(outcome([print(1, "a"), printed([{ b: 2 }]), printed([doc, [1]])]));
+    expect(entries).toEqual([{ kind: "statement", line: 1, source: "x1", prints: [], value: { result: { kind: "value", value: [doc, [1]], line: 1, source: "x1" }, index: 2 } }]);
+  });
+
+  it("shows everything printed as text when the last print is text", () => {
+    const entries = resultEntries(outcome([printed([{ b: 2 }]), print(1, "a"), printed(["doc:", { b: 2 }])]));
+    expect(entries).toEqual([{ kind: "statement", line: 1, source: "x1", prints: [line("…"), line("a"), line("…")], value: null }]);
   });
 
   it("keeps two equal statements on the same line apart", () => {

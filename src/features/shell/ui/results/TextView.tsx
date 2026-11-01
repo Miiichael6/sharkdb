@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { highlightShell } from "../../../../shared/ui/highlightShell";
+import { CodeEditor } from "../../../../shared/ui/CodeEditor";
 import { formatValue, type DateZone } from "../../domain/bsonFormat";
 
 interface Props {
@@ -8,22 +8,14 @@ interface Props {
   zone: DateZone;
 }
 
-/** The documents as shell text, each headed by its number, in the editor's colors and selectable to copy. */
+/**
+ * The documents as shell text, each headed by its number, selectable to copy. In a read-only editor,
+ * which only draws and colors the lines on screen: a page of big documents runs to tens of thousands.
+ */
 export function TextView({ docs, firstNumber, zone }: Props) {
-  const parts = useMemo(
-    () => docs.map((doc, i) => ({ number: firstNumber + i, tokens: highlightShell(formatValue(doc, zone)) })),
+  const text = useMemo(
+    () => docs.map((doc, i) => `/* ${firstNumber + i} */\n${formatValue(doc, zone)}`).join("\n\n"),
     [docs, firstNumber, zone],
   );
-  return (
-    <pre className="result-text" tabIndex={0} aria-label="Resultado en texto">
-      {parts.map(({ number, tokens }, i) => (
-        <span key={number}>
-          {i > 0 && "\n\n"}
-          <span className="text-doc-number">{`/* ${number} */`}</span>
-          {"\n"}
-          {tokens.map((t, j) => (t.className ? <span key={j} className={t.className}>{t.text}</span> : t.text))}
-        </span>
-      ))}
-    </pre>
-  );
+  return <CodeEditor className="result-text" value={text} readOnly />;
 }

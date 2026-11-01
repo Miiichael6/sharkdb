@@ -1,6 +1,7 @@
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
+import { shellTags } from "./shellLanguage";
 
 // The code theme: which token gets which role color, with the user's italics (comments, keywords,
 // constants, classes and function names are italic; operators and numbers are not). The colors are
@@ -22,8 +23,11 @@ const color = {
   template: "var(--syn-template)",
   constant: "var(--syn-constant)",
   keyword: "var(--syn-keyword)",
+  storage: "var(--syn-storage)",
   label: "var(--syn-label)",
   variable: "var(--syn-variable)",
+  identifier: "var(--syn-identifier)",
+  parameter: "var(--syn-parameter)",
   function: "var(--syn-function)",
 };
 
@@ -119,11 +123,17 @@ export const codeHighlight = HighlightStyle.define([
   { tag: t.number, color: color.constant },
   { tag: [t.bool, t.null, t.atom], color: color.constant, fontStyle: "italic" },
   { tag: t.keyword, color: color.keyword, fontStyle: "italic" },
+  // `function`, `const`, `let`, `class`, `async`…: VS Code's `storage.type`, cyan in the Monokai family.
+  { tag: [t.definitionKeyword, t.modifier], color: color.storage, fontStyle: "italic" },
   { tag: t.operator, color: color.keyword },
   // The dot of `db.coll.find` is an operator too; in red it reads like an error.
   { tag: t.derefOperator, color: color.foreground },
   { tag: t.self, color: color.keyword, fontStyle: "italic" },
-  { tag: t.variableName, color: color.variable },
+  // `=>` is `storage.type` too.
+  { tag: t.function(t.punctuation), color: color.storage },
+  { tag: t.variableName, color: color.identifier },
+  { tag: shellTags.object, color: color.variable },
+  { tag: shellTags.parameter, color: color.parameter, fontStyle: "italic" },
   { tag: t.propertyName, color: color.foreground },
   { tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName))], color: color.function, fontStyle: "italic" },
   { tag: [t.className, t.typeName], color: color.variable, fontStyle: "italic" },

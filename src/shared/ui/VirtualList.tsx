@@ -3,10 +3,16 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 /** Rows drawn above and below the visible ones, so fast scrolling doesn't show blanks. */
 const OVERSCAN = 8;
 
+/** The visible strip of the rows, sideways: for rows that only draw the columns in it. */
+export interface Strip {
+  left: number;
+  width: number;
+}
+
 interface Props {
   count: number;
   rowHeight: number;
-  renderRow: (index: number) => ReactNode;
+  renderRow: (index: number, strip: Strip) => ReactNode;
   /** Sticky content above the rows (column headers); scrolls sideways with them. */
   header?: ReactNode;
   /** Row kept in view, e.g. the one selected with the keyboard. */
@@ -21,11 +27,16 @@ interface Props {
 export function VirtualList({ count, rowHeight, renderRow, header, activeIndex, className = "", role, ariaLabel, onKeyDown }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [height, setHeight] = useState(0);
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
     const el = scroller.current!;
-    const observer = new ResizeObserver(() => setHeight(el.clientHeight));
+    const observer = new ResizeObserver(() => {
+      setHeight(el.clientHeight);
+      setWidth(el.clientWidth);
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -41,8 +52,9 @@ export function VirtualList({ count, rowHeight, renderRow, header, activeIndex, 
 
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
   const last = Math.min(count, Math.ceil((scrollTop + height) / rowHeight) + OVERSCAN);
+  const strip = { left: scrollLeft, width };
   const rows: ReactNode[] = [];
-  for (let i = first; i < last; i++) rows.push(renderRow(i));
+  for (let i = first; i < last; i++) rows.push(renderRow(i, strip));
 
   return (
     <div
@@ -53,7 +65,10 @@ export function VirtualList({ count, rowHeight, renderRow, header, activeIndex, 
       aria-rowcount={count}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      onScroll={(e) => {
+        setScrollTop(e.currentTarget.scrollTop);
+        setScrollLeft(e.currentTarget.scrollLeft);
+      }}
     >
       {header}
       <div className="virtual-body" style={{ height: count * rowHeight }}>

@@ -24,6 +24,11 @@
   }
 
   globalThis.tojson = (value) => tojson(value);
-  globalThis.print = (...values) => emit(values.map(String).join(' '));
-  globalThis.printjson = (value) => emit(tojson(value));
+  // Los textos salen tal cual; objetos, arrays y tipos BSON, como printjson (no `[object Object]`).
+  const printed = (value) => (typeof value === 'string' ? value : tojson(value));
+
+  // Si hay algo que no es texto, también van los valores: la consola los muestra como objetos y arrays.
+  globalThis.print = (...values) =>
+    emit(values.map(printed).join(' '), values.some((v) => typeof v !== 'string') ? values : undefined);
+  globalThis.printjson = (value) => emit(tojson(value), undefined, true);
 });

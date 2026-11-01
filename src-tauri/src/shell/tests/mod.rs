@@ -78,7 +78,7 @@ fn prints(outcome: &ScriptOutcome) -> Vec<&str> {
     outputs(outcome)
         .into_iter()
         .filter_map(|output| match output {
-            ScriptOutput::Print { text } => Some(text.as_str()),
+            ScriptOutput::Print { text, .. } => Some(text.as_str()),
             _ => None,
         })
         .collect()

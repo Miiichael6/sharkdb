@@ -49,3 +49,5 @@ export function useResultTabs(count: number, run: unknown) {
 
   return { open, selected, select: setChosen, close, onPanelKeyDown, onListKeyDown };
 }
+
+export type ResultTabsState = ReturnType<typeof useResultTabs>;

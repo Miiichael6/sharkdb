@@ -20,7 +20,9 @@ export interface CursorResult {
 }
 
 export type ScriptOutput =
-  | { kind: "print"; text: string }
+  /** `values`: the arguments of a `print` that got something other than text, for the Console view. */
+  /** `json`: the text came from `printjson` and is shown as code. */
+  | { kind: "print"; text: string; values?: unknown[]; json?: boolean }
   | { kind: "value"; value: unknown }
   | { kind: "write"; value: Doc }
   | CursorResult;

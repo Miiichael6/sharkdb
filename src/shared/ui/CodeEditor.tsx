@@ -1,9 +1,9 @@
-import { javascript } from "@codemirror/lang-javascript";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { codeTheme } from "./codeTheme";
+import { shellJavascript } from "./shellLanguage";
 
 interface Props {
   value: string;
@@ -63,7 +63,7 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
         extensions: [
           ...extensions,
           basicSetup,
-          javascript(),
+          shellJavascript(),
           codeTheme,
           fillParent,
           spanish,
