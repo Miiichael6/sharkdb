@@ -43,6 +43,10 @@ export interface BackupSchedule {
   notify: boolean;
   /** What it saves and where, confirmed with the confirmation word; null until chosen. */
   backup: BackupRequest | null;
+  /** ISO instant it was last switched on or its timing changed: runs due before it don't count. */
+  armedAt: string | null;
+  /** ISO instant its last automatic run started (▶ doesn't count). */
+  lastScheduledRun: string | null;
 }
 
 export const DEFAULT_SCHEDULE_NAME = "Backup sin nombre";
@@ -60,7 +64,7 @@ const MINUTES_PER_HOUR = 60;
 /** A schedule runs on the hour or at a quarter past, half past or a quarter to: never at 14:43. */
 const MINUTE_STEP = 15;
 
-const pad = (n: number) => String(n).padStart(2, "0");
+export const pad = (n: number) => String(n).padStart(2, "0");
 
 export const SCHEDULE_MINUTES = Array.from({ length: MINUTES_PER_HOUR / MINUTE_STEP }, (_, i) => pad(i * MINUTE_STEP));
 
@@ -132,6 +136,8 @@ export const newSchedule = (id: string): BackupSchedule => ({
   date: null,
   notify: false,
   backup: null,
+  armedAt: null,
+  lastScheduledRun: null,
 });
 
 const isRepeat = (value: unknown): value is Repeat => REPEAT_OPTIONS.some((o) => o.id === value);
@@ -153,6 +159,7 @@ export function isCalendarDate(date: unknown): date is string {
 }
 
 const cleanDate = (date: unknown) => (isCalendarDate(date) ? date : null);
+const cleanInstant = (at: unknown) => (typeof at === "string" && !Number.isNaN(Date.parse(at)) ? at : null);
 
 /** The day chosen for "Una vez", from today onwards: an earlier one becomes today, an invalid one nothing. */
 export function upcomingDate(date: string, today: Date): string | null {
@@ -171,6 +178,8 @@ export const withDefaults = (saved: Partial<BackupSchedule> & { id: string }): B
     weekdays: cleanWeekdays(schedule.weekdays),
     dayOfMonth: isDayOfMonth(schedule.dayOfMonth) ? schedule.dayOfMonth : 1,
     date: cleanDate(schedule.date),
+    armedAt: cleanInstant(schedule.armedAt),
+    lastScheduledRun: cleanInstant(schedule.lastScheduledRun),
   };
 };
 
@@ -254,7 +263,7 @@ function listOf(words: string[]): string {
 }
 
 /** "2026-11-05" → "05/11/2026". */
-function localDate(date: string): string {
+export function localDate(date: string): string {
   const [year, month, day] = date.split("-");
   return `${day}/${month}/${year}`;
 }
@@ -316,6 +325,8 @@ export const duplicateSchedule = (schedule: BackupSchedule, id: string): BackupS
   id,
   name: `${schedule.name} (copia)`,
   enabled: false,
+  armedAt: null,
+  lastScheduledRun: null,
 });
 
 export const upsertSchedule = (list: BackupSchedule[], schedule: BackupSchedule): BackupSchedule[] =>
@@ -339,20 +350,4 @@ const RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 export function folderSafeName(name: string): string {
   const safe = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/[. ]+$/, "").trim() || DEFAULT_SCHEDULE_NAME;
   return RESERVED_NAME.test(safe) ? `_${safe}` : safe;
-}
-
-/** "2026-10-31_0230": a run's folder, sorted by date when listed by name. */
-export const runStamp = (at: Date) => `${dateStamp(at)}_${pad(at.getHours())}${pad(at.getMinutes())}`;
-
-/** Each run in its own folder (D16): `<dir>/<name>/<date>`, with the separator `dir` already uses. */
-export function runFolder(dir: string, name: string, at: Date): string {
-  const separator = dir.includes("\\") ? "\\" : "/";
-  const base = dir.trim().replace(/[\\/]+$/, "");
-  return [base, folderSafeName(name), runStamp(at)].join(separator);
-}
-
-/** The backup a run at `at` makes. Throws the message to show when nothing was chosen yet. */
-export function runRequest(schedule: BackupSchedule, at: Date): BackupRequest {
-  if (!schedule.backup) throw BACKUP_REQUIRED;
-  return { ...schedule.backup, dir: runFolder(schedule.backup.dir, schedule.name, at) };
 }

@@ -30,8 +30,6 @@ import {
   repeatShort,
   repeatSummary,
   runBlocker,
-  runFolder,
-  runRequest,
   toggleWeekday,
   upcomingDate,
   upsertSchedule,
@@ -94,11 +92,6 @@ describe("schedule", () => {
     expect(backupLabel(BACKUP)).toBe("2 bases de datos · 3 colecciones");
   });
 
-  it("puts each run in a dated folder under the schedule's name", () => {
-    expect(runFolder(BACKUP.dir, "Diario QA", AT)).toBe("C:\\backups\\Diario QA\\2026-10-31_0230");
-    expect(runFolder("/home/me/b", "Diario", AT)).toBe("/home/me/b/Diario/2026-10-31_0230");
-  });
-
   it("keeps folder names valid on Windows", () => {
     expect(folderSafeName('QA: "prod"/copia?')).toBe("QA_ _prod__copia_");
     expect(folderSafeName(" ... ")).toBe(DEFAULT_SCHEDULE_NAME);
@@ -107,12 +100,6 @@ describe("schedule", () => {
     expect(folderSafeName("com1")).toBe("_com1");
     expect(folderSafeName("Consolidado")).toBe("Consolidado");
     expect(folderSafeName("COM10")).toBe("COM10");
-  });
-
-  it("runs the chosen backup into the run's folder, and needs one chosen", () => {
-    const schedule = { ...newSchedule("a"), name: "Diario", backup: BACKUP };
-    expect(runRequest(schedule, AT)).toEqual({ ...BACKUP, dir: "C:\\backups\\Diario\\2026-10-31_0230" });
-    expect(() => runRequest(newSchedule("a"), AT)).toThrow(BACKUP_REQUIRED);
   });
 
   it("reads and writes a 24-hour time on a 12-hour clock", () => {

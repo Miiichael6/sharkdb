@@ -124,7 +124,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
 | 30 | [Temas de color para la aplicación y el código](done/30_temas_app_y_codigo.md) | 16 Temas | – | ✅ Terminada |
 | 31 | [Backups programados: lista y formulario como TablePlus](done/31_backups_programados.md) | 17 Backups programados | 22 | ✅ Terminada |
-| 32 | [Ejecución automática de los backups programados](pending/32_ejecucion_diaria_backups.md) | 17 Backups programados | 31 | ⬜ Pendiente |
+| 32 | [Ejecución automática de los backups programados](done/32_ejecucion_diaria_backups.md) | 17 Backups programados | 31 | ✅ Terminada |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

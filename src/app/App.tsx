@@ -47,7 +47,8 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const { connections, persist, upsert, saveFavorites, removeFromList } = useSavedConnections(setError);
+  const { connections, loaded: connectionsLoaded, persist, upsert, saveFavorites, removeFromList } =
+    useSavedConnections(setError);
   const chooseDatabases = useDatabaseWindow(saveFavorites);
   useWindowSizeForView(!showWelcome && sessions.length > 0);
   const tabs = useShellTabs();
@@ -114,7 +115,14 @@ function App() {
 
   // A backup only reads its connection: nothing to refresh when it ends.
   const data = useDataOperations(connections, () => {});
-  const schedules = useBackupSchedules({ connections, sessions, borrowSession, run: data.startBackup, cancel: data.cancel });
+  const schedules = useBackupSchedules({
+    connections,
+    connectionsLoaded,
+    sessions,
+    borrowSession,
+    run: data.startBackup,
+    cancel: data.cancel,
+  });
 
   const disconnect = async (sid: string) => {
     await service.close(sid).catch(() => {});
