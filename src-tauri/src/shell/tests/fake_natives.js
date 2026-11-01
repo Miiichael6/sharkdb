@@ -41,7 +41,7 @@
     return reply;
   }
 
-  return {
+  const natives = {
     find(db, coll, filter, options) {
       calls.push({ op: 'find', db, coll, filter, options });
       const n = db === 'config' && coll === 'collections' ? 0 : options.limit ?? FAKE_COLLECTION_SIZE;
@@ -68,4 +68,7 @@
       cursors.delete(id);
     },
   };
+  // El lado Rust del puente falso lee de aquí el primer lote de los cursores resultado.
+  globalThis.__natives = natives;
+  return natives;
 })()

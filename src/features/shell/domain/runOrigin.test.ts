@@ -12,6 +12,7 @@ const outcome = (err: ScriptError | null = null): ScriptOutcome => ({
   error: err,
   truncated: false,
   elapsedMs: 5,
+  queryMs: null,
 });
 
 describe("atEditorLines", () => {

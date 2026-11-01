@@ -88,6 +88,9 @@ async fn live_shell_against_local_mongo() {
     let (cursor, documents, exhausted) = single_cursor(&sorted);
     assert_eq!((cursor, exhausted), (None, true));
     assert_eq!(ids(&documents), [119, 118, 117, 116, 115]);
+    let query_ms = sorted.query_ms.expect("tiempo de consulta");
+    assert!(query_ms <= sorted.elapsed_ms);
+    assert_eq!(run_ok(&shell, "1 + 1").await.query_ms, None);
 
     let each = run_ok(
         &shell,

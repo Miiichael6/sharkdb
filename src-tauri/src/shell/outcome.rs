@@ -102,6 +102,9 @@ pub struct ScriptOutcome {
     /// Hubo más de `MAX_RESULTS` resultados y se descartaron los siguientes.
     pub truncated: bool,
     pub elapsed_ms: u64,
+    /// Parte de `elapsed_ms` esperando la respuesta del servidor; el resto es traer y convertir
+    /// documentos y ejecutar JS. `None` si el script no consultó al servidor.
+    pub query_ms: Option<u64>,
 }
 
 impl ScriptOutcome {

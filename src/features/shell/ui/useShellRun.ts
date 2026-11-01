@@ -3,7 +3,7 @@ import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { useLog } from "../../../shared/ui/useLog";
 import type { CursorPager } from "../application/cursorPager";
-import { elapsedText, type ScriptOutcome } from "../domain/outcome";
+import { timingText, type ScriptOutcome } from "../domain/outcome";
 import { atEditorLines, SCRIPT_START, type RunOrigin } from "../domain/runOrigin";
 import type { ShellTab } from "../domain/tabs";
 
@@ -56,7 +56,7 @@ export function useShellRun(tab: ShellTab) {
           const at = outcome.error.line ? ` (línea ${outcome.error.line})` : "";
           log.error(`Error en ${where}${at}: ${outcome.error.message}`);
         } else {
-          log.info(`Script ejecutado en ${where} (${elapsedText(outcome.elapsedMs)})`);
+          log.info(`Script ejecutado en ${where} (${timingText(outcome)})`);
         }
       } catch (e) {
         free(previous);

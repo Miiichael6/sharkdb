@@ -44,6 +44,8 @@ export interface ScriptOutcome {
   /** There were more results than the backend keeps; the rest were dropped. */
   truncated: boolean;
   elapsedMs: number;
+  /** Part of `elapsedMs` waiting for the server; null when the script sent no query. */
+  queryMs: number | null;
 }
 
 export interface CursorBatch {
@@ -71,6 +73,12 @@ export function pageOf(buffer: Doc[], skip: number, limit: number, exhausted: bo
 /** How long a run took, in seconds like Robo 3T: `0.012 s`, `2.350 s`. */
 export function elapsedText(ms: number): string {
   return `${(ms / 1000).toFixed(3)} s`;
+}
+
+/** Query time (what Robo 3T shows) and, apart, the time to load the results; the total without queries. */
+export function timingText({ elapsedMs, queryMs }: Pick<ScriptOutcome, "elapsedMs" | "queryMs">): string {
+  if (queryMs === null) return elapsedText(elapsedMs);
+  return `${elapsedText(queryMs)} · carga ${elapsedText(Math.max(0, elapsedMs - queryMs))}`;
 }
 
 const ERROR_TITLE: Record<ScriptErrorKind, string> = {

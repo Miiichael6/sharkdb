@@ -5,10 +5,12 @@
 
 mod cursors;
 mod options;
+mod query_clock;
 
 use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
+use std::time::Duration;
 
 use mongodb::bson::{Bson, Document};
 use mongodb::{Client, Cursor};
@@ -17,6 +19,7 @@ use tokio::runtime::Handle;
 
 use self::cursors::CursorRegistry;
 use self::options::{aggregate_options, find_options};
+use self::query_clock::QueryClock;
 use super::bridge::MongoBridge;
 use super::convert::{bson_to_js, js_to_bson};
 use super::outcome::{CursorBatch, CursorId};
@@ -37,6 +40,7 @@ pub struct MongoNatives {
     handle: Handle,
     watchdog: Watchdog,
     cursors: Rc<RefCell<CursorRegistry<Cursor<Document>>>>,
+    query_clock: QueryClock,
 }
 
 impl MongoNatives {
@@ -47,7 +51,16 @@ impl MongoNatives {
             handle,
             watchdog,
             cursors: Rc::default(),
+            query_clock: QueryClock::default(),
         }
+    }
+
+    /// `wait` de una consulta: cuenta para el tiempo de consulta del script.
+    fn query<T>(
+        &self,
+        future: impl Future<Output = mongodb::error::Result<T>>,
+    ) -> Result<T, String> {
+        self.query_clock.measure(|| self.wait(future))
     }
 
     /// Espera al servidor desde el hilo del script, cortando si hay cancelación o timeout.
@@ -78,7 +91,7 @@ impl MongoNatives {
     ) -> Result<CursorId, String> {
         let options = find_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
-        let cursor = self.wait(collection.find(filter, options))?;
+        let cursor = self.query(collection.find(filter, options))?;
         Ok(self.cursors.borrow_mut().insert(cursor))
     }
 
@@ -92,13 +105,13 @@ impl MongoNatives {
         self.safe_mode.check_pipeline(&pipeline)?;
         let options = aggregate_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
-        let cursor = self.wait(collection.aggregate(pipeline, options))?;
+        let cursor = self.query(collection.aggregate(pipeline, options))?;
         Ok(self.cursors.borrow_mut().insert(cursor))
     }
 
     fn run_command(&self, db: &str, command: Document) -> Result<Document, String> {
         self.safe_mode.check_command(&command)?;
-        self.wait(self.client.database(db).run_command(command, None))
+        self.query(self.client.database(db).run_command(command, None))
     }
 
     /// Lee hasta `size` documentos. Un cursor agotado, o que falla, se suelta (y se cierra).
@@ -185,6 +198,15 @@ impl MongoBridge for MongoNatives {
         self.read(cursor, size)
     }
 
+    fn result_batch(
+        &self,
+        _: &Ctx<'_>,
+        cursor: CursorId,
+        size: usize,
+    ) -> Result<CursorBatch, String> {
+        self.read(cursor, size)
+    }
+
     fn close_cursor(&self, cursor: CursorId) {
         let closed = self.cursors.borrow_mut().take(cursor);
         drop(closed);
@@ -192,6 +214,10 @@ impl MongoBridge for MongoNatives {
 
     fn retain_cursors(&self, keep: &[CursorId]) {
         self.cursors.borrow_mut().retain(keep);
+    }
+
+    fn take_query_time(&self) -> Option<Duration> {
+        self.query_clock.take()
     }
 }
 
