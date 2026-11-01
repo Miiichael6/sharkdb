@@ -13,10 +13,14 @@ interface Props {
   /** Small counter over the icon (e.g. unread notifications). */
   badge?: string;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  /** Its tooltip text while hovered or focused, null when left: the status pill shows it. */
+  onHint?: (hint: string | null) => void;
 }
 
-export function ToolbarButton({ action, pressed, disabled, disabledReason, popup, badge, onClick }: Props) {
+export function ToolbarButton({ action, pressed, disabled, disabledReason, popup, badge, onClick, onHint }: Props) {
   const title = disabled && disabledReason ? `${actionTitle(action)}: ${disabledReason}` : actionTitle(action);
+  const show = () => onHint?.(title);
+  const hide = () => onHint?.(null);
   return (
     <button
       type="button"
@@ -28,6 +32,10 @@ export function ToolbarButton({ action, pressed, disabled, disabledReason, popup
       aria-haspopup={popup}
       disabled={disabled}
       onClick={onClick}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
     >
       <ToolbarIcon id={action.id} pressed={pressed} />
       {badge && (

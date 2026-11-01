@@ -123,7 +123,7 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
           {/* This panel only shows while no tab is open: the sea is empty. */}
           <div className="empty-sea">
             <SadShark label="No hiciste ninguna consulta" />
-            <p className="muted">No hiciste ninguna consulta, ni un pez en el mar.</p>
+            <p className="muted">No hiciste ninguna consulta</p>
           </div>
         </>
       )}

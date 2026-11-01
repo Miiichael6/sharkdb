@@ -126,6 +126,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 31 | [Backups programados: lista y formulario como TablePlus](done/31_backups_programados.md) | 17 Backups programados | 22 | ✅ Terminada |
 | 32 | [Ejecución automática de los backups programados](done/32_ejecucion_diaria_backups.md) | 17 Backups programados | 31 | ✅ Terminada |
 | 33 | [Un resultado por sentencia: apilados hasta 2, pestañas desde 3](done/33_resultados_por_sentencia.md) | 18 Resultados múltiples | 05, 26 | ✅ Terminada |
+| 34 | [Vista Consola y error marcado en el editor](pending/34_vista_consola.md) | 19 Consola | 33 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -198,6 +199,10 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R62 Aviso del resultado de cada ejecución y retención de las últimas copias | 32 |
 | R63 Un resultado por cada sentencia del script que devuelve algo, rotulado con su línea | 33 |
 | R64 Hasta 2 resultados apilados; 3 o más en sub-pestañas, como Robo 3T | 33 |
+| R65 Vista Consola: todos los resultados en una lista con su línea, estilo consola del navegador | 34 |
+| R66 Cada resultado según su tipo real (cursor/array → Array aunque traiga 1 doc; objeto solo si es documento; WriteResult; escalares) | 34 |
+| R67 Error del script marcado en su línea del editor, en todas las vistas | 34 |
+| R68 Líneas reales al ejecutar una selección | 34 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -222,5 +227,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 30 (independiente)
 22 → 31 → 32
 05, 26 → 33
+33 → 34
 12 ────────────────────┘
 ```

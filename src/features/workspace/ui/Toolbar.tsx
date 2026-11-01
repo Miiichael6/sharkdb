@@ -34,6 +34,8 @@ interface Props {
 export function Toolbar({ handlers, pressed, disabled, disabledReasons, menuItems, status, badges: extraBadges }: Props) {
   const [popup, setPopup] = useState<{ id: PopupId; x: number; y: number } | null>(null);
   const closePopup = () => setPopup(null);
+  // What the hovered or focused button does, shown in the status pill.
+  const [hint, setHint] = useState<string | null>(null);
   const { unread } = useNotifications();
   const badges: Partial<Record<ToolbarActionId, string>> = { ...extraBadges, notifications: unread ? badgeText(unread) : undefined };
 
@@ -67,6 +69,7 @@ export function Toolbar({ handlers, pressed, disabled, disabledReasons, menuItem
           popup={isPopup(id) ? POPUPS[id] : undefined}
           badge={badges[id]}
           onClick={(e) => onButton(id, e)}
+          onHint={setHint}
         />
       ))}
     </div>
@@ -76,7 +79,7 @@ export function Toolbar({ handlers, pressed, disabled, disabledReasons, menuItem
     // Also the window's title bar (the window has no OS one): drag it from its empty space.
     <div className="ws-toolbar" role="toolbar" aria-label="Barra de herramientas" onKeyDown={onKeyDown} data-tauri-drag-region>
       {TOOLBAR_LAYOUT.left.map(group)}
-      <StatusPill status={status} />
+      <StatusPill status={status} hint={hint} />
       {TOOLBAR_LAYOUT.right.map(group)}
       <WindowControls />
 
