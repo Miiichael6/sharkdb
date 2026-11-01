@@ -110,7 +110,7 @@ mod tests {
         let first = client.database(a).collection::<Document>("orders").find_one(doc! { "n": 0_i64 }, None).await.unwrap().unwrap();
         assert!(first.get_datetime("at").is_ok() && first.get_object_id("_id").is_ok());
         let left = client.database(a).list_collection_names(None).await.unwrap();
-        assert!(left.iter().all(|c| !c.contains("robo3b-staging")));
+        assert!(left.iter().all(|c| !c.contains("sharkdb-staging")));
 
         let cancel = CancelFlag::default();
         cancel.cancel();

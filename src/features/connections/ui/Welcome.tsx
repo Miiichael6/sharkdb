@@ -116,7 +116,7 @@ export function Welcome(props: Props) {
         ) : (
           <>
             <Logo size={190} swimming />
-            <h1>Robo3B</h1>
+            <h1>SharkDB</h1>
             <span className="muted">Versión 0.1.0</span>
             <p className="side-hint">Cliente de escritorio para MongoDB</p>
           </>

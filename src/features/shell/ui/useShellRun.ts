@@ -18,6 +18,11 @@ export interface RunState {
 
 const IDLE: RunState = { running: false, outcome: null, pagers: new Map(), failure: null };
 
+/** Frees the server cursor of each pager, except those still shown (`keep`). */
+function free(pagers: Iterable<CursorPager>, keep = new Set<number | null>()) {
+  for (const pager of pagers) if (!keep.has(pager.cursorId)) pager.close().catch(() => {});
+}
+
 /**
  * Runs scripts in a tab's shell, recording each run in the history and the log. `origin` is where the
  * code starts in the editor, so a selection's results and error carry the editor's lines.
@@ -30,20 +35,22 @@ export function useShellRun(tab: ShellTab) {
   pagers.current = state.pagers;
   const ref = { sid: tab.sid, tab: tab.id };
 
-  const freeCursors = () => pagers.current.forEach((p) => p.close().catch(() => {}));
+  const freeCursors = () => free(pagers.current.values());
   useEffect(() => freeCursors, []);
 
   const run = useCallback(
     async (code: string, origin: RunOrigin = SCRIPT_START) => {
       if (!code.trim()) return;
-      freeCursors();
+      // The previous cursors are freed after the run, not before: `it` may continue one of them.
+      const previous = [...pagers.current.values()];
       setState({ ...IDLE, running: true });
       const where = `${tab.serverLabel} · ${tab.db}`;
       history.record(tab.sid, { code, db: tab.db, at: Date.now() }).catch((e) => log.error("No se pudo guardar el historial", e));
       try {
-        const outcome = atEditorLines(await shell.execute(ref, tab.db, code), origin);
+        const outcome = atEditorLines(await shell.execute(ref, tab.db, code, tab.filePath), origin);
         const next = new Map<number, CursorPager>();
         outcome.results.forEach((r, i) => r.kind === "cursor" && next.set(i, shell.pager(ref, r)));
+        free(previous, new Set([...next.values()].map((p) => p.cursorId)));
         setState({ running: false, outcome, pagers: next, failure: null });
         if (outcome.error) {
           const at = outcome.error.line ? ` (línea ${outcome.error.line})` : "";
@@ -52,11 +59,12 @@ export function useShellRun(tab: ShellTab) {
           log.info(`Script ejecutado en ${where} (${elapsedText(outcome.elapsedMs)})`);
         }
       } catch (e) {
+        free(previous);
         setState({ ...IDLE, failure: errorMessage(e) });
         log.error(`No se pudo ejecutar en ${where}`, e);
       }
     },
-    [tab.sid, tab.id, tab.db, tab.serverLabel],
+    [tab.sid, tab.id, tab.db, tab.serverLabel, tab.filePath],
   );
 
   const cancel = useCallback(() => {

@@ -6,7 +6,8 @@ export type ShellService = ReturnType<typeof createShellService>;
 
 export function createShellService(gateway: ShellGateway) {
   return {
-    execute: (shell: ShellRef, db: string, code: string) => gateway.execute(shell, db, code),
+    execute: (shell: ShellRef, db: string, code: string, scriptPath: string | null = null) =>
+      gateway.execute(shell, db, code, scriptPath),
     cancel: (shell: ShellRef) => gateway.cancel(shell),
     close: (shell: ShellRef) => gateway.close(shell),
     /** Pages through a cursor result of a script run in `shell`. */

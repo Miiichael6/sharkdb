@@ -8,8 +8,8 @@ import {
   type ThemeSelection,
 } from "../domain/themes";
 
-const APP_THEME_KEY = "robo3b.theme";
-const CODE_THEME_KEY = "robo3b.codeTheme";
+const APP_THEME_KEY = "sharkdb.theme";
+const CODE_THEME_KEY = "sharkdb.codeTheme";
 const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 function readStored(key: string): string | null {

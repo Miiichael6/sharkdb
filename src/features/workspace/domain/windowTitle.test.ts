@@ -8,10 +8,10 @@ describe("windowTitle", () => {
   });
 
   it("shows the connection and its environment", () => {
-    expect(windowTitle({ connection: "Clientes", tag: "production" })).toBe("robo3B · Clientes · PRODUCTION");
+    expect(windowTitle({ connection: "Clientes", tag: "production" })).toBe("SharkDB · Clientes · PRODUCTION");
   });
 
   it.each(TAGS)("names the %s tag in capitals", (tag) => {
-    expect(windowTitle({ connection: "QA", tag })).toBe(`robo3B · QA · ${tag.toUpperCase()}`);
+    expect(windowTitle({ connection: "QA", tag })).toBe(`SharkDB · QA · ${tag.toUpperCase()}`);
   });
 });

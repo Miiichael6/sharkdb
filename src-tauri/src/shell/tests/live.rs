@@ -17,13 +17,13 @@ use crate::shell::native::MongoNatives;
 use crate::shell::outcome::{ScriptErrorKind, ScriptOutcome, ScriptOutput};
 use crate::shell::runtime::ShellRuntime;
 
-const LIVE_URI: &str = "mongodb://127.0.0.1:27017";
+pub(super) const LIVE_URI: &str = "mongodb://127.0.0.1:27017";
 const LIVE_DB: &str = "robo3b_test";
 const OTHER_DB: &str = "robo3b_test_otra";
 const SAFE_DB: &str = "robo3b_test_safe";
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
-fn spawn(client: &Client) -> ShellRuntime {
+pub(super) fn spawn(client: &Client) -> ShellRuntime {
     spawn_with(client, SafeMode::default())
 }
 
@@ -40,8 +40,8 @@ async fn run_ok(shell: &ShellRuntime, code: &str) -> ScriptOutcome {
     run_ok_in(shell, LIVE_DB, code).await
 }
 
-async fn run_ok_in(shell: &ShellRuntime, db: &str, code: &str) -> ScriptOutcome {
-    let outcome = shell.run(db.into(), code.into()).await.expect("respuesta");
+pub(super) async fn run_ok_in(shell: &ShellRuntime, db: &str, code: &str) -> ScriptOutcome {
+    let outcome = shell.run(db.into(), code.into(), None).await.expect("respuesta");
     assert_eq!(outcome.error, None, "script: {code}");
     outcome
 }
@@ -123,7 +123,7 @@ async fn live_shell_against_local_mongo() {
         "el cursor agotado se cierra"
     );
 
-    let (stuck, _) = tokio::join!(shell.run(LIVE_DB.into(), "while (true) {}".into()), async {
+    let (stuck, _) = tokio::join!(shell.run(LIVE_DB.into(), "while (true) {}".into(), None), async {
         tokio::time::sleep(Duration::from_millis(200)).await;
         shell.cancel();
     });
@@ -169,8 +169,16 @@ async fn live_safe_mode_rejects_writes() {
         "db.x.drop()",
         "db.x.aggregate([{ $out: 'y' }]).toArray()",
         "db.x.createIndex({ a: 1 })",
+        "db.x.insertMany([{}, {}], { ordered: false })",
+        "db.x.initializeUnorderedBulkOp().insert({}).execute()",
+        "db.x.bulkWrite([{ deleteMany: { filter: {} } }])",
+        "db.x.renameCollection('z')",
+        "db.x.dropIndexes()",
+        "db.createUser({ user: 'u', pwd: 'p', roles: [] })",
+        "db.grantRolesToUser('u', ['read'])",
+        "db.killOp(1)",
     ] {
-        let outcome = shell.run(SAFE_DB.into(), write.into()).await.unwrap();
+        let outcome = shell.run(SAFE_DB.into(), write.into(), None).await.unwrap();
         let error = outcome.error.expect(write);
         assert!(
             error.message.contains(SAFE_MODE_ERROR),
@@ -262,7 +270,7 @@ async fn live_collection_menu_scripts() {
     // Un mongod sin sharding responde igual, con `inShardedMode: false`.
     run_ok_in(&shell, MENU_DB, "db.getCollection('x').getShardVersion()").await;
     let outcome = shell
-        .run(MENU_DB.into(), "db.x.getShardDistribution()".into())
+        .run(MENU_DB.into(), "db.x.getShardDistribution()".into(), None)
         .await
         .unwrap();
     assert!(outcome.error.unwrap().message.contains("no está fragmentada"));

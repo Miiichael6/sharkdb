@@ -69,6 +69,23 @@ impl Watchdog {
         }
     }
 
+    /// Espera `duration` en el hilo del script (`sleep(ms)`), cortando si hay que interrumpir.
+    pub fn sleep(&self, duration: Duration) -> Result<(), Interruption> {
+        let until = Instant::now() + duration;
+        loop {
+            if self.check()
+                && let Some(reason) = self.fired()
+            {
+                return Err(reason);
+            }
+            let left = until.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Ok(());
+            }
+            std::thread::sleep(left.min(POLL_INTERVAL));
+        }
+    }
+
     fn check(&self) -> bool {
         let reason = if self.cancel.load(Ordering::SeqCst) {
             Some(Interruption::Cancelled)
@@ -105,5 +122,21 @@ mod tests {
 
         watchdog.disarm();
         assert!(!watchdog.check());
+    }
+
+    #[test]
+    fn sleep_waits_and_stops_when_interrupted() {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let watchdog = Watchdog::new(cancel.clone());
+        watchdog.arm(Duration::from_secs(60));
+        let started = Instant::now();
+        assert_eq!(watchdog.sleep(Duration::from_millis(30)), Ok(()));
+        assert!(started.elapsed() >= Duration::from_millis(30));
+
+        cancel.store(true, Ordering::SeqCst);
+        assert_eq!(
+            watchdog.sleep(Duration::from_secs(60)),
+            Err(Interruption::Cancelled)
+        );
     }
 }

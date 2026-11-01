@@ -2,6 +2,8 @@
 //! de una sentencia siguen vivas en la siguiente, y recoge un resultado por cada sentencia que
 //! devuelve algo. Se para en la primera que falla.
 
+use std::time::Instant;
+
 use rquickjs::context::EvalOptions;
 use rquickjs::{Ctx, Value};
 
@@ -62,11 +64,14 @@ pub fn run_statements<'js>(
     let mut run = StatementsRun::default();
     for (statement, shows_value) in steps {
         let room = run.values < MAX_RESULTS;
+        let started = Instant::now();
         let step = run_statement(ctx, statement, shows_value, room, hooks);
+        let elapsed_ms = started.elapsed().as_millis() as u64;
         let source = source_of(statement);
         let located = |output| ScriptResult {
             line: statement.line,
             source: source.clone(),
+            elapsed_ms,
             output,
         };
         run.results.extend(output.take().into_iter().map(&located));

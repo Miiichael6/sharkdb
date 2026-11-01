@@ -162,7 +162,7 @@ export function WorkspaceToolbar(props: Props) {
     { label: "Restaurar backup…", disabled: !session, onSelect: () => runOnTarget("restoreDatabase") },
     { label: "Sincronizar con otro entorno…", disabled: !session, onSelect: () => runOnTarget("syncDatabase") },
     { label: layout.logsOpen ? "Ocultar logs" : "Mostrar logs", onSelect: layout.toggleLogs },
-    { label: "Acerca de Robo3B", onSelect: () => setAboutOpen(true) },
+    { label: "Acerca de SharkDB", onSelect: () => setAboutOpen(true) },
   ];
 
   return (

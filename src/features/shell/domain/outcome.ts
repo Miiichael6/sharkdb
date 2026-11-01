@@ -33,6 +33,8 @@ export type ScriptResult = ScriptOutput & {
   line: number;
   /** The statement's text, trimmed by the backend. */
   source: string;
+  /** How long the statement took, including its first batch when it returned a cursor. */
+  elapsedMs: number;
 };
 
 export interface ScriptOutcome {

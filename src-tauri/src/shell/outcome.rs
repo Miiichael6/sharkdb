@@ -87,6 +87,8 @@ pub struct ScriptResult {
     pub line: u32,
     /// Texto de la sentencia, recortado.
     pub source: String,
+    /// Lo que tardó la sentencia, incluido su primer lote si devolvió un cursor.
+    pub elapsed_ms: u64,
     #[serde(flatten)]
     pub output: ScriptOutput,
 }

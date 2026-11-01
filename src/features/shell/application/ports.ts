@@ -9,7 +9,8 @@ export interface ShellRef {
 
 /** Runs scripts in the shell of a tab. */
 export interface ShellGateway {
-  execute(shell: ShellRef, db: string, code: string): Promise<ScriptOutcome>;
+  /** `scriptPath` is the tab's file on disk, if saved: `load()` resolves relative paths from its folder. */
+  execute(shell: ShellRef, db: string, code: string, scriptPath: string | null): Promise<ScriptOutcome>;
   nextBatch(shell: ShellRef, cursorId: number, size: number): Promise<CursorBatch>;
   closeCursor(shell: ShellRef, cursorId: number): Promise<void>;
   /** Stops the script (or batch read) running in the shell, if any. */

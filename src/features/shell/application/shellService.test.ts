@@ -4,7 +4,7 @@ import type { ShellGateway } from "./ports";
 import { createShellService } from "./shellService";
 
 const SHELL = { sid: "s1", tab: "t1" };
-const PRINTED: ScriptResult = { kind: "print", text: "hola", line: 1, source: "print('hola')" };
+const PRINTED: ScriptResult = { kind: "print", text: "hola", line: 1, source: "print('hola')", elapsedMs: 1 };
 const CURSOR_ID = 7;
 const docs = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => ({ _id: from + i }));
 
@@ -13,8 +13,8 @@ function fakeGateway() {
   const server = docs(50, 120);
   const calls: string[] = [];
   const gateway: ShellGateway = {
-    async execute(shell, db, code) {
-      calls.push(`execute ${shell.tab} ${db} ${code}`);
+    async execute(shell, db, code, scriptPath) {
+      calls.push(`execute ${shell.tab} ${db} ${code} ${scriptPath}`);
       return { results: [PRINTED], error: null, truncated: false, elapsedMs: 3 };
     },
     async nextBatch(shell, cursorId, size) {
@@ -45,7 +45,7 @@ describe("shellService", () => {
     await shell.cancel(SHELL);
     await shell.close(SHELL);
     expect(outcome.results).toEqual([PRINTED]);
-    expect(calls).toEqual(["execute t1 test print('hola')", "cancel t1", "closeShell t1"]);
+    expect(calls).toEqual(["execute t1 test print('hola') null", "cancel t1", "closeShell t1"]);
   });
 
   it("serves the first page from the script result without reading", async () => {

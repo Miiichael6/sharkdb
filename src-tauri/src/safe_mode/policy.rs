@@ -42,6 +42,8 @@ const WRITE_COMMANDS: &[&str] = &[
     "revokeprivilegesfromrole",
     "grantrolestorole",
     "revokerolesfromrole",
+    // operaciones del servidor: matar una operación ajena interrumpe su escritura
+    "killop",
     // ejecución de código arbitrario en el servidor
     "eval",
     "$eval",
@@ -128,6 +130,8 @@ mod tests {
             doc! { "createIndexes": "x", "indexes": [] },
             doc! { "dropIndexes": "x", "index": "a_1" },
             doc! { "createUser": "u", "pwd": "p", "roles": [] },
+            doc! { "grantRolesToUser": "u", "roles": [] },
+            doc! { "killOp": 1, "op": 12 },
             doc! { "mapReduce": "x", "out": "y" },
         ] {
             assert!(is_write_command(&command), "{command}");

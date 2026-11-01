@@ -2,7 +2,8 @@
 //!
 //! - `runtime`: actor; un hilo por sesión que recibe scripts por canal.
 //! - `engine`: fachada sobre QuickJS; instala los `ShellModule` y produce el `ScriptOutcome`.
-//! - `bson_types`, `output`: módulos instalables (constructores BSON, `print`/`printjson`).
+//! - `bson_types`, `output`, `host`: módulos instalables (constructores BSON, `print`/`printjson`,
+//!   `sleep`/`load`/`hex_md5`).
 //! - `convert`: JS ↔ BSON sin pérdida de tipos.
 //! - `session`: motor + API `db` (`prelude`) sobre un `MongoBridge` (`native` en producción).
 //! - `syntax`: reescritura de `use x` / `show dbs` a llamadas JS.
@@ -19,6 +20,7 @@ mod convert;
 mod document_eval;
 mod engine;
 mod errors;
+mod host;
 mod module;
 mod native;
 mod outcome;

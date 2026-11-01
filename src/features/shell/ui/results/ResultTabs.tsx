@@ -1,4 +1,5 @@
 import { useId, useRef } from "react";
+import { elapsedText } from "../../domain/outcome";
 import { resultTitle, type ResultEntry } from "../../domain/resultLayout";
 import { useActivePill } from "../useActivePill";
 import type { RunState } from "../useShellRun";
@@ -76,6 +77,7 @@ export function ResultTabs({ sid, entries, run, tabs, views, onGoToLine }: Props
                 onMouseDown={(e) => e.button === MIDDLE_BUTTON && (e.preventDefault(), closeTab(position))}
               >
                 <span className="tab-title">{title}</span>
+                {entry.kind === "statement" && <span className="tab-time">{elapsedText(entry.elapsedMs)}</span>}
                 <button
                   className="tab-close"
                   tabIndex={-1}

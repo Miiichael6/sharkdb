@@ -158,8 +158,8 @@ export const cancelConfirmation = (op: Operation): ConfirmRequest => ({
 
 /** Asked when the app closes with `count` operations running. */
 export const closeWithRunningConfirmation = (count: number): ConfirmRequest => ({
-  title: "Cerrar Robo3B",
-  message: `Hay ${count} ${count === 1 ? "operación en curso; se cancelará" : "operaciones en curso; se cancelarán"}. ¿Cerrar Robo3B?`,
+  title: "Cerrar SharkDB",
+  message: `Hay ${count} ${count === 1 ? "operación en curso; se cancelará" : "operaciones en curso; se cancelarán"}. ¿Cerrar SharkDB?`,
   confirmLabel: "Cancelar y cerrar",
   dismissLabel: KEEP_RUNNING,
 });

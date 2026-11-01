@@ -1,4 +1,4 @@
-# Tareas: Robo3B (clon de Robo 3T sobre Tauri + React)
+# Tareas: SharkDB (antes Robo3B; clon de Robo 3T sobre Tauri + React)
 
 Documento fuente: no hay spec escrita; el alcance es la paridad funcional con Robo 3T (lista de requisitos **R1…R20** en la tabla de cobertura). Punto de partida: ya existen gestor de conexiones, árbol del explorador y operaciones de administración (`src/features/connections`, `src/features/explorer`, `src-tauri/src/mongo.rs`).
 
@@ -129,7 +129,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 34 | [Vista Consola y error marcado en el editor](done/34_vista_consola.md) | 19 Consola | 33 | ✅ Terminada |
 | 34.1 | ↳ [Líneas reales y error marcado en el editor](done/34.1_lineas_reales_y_error_editor.md) | 19 Consola | 34 | ✅ Terminada |
 | 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
-| 35 | [Compatibilidad del shell con Robo 3T](pending/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ⬜ Pendiente |
+| 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](pending/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).

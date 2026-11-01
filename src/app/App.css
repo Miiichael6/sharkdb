@@ -2631,7 +2631,15 @@ button.link.console-more {
   height: 0;
 }
 .result-tab-bar .tab-track .tab {
-  flex: 1 0 160px;
+  flex: 1 0 210px;
+  gap: 6px;
+}
+/* The statement's own time, next to its title; the title gives way first. */
+.result-tab-bar .tab-time {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 .result-tab-arrow {
   flex: none;

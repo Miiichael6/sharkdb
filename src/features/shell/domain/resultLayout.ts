@@ -32,6 +32,7 @@ export interface StatementEntry {
   kind: "statement";
   line: number;
   source: string;
+  elapsedMs: number;
   prints: PrintedLine[];
   value: EntryValue | null;
 }
@@ -45,7 +46,7 @@ export function resultEntries(outcome: ScriptOutcome): ResultEntry[] {
   let current: StatementEntry | null = null;
   for (const { result, index } of shownResults(outcome.results)) {
     if (!current || !belongsTo(current, result)) {
-      current = { kind: "statement", line: result.line, source: result.source, prints: [], value: null };
+      current = { kind: "statement", line: result.line, source: result.source, elapsedMs: result.elapsedMs, prints: [], value: null };
       entries.push(current);
     }
     if (result.kind === "print") current.prints.push({ text: result.text, json: result.json ?? false });
@@ -86,7 +87,7 @@ function printedDocument(result: ScriptResult): ScriptResult | null {
   if (result.kind !== "print" || !result.values?.length) return null;
   if (!result.values.every((value) => isContainer(bsonValue(value)))) return null;
   const value = result.values.length === 1 ? result.values[0] : result.values;
-  return { kind: "value", value, line: result.line, source: result.source };
+  return { kind: "value", value, line: result.line, source: result.source, elapsedMs: result.elapsedMs };
 }
 
 /** Only prints join an entry: a value always gets its own, so the tree or table never shares a frame with text. */

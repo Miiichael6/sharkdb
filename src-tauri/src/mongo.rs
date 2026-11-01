@@ -125,7 +125,7 @@ async fn open(
     safe_mode: bool,
 ) -> Result<OpenClient, String> {
     let mut opts = ClientOptions::parse(uri).await.map_err(describe)?;
-    opts.app_name = Some("robo3b".into());
+    opts.app_name = Some("sharkdb".into());
     opts.server_selection_timeout.get_or_insert(TIMEOUT);
     opts.connect_timeout.get_or_insert(TIMEOUT);
 

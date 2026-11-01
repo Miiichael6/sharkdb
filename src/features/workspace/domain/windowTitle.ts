@@ -2,7 +2,7 @@
 import type { Tag } from "../../connections/domain/connection";
 import { tagLabel } from "./statusLabel";
 
-export const APP_TITLE = "robo3B";
+export const APP_TITLE = "SharkDB";
 
 const SEPARATOR = " · ";
 
@@ -12,6 +12,6 @@ export interface ActiveConnection {
   tag: Tag;
 }
 
-/** `robo3B · <connection> · <TAG>`, or just `robo3B` without an active connection. */
+/** `SharkDB · <connection> · <TAG>`, or just `SharkDB` without an active connection. */
 export const windowTitle = (active?: ActiveConnection) =>
   active ? [APP_TITLE, active.connection, tagLabel(active.tag)].join(SEPARATOR) : APP_TITLE;

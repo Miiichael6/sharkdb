@@ -2,6 +2,7 @@ mod backup;
 mod files;
 mod jobs;
 mod mongo;
+mod rename;
 mod safe_mode;
 mod schedule;
 mod secrets;
@@ -13,6 +14,8 @@ mod terminal;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    rename::move_old_data(&context.config().identifier);
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -58,6 +61,6 @@ pub fn run() {
             sync::commands::sync_databases,
             jobs::events::cancel_job,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }

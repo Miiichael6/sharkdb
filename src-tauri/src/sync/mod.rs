@@ -41,7 +41,7 @@ mod tests {
     }
 
     async fn staging_left(db: &Database) -> bool {
-        db.list_collection_names(None).await.unwrap().iter().any(|n| n.contains("robo3b-staging"))
+        db.list_collection_names(None).await.unwrap().iter().any(|n| n.contains("sharkdb-staging"))
     }
 
     async fn count(db: &Database, collection: &str) -> u64 {

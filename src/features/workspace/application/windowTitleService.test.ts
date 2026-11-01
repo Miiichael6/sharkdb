@@ -19,6 +19,6 @@ describe("windowTitleService", () => {
     const service = createWindowTitleService(gateway);
     await service.show({ connection: "QA", tag: "testing" });
     await service.show();
-    expect(titles).toEqual(["robo3B · QA · TESTING", APP_TITLE]);
+    expect(titles).toEqual(["SharkDB · QA · TESTING", APP_TITLE]);
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-const SIDEBAR_HIDDEN_KEY = "robo3b.sidebarHidden";
+const SIDEBAR_HIDDEN_KEY = "sharkdb.sidebarHidden";
 
 function readSidebarHidden(): boolean {
   try {
