@@ -4,45 +4,45 @@ import { destructiveRequest } from "../../../shared/domain/destructiveActions";
 import { confirmDeleteInWindow } from "../../../shared/ui/confirmInWindow";
 import { useNotify } from "../../../shared/ui/useNotifications";
 import { targetServerOf } from "../../connections/domain/connection";
-import type { BackupRequest } from "../domain/backupSpec";
 import {
   duplicateSchedule,
   enableBlocker,
   folderTakenBy,
   newSchedule,
   removeSchedule,
-  runBlocker,
-  runRequest,
   upsertSchedule,
   type BackupSchedule,
 } from "../domain/schedule";
+import { afterScheduledRun, firstDue, withArming } from "../domain/scheduleTiming";
 import { chooseBackup, type BackupWindowsContext } from "./useBackupFlow";
+import { useScheduler } from "./useScheduler";
+import { useScheduleRun } from "./useScheduleRun";
 
 interface Options extends BackupWindowsContext {
-  /** Starts a backup in the background: its operation, or null when it didn't start. */
-  run: (request: BackupRequest) => { id: string; settled: Promise<unknown> } | null;
-  /** Cancels operation `id`, once confirmed. */
-  cancel: (operationId: string) => Promise<void>;
+  /** The registered connections finished loading. */
+  connectionsLoaded: boolean;
+  run: Parameters<typeof useScheduleRun>[0]["run"];
+  cancel: Parameters<typeof useScheduleRun>[0]["cancel"];
 }
 
-/** The backup schedules of the connections screen: loaded once and saved on every change. */
+/** The backup schedules of the connections screen: loaded once, saved on every change and run on their own. */
 export function useBackupSchedules(options: Options) {
-  const { connections, sessions, borrowSession, run, cancel } = options;
+  const { connections, sessions, borrowSession, connectionsLoaded } = options;
   const { schedules: service, backup } = useServices();
   const notify = useNotify();
   const [schedules, setSchedules] = useState<BackupSchedule[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [runningId, setRunningId] = useState<string | null>(null);
-  // The operation of the running backup, for "Cancelar"; null until it starts.
-  const [operationId, setOperationId] = useState<string | null>(null);
   // The backup windows answer after other edits may have happened: always build on the latest list.
   const latest = useRef(schedules);
   latest.current = schedules;
-  // Two quick ▶ would both pass before the state updates: the lock is this ref.
-  const runningRef = useRef(runningId);
+  const runner = useScheduleRun(options);
 
   useEffect(() => {
-    service.list().then(setSchedules, notify.fail);
+    service.list().then((list) => {
+      setSchedules(list);
+      setLoaded(true);
+    }, notify.fail);
   }, [service]);
 
   const persist = (next: BackupSchedule[]) => {
@@ -57,12 +57,7 @@ export function useBackupSchedules(options: Options) {
   };
 
   const connectionOf = (schedule: BackupSchedule) => connections.find((c) => c.id === schedule.backup?.sid);
-  const context = () => ({ schedules: latest.current, connectionIds: connections.map((c) => c.id), runningId: runningRef.current });
-  const setRunning = (id: string | null) => {
-    runningRef.current = id;
-    setRunningId(id);
-    if (!id) setOperationId(null);
-  };
+  const context = () => ({ schedules: latest.current, connectionIds: connections.map((c) => c.id) });
 
   /** The backup windows, starting from what the schedule saves; the confirmed choice replaces it. */
   const chooseWhat = (schedule: BackupSchedule) => {
@@ -79,27 +74,27 @@ export function useBackupSchedules(options: Options) {
     ).catch(notify.fail);
   };
 
-  /** ▶: the backup now, into its own dated folder; confirmed already when what it saves was chosen (D17). */
-  const runNow = async (schedule: BackupSchedule) => {
-    try {
-      const blocker = runBlocker(schedule, context());
-      if (blocker) throw blocker;
-      const request = runRequest(schedule, new Date());
-      setRunning(schedule.id);
-      const lent = await borrowSession(request.sid).catch((e) => {
-        setRunning(null);
-        throw e;
-      });
-      const started = run(request);
-      if (started) setOperationId(started.id);
-      void Promise.resolve(started?.settled).finally(() => {
-        void lent.release().catch(() => {});
-        setRunning(null);
-      });
-    } catch (e) {
-      notify.fail(e);
-    }
+  /** ▶: the backup now; confirmed already when what it saves was chosen (D17). */
+  const runNow = (schedule: BackupSchedule) => {
+    const blocker = runner.blockerOf(schedule, context());
+    if (blocker) notify.fail(blocker);
+    else void runner.execute(schedule, new Date());
   };
+
+  /**
+   * The first schedule due now, on its own and without asking (D17). It counts as run for that time
+   * before starting, so it never runs twice for it, even when it can't start (that is notified).
+   */
+  const runDue = () => {
+    const now = new Date();
+    const due = firstDue(latest.current, now);
+    if (!due || runner.isBusy()) return;
+    save(afterScheduledRun(due, now));
+    const blocker = runner.blockerOf(due, context());
+    if (blocker) runner.failToStart(due, blocker);
+    else void runner.execute(due, now);
+  };
+  useScheduler({ ready: loaded && connectionsLoaded, runningId: runner.runningId, runDue });
 
   const remove = async (schedule: BackupSchedule) => {
     const conn = connectionOf(schedule);
@@ -113,21 +108,21 @@ export function useBackupSchedules(options: Options) {
     schedules,
     selected: schedules.find((s) => s.id === selectedId) ?? null,
     select: setSelectedId,
-    runningId,
-    /** Cancels the running backup, once confirmed; nothing until its operation started. */
-    cancelRun: operationId ? () => void cancel(operationId).catch(notify.fail) : undefined,
+    runningId: runner.runningId,
+    cancelRun: runner.cancelRun,
     connectionOf,
     /** Why ▶ can't run it, if it can't. */
-    runBlockerOf: (schedule: BackupSchedule) => runBlocker(schedule, context()),
+    runBlockerOf: (schedule: BackupSchedule) => runner.blockerOf(schedule, context()),
     /** Why its switch can't be turned on, if it can't. */
-    enableBlockerOf: (schedule: BackupSchedule) => enableBlocker(schedule, context(), new Date()),
+    enableBlockerOf: (schedule: BackupSchedule) => enableBlocker(schedule, { ...context(), runningId: runner.runningId }, new Date()),
     /** The other schedule already saving into this one's folder. */
     folderTakenBy: (schedule: BackupSchedule) => folderTakenBy(schedule, latest.current),
     create: () => add(newSchedule(crypto.randomUUID())),
     duplicate: (schedule: BackupSchedule) => add(duplicateSchedule(schedule, crypto.randomUUID())),
+    /** An edit from the form or the list; switching on or re-timing doesn't run a time already gone today. */
     change: (id: string, patch: Partial<BackupSchedule>) => {
       const current = latest.current.find((s) => s.id === id);
-      if (current) save({ ...current, ...patch });
+      if (current) save({ ...current, ...withArming(current, patch, new Date()) });
     },
     chooseWhat,
     openFolder: (dir: string) => void backup.openFolder(dir).catch(notify.fail),

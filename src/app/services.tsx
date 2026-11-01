@@ -4,7 +4,10 @@ import { createBackupService, type BackupService } from "../features/backup/appl
 import { createScheduleService, type ScheduleService } from "../features/backup/application/scheduleService";
 import { tauriBackupGateway } from "../features/backup/infrastructure/tauriBackupGateway";
 import { tauriFolderPicker } from "../features/backup/infrastructure/tauriFolderPicker";
+import { tauriMinuteClock } from "../features/backup/infrastructure/tauriMinuteClock";
+import { tauriRunFolders } from "../features/backup/infrastructure/tauriRunFolders";
 import { tauriScheduleStore } from "../features/backup/infrastructure/tauriScheduleStore";
+import { tauriSystemNotifier } from "../features/backup/infrastructure/tauriSystemNotifier";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
 import { tauriFilePicker } from "../features/connections/infrastructure/tauriFilePicker";
@@ -62,7 +65,12 @@ export function createServices(): Services {
     terminal: createTerminalService(tauriTerminalGateway),
     windowTitle: createWindowTitleService(tauriWindowGateway),
     backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),
-    schedules: createScheduleService(tauriScheduleStore),
+    schedules: createScheduleService({
+      store: tauriScheduleStore,
+      runs: tauriRunFolders,
+      notifier: tauriSystemNotifier,
+      clock: tauriMinuteClock,
+    }),
     sync: createSyncService(tauriSyncGateway, startJob),
     operations: createOperationsService(),
   };

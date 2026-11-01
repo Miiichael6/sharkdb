@@ -7,12 +7,19 @@ import { useServices } from "./services";
 export function useSavedConnections(onError: (text: string) => void) {
   const { connections: service, explorer } = useServices();
   const [connections, setConnections] = useState<MongoConnection[]>([]);
+  const [loaded, setLoaded] = useState(false);
   // The stars are saved from the "Bases de datos" window while it's open: always build on the latest list.
   const latest = useRef(connections);
   latest.current = connections;
 
   useEffect(() => {
-    service.list().then(setConnections, (e) => onError(errorMessage(e)));
+    service.list().then(
+      (list) => {
+        setConnections(list);
+        setLoaded(true);
+      },
+      (e) => onError(errorMessage(e)),
+    );
   }, []);
 
   const save = (next: MongoConnection[]) => {
@@ -39,6 +46,8 @@ export function useSavedConnections(onError: (text: string) => void) {
 
   return {
     connections,
+    /** The list was read: until then every connection would look deleted. */
+    loaded,
     persist,
     upsert: (conn: MongoConnection) => persist(upsertConnection(latest.current, conn)),
     saveFavorites,

@@ -2,7 +2,17 @@ import { displayName, type MongoConnection } from "../../connections/domain/conn
 import { TagBadge } from "../../connections/ui/TagBadge";
 import { NodeIcon } from "../../explorer/ui/NodeIcon";
 import { MISSING_CONNECTION, backupLabel, folderSafeName, folderTaken, type BackupSchedule } from "../domain/schedule";
+import { momentLabel, nextRun } from "../domain/scheduleTiming";
 import { RepeatFields } from "./RepeatFields";
+
+/** When it runs on its own next, only while the app is open (D15). */
+function nextRunNote(schedule: BackupSchedule) {
+  if (schedule.repeat === "manual") return "Solo se ejecuta con ▶.";
+  if (!schedule.enabled) return "Apagada: no se ejecuta sola.";
+  const next = nextRun(schedule, new Date());
+  if (!next) return "No le queda ninguna ejecución.";
+  return `Próxima ejecución: ${momentLabel(next)}, si la app está abierta (si no, al abrirla ese mismo día).`;
+}
 
 interface Props {
   schedule: BackupSchedule | null;
@@ -55,6 +65,9 @@ export function ScheduleForm({ schedule, connection, folderTakenBy, onChange, on
       <section className="schedule-card">
         <RepeatFields schedule={schedule} onChange={onChange} />
       </section>
+      <p className="schedule-note small" role="note">
+        {nextRunNote(schedule)}
+      </p>
 
       <h3 className="schedule-heading">Origen</h3>
       <section className="schedule-card">
