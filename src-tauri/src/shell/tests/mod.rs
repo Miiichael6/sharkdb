@@ -20,7 +20,7 @@ use rquickjs::{Ctx, Value};
 use super::engine::{Engine, EngineLimits};
 use super::errors::to_bson_reported;
 use super::module::{RunHooks, ShellModule};
-use super::outcome::{ScriptError, ScriptOutcome, ScriptResult};
+use super::outcome::{ScriptError, ScriptOutcome, ScriptOutput};
 use super::watchdog::Watchdog;
 
 /// Ejecución sin API `db`: el valor final se entrega tal cual.
@@ -35,12 +35,12 @@ impl RunHooks for PlainRun {
         &self,
         ctx: &Ctx<'js>,
         value: Value<'js>,
-    ) -> Result<Option<ScriptResult>, ScriptError> {
+    ) -> Result<Option<ScriptOutput>, ScriptError> {
         if value.is_undefined() {
             return Ok(None);
         }
         let value = to_bson_reported(ctx, &value)?;
-        Ok(Some(ScriptResult::Value { value }))
+        Ok(Some(ScriptOutput::Value { value }))
     }
 }
 
@@ -68,22 +68,26 @@ fn run(engine: &mut Engine, code: &str) -> ScriptOutcome {
     engine.run(code, &PlainRun)
 }
 
+/// Las salidas del script en orden, sin la sentencia que las produjo.
+fn outputs(outcome: &ScriptOutcome) -> Vec<&ScriptOutput> {
+    outcome.results.iter().map(|result| &result.output).collect()
+}
+
 /// Lo que el script imprimió, en orden.
 fn prints(outcome: &ScriptOutcome) -> Vec<&str> {
-    outcome
-        .results
-        .iter()
-        .filter_map(|result| match result {
-            ScriptResult::Print { text } => Some(text.as_str()),
+    outputs(outcome)
+        .into_iter()
+        .filter_map(|output| match output {
+            ScriptOutput::Print { text } => Some(text.as_str()),
             _ => None,
         })
         .collect()
 }
 
-/// Valor final del script, si es un valor simple.
+/// Primer valor simple que devolvió el script.
 fn value(outcome: &ScriptOutcome) -> Option<Bson> {
-    outcome.results.iter().find_map(|result| match result {
-        ScriptResult::Value { value } => Some(value.clone()),
+    outputs(outcome).into_iter().find_map(|output| match output {
+        ScriptOutput::Value { value } => Some(value.clone()),
         _ => None,
     })
 }

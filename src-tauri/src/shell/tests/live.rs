@@ -9,12 +9,12 @@ use mongodb::Client;
 use mongodb::bson::{Bson, doc};
 use tokio::runtime::Handle;
 
-use super::{prints, value};
+use super::{outputs, prints, value};
 use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
 use crate::shell::bridge::MongoBridge;
 use crate::shell::engine::EngineLimits;
 use crate::shell::native::MongoNatives;
-use crate::shell::outcome::{ScriptErrorKind, ScriptOutcome, ScriptResult};
+use crate::shell::outcome::{ScriptErrorKind, ScriptOutcome, ScriptOutput};
 use crate::shell::runtime::ShellRuntime;
 
 const LIVE_URI: &str = "mongodb://127.0.0.1:27017";
@@ -47,9 +47,9 @@ async fn run_ok_in(shell: &ShellRuntime, db: &str, code: &str) -> ScriptOutcome 
 }
 
 fn single_cursor(outcome: &ScriptOutcome) -> (Option<u32>, Vec<Bson>, bool) {
-    match &outcome.results[..] {
+    match &outputs(outcome)[..] {
         [
-            ScriptResult::Cursor {
+            ScriptOutput::Cursor {
                 cursor_id,
                 documents,
                 exhausted,

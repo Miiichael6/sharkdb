@@ -9,7 +9,7 @@ use super::bridge::MongoBridge;
 use super::convert::js_to_bson;
 use super::errors::{describe_thrown, to_bson_reported};
 use super::module::{RunHooks, ShellModule};
-use super::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptResult};
+use super::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptOutput};
 
 const SOURCE: &str = include_str!("prelude.js");
 /// Global oculto con los ganchos que define `prelude.js`.
@@ -48,7 +48,7 @@ impl RunHooks for ShellRun<'_> {
         &self,
         ctx: &Ctx<'js>,
         value: Value<'js>,
-    ) -> Result<Option<ScriptResult>, ScriptError> {
+    ) -> Result<Option<ScriptOutput>, ScriptError> {
         let script_error = || describe_thrown(ctx, ctx.catch(), ScriptErrorKind::Script);
         let described: Value = hook(ctx, "describe")
             .and_then(|describe| describe.call((value, self.first_batch)))
@@ -60,10 +60,10 @@ impl RunHooks for ShellRun<'_> {
         let kind: String = described.get("kind").map_err(|_| script_error())?;
         let result = match kind.as_str() {
             "cursor" => cursor_result(ctx, &described).map_err(|_| script_error())?,
-            "write" => ScriptResult::Write {
+            "write" => ScriptOutput::Write {
                 value: to_bson_reported(ctx, &field("value")?)?,
             },
-            _ => ScriptResult::Value {
+            _ => ScriptOutput::Value {
                 value: to_bson_reported(ctx, &field("value")?)?,
             },
         };
@@ -75,9 +75,9 @@ fn hook<'js>(ctx: &Ctx<'js>, name: &str) -> rquickjs::Result<Function<'js>> {
     ctx.globals().get::<_, Object>(SHELL_GLOBAL)?.get(name)
 }
 
-fn cursor_result<'js>(ctx: &Ctx<'js>, described: &Object<'js>) -> rquickjs::Result<ScriptResult> {
+fn cursor_result<'js>(ctx: &Ctx<'js>, described: &Object<'js>) -> rquickjs::Result<ScriptOutput> {
     let documents: Vec<Value> = described.get("documents")?;
-    Ok(ScriptResult::Cursor {
+    Ok(ScriptOutput::Cursor {
         ns: described.get("ns")?,
         cursor_id: described.get::<_, Option<CursorId>>("id")?,
         documents: documents

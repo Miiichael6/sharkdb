@@ -6,6 +6,8 @@
 //! - `convert`: JS ↔ BSON sin pérdida de tipos.
 //! - `session`: motor + API `db` (`prelude`) sobre un `MongoBridge` (`native` en producción).
 //! - `syntax`: reescritura de `use x` / `show dbs` a llamadas JS.
+//! - `statements`, `statement_run`: el script se parte en sentencias y cada una que devuelve algo
+//!   deja su propio resultado.
 //! - `document_eval`: texto del editor de documentos → documento BSON, con un motor sin `db`.
 //! - `commands`: comandos Tauri (`execute_script`, `next_batch`, `close_cursor`, `cancel_script`,
 //!   `close_shell`, `eval_document`).
@@ -24,6 +26,8 @@ mod output;
 mod prelude;
 mod runtime;
 mod session;
+mod statement_run;
+mod statements;
 mod syntax;
 mod watchdog;
 

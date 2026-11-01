@@ -10,7 +10,7 @@ export interface ScriptError {
   column: number | null;
 }
 
-/** A cursor left as the script's final value: its first batch and, if still open, its id. */
+/** A cursor left as a statement's value: its first batch and, if still open, its id. */
 export interface CursorResult {
   kind: "cursor";
   ns: string;
@@ -19,16 +19,26 @@ export interface CursorResult {
   exhausted: boolean;
 }
 
-export type ScriptResult =
+export type ScriptOutput =
   | { kind: "print"; text: string }
   | { kind: "value"; value: unknown }
   | { kind: "write"; value: Doc }
   | CursorResult;
 
+/** An output with the statement that produced it. */
+export type ScriptResult = ScriptOutput & {
+  /** Line of the script where the statement starts, from 1. */
+  line: number;
+  /** The statement's text, trimmed by the backend. */
+  source: string;
+};
+
 export interface ScriptOutcome {
-  /** In order: printed lines and, last, the script's value. */
+  /** In run order: what each statement printed and the value it returned. */
   results: ScriptResult[];
   error: ScriptError | null;
+  /** There were more results than the backend keeps; the rest were dropped. */
+  truncated: boolean;
   elapsedMs: number;
 }
 

@@ -40,13 +40,17 @@ impl ScriptError {
     }
 }
 
+/// Resultados de sentencias que se muestran como mucho por ejecución; los demás se descartan
+/// (y sus cursores se cierran) y el `ScriptOutcome` avisa con `truncated`.
+pub const MAX_RESULTS: usize = 100;
+
 /// Una salida del script. Los valores BSON viajan en Extended JSON canónico.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum ScriptResult {
+pub enum ScriptOutput {
     /// Línea de `print`/`printjson`.
     Print { text: String },
-    /// Valor de la última expresión.
+    /// Valor de una expresión.
     Value {
         #[serde(serialize_with = "canonical")]
         value: Bson,
@@ -56,7 +60,7 @@ pub enum ScriptResult {
         #[serde(serialize_with = "canonical")]
         value: Bson,
     },
-    /// Cursor que quedó como valor final: su primer lote y, si no se agotó, el id para pedir más.
+    /// Cursor que quedó como valor de una sentencia: su primer lote y, si no se agotó, el id para pedir más.
     #[serde(rename_all = "camelCase")]
     Cursor {
         ns: String,
@@ -67,12 +71,26 @@ pub enum ScriptResult {
     },
 }
 
+/// Una salida con la sentencia que la produjo.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScriptResult {
+    /// Línea del script donde empieza la sentencia, desde 1.
+    pub line: u32,
+    /// Texto de la sentencia, recortado.
+    pub source: String,
+    #[serde(flatten)]
+    pub output: ScriptOutput,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScriptOutcome {
-    /// Salidas en orden: lo impreso y, al final, el valor del script.
+    /// Salidas en orden de ejecución: lo impreso y el valor de cada sentencia que devolvió algo.
     pub results: Vec<ScriptResult>,
     pub error: Option<ScriptError>,
+    /// Hubo más de `MAX_RESULTS` resultados y se descartaron los siguientes.
+    pub truncated: bool,
     pub elapsed_ms: u64,
 }
 
@@ -81,8 +99,8 @@ impl ScriptOutcome {
     pub fn open_cursors(&self) -> Vec<CursorId> {
         self.results
             .iter()
-            .filter_map(|result| match result {
-                ScriptResult::Cursor { cursor_id, .. } => *cursor_id,
+            .filter_map(|result| match result.output {
+                ScriptOutput::Cursor { cursor_id, .. } => cursor_id,
                 _ => None,
             })
             .collect()

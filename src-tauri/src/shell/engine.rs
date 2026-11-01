@@ -5,14 +5,15 @@
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use rquickjs::context::EvalOptions;
-use rquickjs::{Context, Ctx, Runtime, Value};
+use rquickjs::{Context, Runtime};
 
 use super::bson_types::BsonTypes;
-use super::errors::{SCRIPT_NAME, describe_thrown};
+use super::errors::describe_thrown;
 use super::module::{RunHooks, ShellModule};
 use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutcome};
 use super::output::Output;
+use super::statement_run::{StatementsRun, run_statements};
+use super::statements;
 use super::watchdog::{Interruption, Watchdog};
 
 const OUT_OF_MEMORY: &str = "out of memory";
@@ -78,28 +79,24 @@ impl Engine {
         })
     }
 
+    /// Ejecuta el script sentencia a sentencia: cada una que devuelve algo deja su resultado.
     pub fn run(&mut self, code: &str, hooks: &dyn RunHooks) -> ScriptOutcome {
         let started = Instant::now();
+        let statements = statements::split(code);
         self.watchdog.arm(self.limits.timeout);
-        let (result, error) =
-            self.context.with(
-                |ctx| match hooks.before_run(&ctx).and_then(|()| eval(&ctx, code)) {
-                    Ok(value) => match hooks.final_result(&ctx, value) {
-                        Ok(result) => (result, None),
-                        Err(error) => (None, Some(error)),
-                    },
-                    Err(_) => (
-                        None,
-                        Some(describe_thrown(&ctx, ctx.catch(), ScriptErrorKind::Script)),
-                    ),
-                },
-            );
+        let run = self.context.with(|ctx| match hooks.before_run(&ctx) {
+            Ok(()) => run_statements(&ctx, &statements, hooks, &self.output),
+            Err(_) => StatementsRun::failed(describe_thrown(
+                &ctx,
+                ctx.catch(),
+                ScriptErrorKind::Script,
+            )),
+        });
         self.watchdog.disarm();
-        let mut results = self.output.take();
-        results.extend(result);
         let outcome = ScriptOutcome {
-            results,
-            error: error.map(|e| self.classify(e)),
+            results: run.results,
+            error: run.error.map(|e| self.classify(e)),
+            truncated: run.truncated,
             elapsed_ms: started.elapsed().as_millis() as u64,
         };
         if outcome
@@ -123,7 +120,7 @@ impl Engine {
     }
 
     #[cfg(test)]
-    pub fn with_context<R>(&self, f: impl for<'js> FnOnce(Ctx<'js>) -> R) -> R {
+    pub fn with_context<R>(&self, f: impl for<'js> FnOnce(rquickjs::Ctx<'js>) -> R) -> R {
         self.context.with(f)
     }
 
@@ -162,12 +159,4 @@ impl Engine {
         let used = self.runtime.memory_usage().malloc_size as f64;
         error.message == THROWN_NULL && used >= self.limits.memory_bytes as f64 * NEAR_MEMORY_LIMIT
     }
-}
-
-fn eval<'js>(ctx: &Ctx<'js>, code: &str) -> rquickjs::Result<Value<'js>> {
-    let mut options = EvalOptions::default();
-    options.global = true;
-    options.backtrace_barrier = true;
-    options.filename = Some(SCRIPT_NAME.into());
-    ctx.eval_with_options(code, options)
 }
