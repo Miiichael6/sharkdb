@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGE_SIZE, firstPage, nextPage, previousPage, rangeLabel, withLimit, withSkip } from "./paging";
+import { DEFAULT_PAGE_SIZE, firstPage, grownPage, nextPage, previousPage, rangeLabel, withLimit, withSkip } from "./paging";
 
 describe("paging", () => {
   it("starts at 0 with Robo 3T's page size", () => {
@@ -23,5 +23,10 @@ describe("paging", () => {
     expect(rangeLabel({ skip: 50, limit: 50 }, 50)).toBe("51 – 100");
     expect(rangeLabel({ skip: 100, limit: 50 }, 7)).toBe("101 – 107");
     expect(rangeLabel(firstPage(), 0)).toBe("0");
+  });
+
+  it("grows the console's page by one more page from the first document", () => {
+    expect(grownPage(firstPage())).toEqual({ skip: 0, limit: DEFAULT_PAGE_SIZE * 2 });
+    expect(grownPage({ skip: 0, limit: 120 })).toEqual({ skip: 0, limit: 120 + DEFAULT_PAGE_SIZE });
   });
 });

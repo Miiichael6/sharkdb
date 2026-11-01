@@ -126,7 +126,11 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 31 | [Backups programados: lista y formulario como TablePlus](done/31_backups_programados.md) | 17 Backups programados | 22 | ✅ Terminada |
 | 32 | [Ejecución automática de los backups programados](done/32_ejecucion_diaria_backups.md) | 17 Backups programados | 31 | ✅ Terminada |
 | 33 | [Un resultado por sentencia: apilados hasta 2, pestañas desde 3](done/33_resultados_por_sentencia.md) | 18 Resultados múltiples | 05, 26 | ✅ Terminada |
-| 34 | [Vista Consola y error marcado en el editor](pending/34_vista_consola.md) | 19 Consola | 33 | ⬜ Pendiente |
+| 34 | [Vista Consola y error marcado en el editor](done/34_vista_consola.md) | 19 Consola | 33 | ✅ Terminada |
+| 34.1 | ↳ [Líneas reales y error marcado en el editor](done/34.1_lineas_reales_y_error_editor.md) | 19 Consola | 34 | ✅ Terminada |
+| 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
+| 35 | [Compatibilidad del shell con Robo 3T](pending/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ⬜ Pendiente |
+| 36 | [Rendimiento de los resultados](pending/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -203,6 +207,13 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R66 Cada resultado según su tipo real (cursor/array → Array aunque traiga 1 doc; objeto solo si es documento; WriteResult; escalares) | 34 |
 | R67 Error del script marcado en su línea del editor, en todas las vistas | 34 |
 | R68 Líneas reales al ejecutar una selección | 34 |
+| R69 `bulkWrite` e `initializeOrderedBulkOp`/`initializeUnorderedBulkOp` como en el shell clásico | 35 |
+| R70 Escrituras masivas partidas en lotes (100 000 docs / 16 MB por comando) | 35 |
+| R71 Atajos de cursor y colección del shell clásico (`explain`, `pretty`, `renameCollection`, `dropIndexes`, tamaños…) | 35 |
+| R72 Atajos de base de datos, servidor y globales (`db.stats`, `currentOp`/`killOp`, usuarios, `rs`/`sh`, `sleep`, `load`, `it`) | 35 |
+| R73 Cursor devuelto tal cual llega a la vista sin pasar por JavaScript | 36 |
+| R74 El primer lote trae solo la página que se muestra | 36 |
+| R75 Tiempo de consulta y de carga por separado | 36 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -228,5 +239,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 22 → 31 → 32
 05, 26 → 33
 33 → 34
+03 → 35
+34 → 36
 12 ────────────────────┘
 ```

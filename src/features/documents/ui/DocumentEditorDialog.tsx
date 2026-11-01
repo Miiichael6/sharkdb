@@ -1,4 +1,4 @@
-import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
+import { setDiagnostics } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
@@ -7,6 +7,7 @@ import { CodeEditor } from "../../../shared/ui/CodeEditor";
 import { Spinner } from "../../../shared/ui/common";
 import type { Doc } from "../../explorer/domain/mongo";
 import type { ScriptError } from "../../shell/domain/outcome";
+import { lineDiagnostic } from "../../shell/ui/errorMark";
 
 export type EditorMode = "view" | "edit" | "insert";
 
@@ -19,13 +20,6 @@ const SAVE_LABELS: Record<Exclude<EditorMode, "view">, string> = { edit: "Guarda
 const VALID = "Documento válido";
 
 type Status = { kind: "ok" | "error"; text: string } | null;
-
-/** The whole line the error points to, or the first line when it has none. */
-function diagnosticOf(view: EditorView, error: ScriptError): Diagnostic {
-  const doc = view.state.doc;
-  const line = doc.line(Math.min(Math.max(error.line ?? 1, 1), doc.lines));
-  return { from: line.from, to: line.to, severity: "error", message: error.message };
-}
 
 const describe = (error: ScriptError) => (error.line ? `Línea ${error.line}: ${error.message}` : error.message);
 
@@ -67,7 +61,7 @@ export function DocumentEditorDialog({
   async function validate(): Promise<Doc | null> {
     const { document, error } = await documents.parse(text);
     const editor = view.current!;
-    editor.dispatch(setDiagnostics(editor.state, error ? [diagnosticOf(editor, error)] : []));
+    editor.dispatch(setDiagnostics(editor.state, error ? [lineDiagnostic(editor.state.doc, error.line ?? 1, error.message)] : []));
     setStatus(error ? { kind: "error", text: describe(error) } : null);
     return error ? null : document;
   }

@@ -44,3 +44,8 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# Dependencies (the Mongo driver, BSON, QuickJS) optimized in dev builds too: unoptimized, queries run
+# several times slower. Our own crate stays at the dev default, so it still rebuilds fast.
+[profile.dev.package."*"]
+opt-level = 2

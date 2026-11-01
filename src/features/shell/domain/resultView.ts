@@ -2,12 +2,13 @@
 import { formatValue, summarizeValue, type DateZone } from "./bsonFormat";
 import { BSON_TYPE_LABEL, bsonValue, childrenOf, isContainer, type BsonType, type BsonValue } from "./bsonValue";
 
-export type ViewMode = "tree" | "table" | "text";
+export type ViewMode = "tree" | "table" | "text" | "console";
 
 export const VIEW_MODES: { mode: ViewMode; label: string }[] = [
   { mode: "tree", label: "Árbol" },
   { mode: "table", label: "Tabla" },
   { mode: "text", label: "Texto" },
+  { mode: "console", label: "Consola" },
 ];
 
 /** Keys of a value from its document's root; empty for the document itself. */

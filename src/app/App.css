@@ -1720,6 +1720,29 @@ table.grid {
   border: 1px solid var(--info-border);
   color: var(--info-text);
 }
+.notice.error {
+  overflow: hidden;
+}
+/* Countdown until the error toast closes on its own. */
+.notice-timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: currentColor;
+  opacity: 0.6;
+  transform-origin: left;
+  animation: notice-countdown linear forwards;
+}
+@keyframes notice-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
 
 .notification-center {
   position: fixed;
@@ -2423,10 +2446,23 @@ button.shell-action {
   justify-content: center;
 }
 .output-print {
+  /* Its full height: the panel scrolls, never a print on its own. */
+  flex-shrink: 0;
   margin: 0;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;
+}
+/* `printjson`: read-only code, in the editor's colors like the Text view. */
+.output-print.output-json {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: "Fira Code", "Cascadia Mono", Consolas, monospace;
+  color: var(--syn-foreground);
+  background: var(--syn-background);
+  color-scheme: var(--syn-scheme);
+  overflow-x: auto;
+  white-space: pre;
 }
 .output-error {
   color: var(--error-fg);
@@ -2445,6 +2481,103 @@ button.shell-action {
   font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+/* Console view: every result in one list, each row with its line, like the browser's console. */
+.console-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+.console-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 12px 3px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.console-row.error {
+  background: color-mix(in srgb, var(--error-fg) 8%, transparent);
+}
+.console-line {
+  flex: none;
+  width: 44px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: right;
+}
+button.console-line {
+  cursor: pointer;
+}
+button.console-line:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.console-body {
+  flex: 1;
+  min-width: 0;
+  line-height: 18px;
+}
+.console-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: pre;
+}
+.console-head.foldable {
+  cursor: pointer;
+}
+.console-head > .twisty {
+  margin-left: 0;
+  margin-right: 2px;
+}
+.console-preview,
+.console-head > [class^="bson-"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.console-key {
+  color: var(--bson-code);
+}
+.console-children {
+  padding-left: 14px;
+}
+/* Inside a preview, containers keep their tree colors; a class name (`WriteResult`) stays muted. */
+.console-preview .bson-array {
+  color: var(--bson-array);
+}
+.console-label {
+  color: var(--muted);
+}
+/* A print's arguments side by side; an opened document or array pushes the rest below. */
+.console-print {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 1ch;
+}
+.console-printed {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.console-scalar {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.console-body > .output-print,
+.console-body > .output-error {
+  line-height: 18px;
+}
+button.link.console-more {
+  margin-left: 14px;
+  padding: 0;
+  font-size: 12px;
 }
 /* Two results share the height, one under the other, each in its own frame. */
 .stacked-results {
@@ -2752,31 +2885,22 @@ button.shell-action {
   font: 700 7px/1 "Cascadia Mono", Consolas, monospace;
   letter-spacing: -0.02em;
   white-space: nowrap;
-}
-/* Numbers, strings, objects and arrays, boxed as in Robo 3T: border and fill take the type's colour. */
-.type-icon.boxed {
-  border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
   border-radius: 2px;
-  background: color-mix(in srgb, currentColor 14%, transparent);
+  /* `color` is the type's (from `.bson-<type>`): the badge is filled with it. */
+  background: currentColor;
 }
+/* The glyph in the page's background, so it reads as cut out of the badge in every theme. */
+.type-glyph {
+  display: inline-flex;
+  color: var(--bg);
+}
+/* The read-only editor of the text view; it scrolls on its own. */
 .result-text {
   flex: 1;
   min-height: 0;
-  margin: 0;
-  padding: 8px 12px;
-  overflow: auto;
-  font-family: "Fira Code", "Cascadia Mono", Consolas, monospace;
+  overflow: hidden;
   font-size: 12px;
-  white-space: pre;
-  user-select: text;
-  outline: none;
-  color: var(--syn-foreground);
-  background: var(--syn-background);
   color-scheme: var(--syn-scheme);
-}
-.text-doc-number {
-  color: var(--syn-comment);
-  font-style: italic;
 }
 
 /* BSON types, same hues in tree icons, values and table cells. */

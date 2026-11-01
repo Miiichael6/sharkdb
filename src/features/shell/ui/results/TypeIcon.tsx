@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { BsonType } from "../../domain/bsonValue";
 
-// A short glyph in the type's colour (from `.bson-<type>`): text where a couple of characters say it,
-// a drawing where they don't. Numbers, strings, objects and arrays get a tinted box, as in Robo 3T.
+// A badge filled with the type's colour (from `.bson-<type>`) and a short glyph cut out of it: text
+// where a couple of characters say it, a drawing where they don't.
 
 const stroke = { fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
@@ -55,13 +55,11 @@ const GLYPHS: Record<BsonType, ReactNode> = {
   dbPointer: "→",
 };
 
-const BOXED = new Set<BsonType>(["object", "array", "string", "int32", "int64", "double", "decimal"]);
-
-/** Small badge before each tree key, so BSON types stand apart at a glance. */
+/** Small solid badge before each tree key, so BSON types stand apart at a glance. */
 export function TypeIcon({ type }: { type: BsonType }) {
   return (
-    <span className={`type-icon bson-${type} ${BOXED.has(type) ? "boxed" : ""}`} aria-hidden>
-      {GLYPHS[type]}
+    <span className={`type-icon bson-${type}`} aria-hidden>
+      <span className="type-glyph">{GLYPHS[type]}</span>
     </span>
   );
 }

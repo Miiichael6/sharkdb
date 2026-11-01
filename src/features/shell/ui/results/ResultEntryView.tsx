@@ -2,6 +2,7 @@ import { scriptErrorText, type ScriptError } from "../../domain/outcome";
 import type { EntryValue, ResultEntry } from "../../domain/resultLayout";
 import type { RunState } from "../useShellRun";
 import { CursorResult } from "./CursorResult";
+import { PrintedText } from "./PrintedText";
 import type { ResultViewState } from "./useResultView";
 import { ValueResult } from "./ValueResult";
 
@@ -37,8 +38,8 @@ function ValueView({ sid, value, run, view, title }: Omit<Props, "entry"> & { va
 export function ResultEntryView({ sid, entry, run, view, title }: Props) {
   if (entry.kind === "error") return <ScriptErrorLine error={entry.error} />;
   const { prints, value } = entry;
-  // The value's own header carries the title, unless prints come first: then it goes above them.
-  const ownHead = title && (!value || prints.length > 0);
+  // A value's own header carries the title; prints get one above them.
+  const ownHead = title && !value;
   return (
     <>
       {ownHead && (
@@ -46,10 +47,8 @@ export function ResultEntryView({ sid, entry, run, view, title }: Props) {
           <span className="mono">{title}</span>
         </header>
       )}
-      {prints.map((text, i) => (
-        <pre key={i} className="output-print">
-          {text}
-        </pre>
+      {prints.map((line, i) => (
+        <PrintedText key={i} text={line.text} json={line.json} />
       ))}
       {value && <ValueView sid={sid} value={value} run={run} view={view} title={ownHead ? undefined : title} />}
     </>

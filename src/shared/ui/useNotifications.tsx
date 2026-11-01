@@ -8,8 +8,9 @@ import {
 } from "../domain/notifications";
 import { errorMessage } from "../errors";
 
-/** How long a success or info toast stays; errors stay until dismissed. */
+/** How long a toast stays; errors linger a bit longer and remain in the notification center. */
 const TOAST_MS = 3000;
+const ERROR_TOAST_MS = 5000;
 
 interface NotificationWriter {
   ok: (text: string) => void;
@@ -23,6 +24,8 @@ interface NotificationView {
   unread: number;
   /** The notification shown as a toast, if any. */
   toast: AppNotification | null;
+  /** How long the current toast stays before it closes on its own. */
+  toastMs: number;
   dismissToast: () => void;
   markAllRead: () => void;
   clear: () => void;
@@ -55,12 +58,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const toast = (toastOpen && entries[entries.length - 1]) || null;
   // Keyed by id: marking the toast read must not restart its timer.
-  const fadingToastId = toast && toast.level !== "error" ? toast.id : null;
+  const toastId = toast?.id ?? null;
+  const toastMs = toast?.level === "error" ? ERROR_TOAST_MS : TOAST_MS;
   useEffect(() => {
-    if (fadingToastId === null) return;
-    const t = setTimeout(() => setToastOpen(false), TOAST_MS);
+    if (toastId === null) return;
+    const t = setTimeout(() => setToastOpen(false), toastMs);
     return () => clearTimeout(t);
-  }, [fadingToastId]);
+  }, [toastId, toastMs]);
 
   const dismissToast = useCallback(() => setToastOpen(false), []);
   const readAll = useCallback(() => setEntries(markAllRead), []);
@@ -69,8 +73,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setToastOpen(false);
   }, []);
   const view = useMemo<NotificationView>(
-    () => ({ entries, unread: unreadCount(entries), toast, dismissToast, markAllRead: readAll, clear }),
-    [entries, toast, dismissToast, readAll, clear],
+    () => ({ entries, unread: unreadCount(entries), toast, toastMs, dismissToast, markAllRead: readAll, clear }),
+    [entries, toast, toastMs, dismissToast, readAll, clear],
   );
 
   return (

@@ -48,8 +48,16 @@ pub const MAX_RESULTS: usize = 100;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ScriptOutput {
-    /// Línea de `print`/`printjson`.
-    Print { text: String },
+    /// Línea de `print`/`printjson`. Si `print` recibió algo que no es texto, `values` trae sus
+    /// argumentos para que la consola los muestre como objetos y arrays desplegables.
+    Print {
+        text: String,
+        #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "canonical_all")]
+        values: Vec<Bson>,
+        /// Salió de `printjson`: el texto es JSON del shell y se muestra como código.
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        json: bool,
+    },
     /// Valor de una expresión.
     Value {
         #[serde(serialize_with = "canonical")]

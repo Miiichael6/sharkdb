@@ -15,8 +15,11 @@
   --syn-template: #0550ae;
   --syn-constant: #0550ae;
   --syn-keyword: #cf222e;
+  --syn-storage: #cf222e;
   --syn-label: #0969da;
   --syn-variable: #953800;
+  --syn-identifier: #953800;
+  --syn-parameter: #1f2328;
   --syn-function: #8250df;
   --syn-scheme: light;
 }

@@ -1,3 +1,4 @@
+import type { EditorView } from "@codemirror/view";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useServices } from "../../../app/services";
 import { StackSplit, type TopFit } from "../../../shared/ui/StackSplit";
@@ -5,12 +6,14 @@ import { useServerOf } from "../../connections/ui/useTargetServer";
 import { WhereBar } from "../../connections/ui/WhereBar";
 import { formatScript } from "../domain/formatScript";
 import { elapsedText } from "../domain/outcome";
+import { SCRIPT_START } from "../domain/runOrigin";
 import type { ShellTab as Tab } from "../domain/tabs";
 import { shellCompletionSource } from "./completionSource";
 import { QueryEditor } from "./QueryEditor";
 import { ShellActionIcon } from "./ShellActionIcon";
 import { ResultsPanel } from "./results/ResultsPanel";
-import { useResultView } from "./results/useResultView";
+import { revealLine } from "./revealLine";
+import { useResultViews } from "./results/useResultView";
 import { useHistoryBrowser } from "./useHistoryBrowser";
 import { useShellRun } from "./useShellRun";
 
@@ -86,22 +89,31 @@ export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange,
   const { schema } = useServices();
   const serverOf = useServerOf();
   const run = useShellRun(tab);
-  const view = useResultView();
+  const views = useResultViews();
   const history = useHistoryBrowser(tab.sid);
   const [editorHidden, setEditorHidden] = useState(readEditorHidden);
   const target = useRef(tab);
   target.current = tab;
   const completion = useMemo(() => shellCompletionSource(schema, () => target.current), [schema]);
 
-  const execute = (code: string) => {
+  const execute = (code: string, origin = SCRIPT_START) => {
     history.reset();
-    run.run(code);
+    run.run(code, origin);
   };
   const format = () => onCodeChange(formatScript(tab.code));
   const lines = tab.code.split("\n").length;
-  const toggleEditor = () => {
-    setEditorHidden(!editorHidden);
-    saveEditorHidden(!editorHidden);
+  const showEditor = (hidden: boolean) => {
+    setEditorHidden(hidden);
+    saveEditorHidden(hidden);
+  };
+  const toggleEditor = () => showEditor(!editorHidden);
+  const editor = useRef<EditorView | null>(null);
+  const goToLine = (line: number) => {
+    const reveal = () => editor.current && revealLine(editor.current, line);
+    if (!editorHidden) return reveal();
+    // A hidden editor can't scroll: show it first and move once it is laid out.
+    showEditor(false);
+    requestAnimationFrame(reveal);
   };
 
   // The ref survives StrictMode's second effect run, so the query runs once.
@@ -199,10 +211,12 @@ export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange,
             onRun={execute}
             onHistory={history.step}
             completion={completion}
+            error={run.outcome?.error ?? null}
+            onView={(v) => (editor.current = v)}
             autoFocus
           />
         }
-        bottom={<ResultsPanel sid={tab.sid} run={run} view={view} />}
+        bottom={<ResultsPanel sid={tab.sid} run={run} views={views} onGoToLine={goToLine} />}
       />
     </section>
   );
