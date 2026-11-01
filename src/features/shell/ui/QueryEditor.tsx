@@ -43,5 +43,5 @@ export function QueryEditor({ value, onChange, onRun, onHistory, completion, aut
     return [Prec.highest(shortcuts), autocompletion({ override: [completion] })];
   });
 
-  return <CodeEditor className="query-editor" value={value} onChange={onChange} extensions={extensions} autoFocus={autoFocus} alwaysDark />;
+  return <CodeEditor className="query-editor" value={value} onChange={onChange} extensions={extensions} autoFocus={autoFocus} />;
 }

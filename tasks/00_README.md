@@ -82,8 +82,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
   - Se divide **arrastrando** una pestaña sobre el área del shell (vista previa del lado); se separa con **"Separar pestaña"** en su menú.
   - Divisor arrastrable; en ventana estrecha solo se ve el panel activo. El panel de detalles del explorador no se divide.
 - [x] **D14** Temas incluidos → **la propuesta, aceptada por el usuario** (2026-10-31); los actuales se quedan como una opción más → afecta 30:
-  - **Aplicación**: Oscuro (actual), Claro (actual), Según el sistema, y además Nord, Solarized claro y Dracula.
-  - **Código y vistas JSON**: Monokai Vibrant (actual), One Dark, GitHub claro, Dracula y Solarized oscuro.
+  - **Aplicación**: Oscuro (actual), Claro (actual), Según el sistema, y además Nord, Solarized claro, Dracula, Monokai, Monokai Pro y Monokai Pro (Machine) (añadidos a pedido del usuario).
+  - **Código y vistas JSON**: Monokai Vibrant (actual), One Dark, Claro (a juego con el Claro de la aplicación), GitHub claro, Dracula, Solarized oscuro, Monokai, Monokai Pro y Monokai Pro (Machine) (añadidos a pedido del usuario).
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -119,7 +119,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 27 | [Validación de documentos por colección (`$jsonSchema`)](done/27_validacion_coleccion.md) | 14 Validación | 13, 17, 18 | ✅ Terminada |
 | 28 | [Filtrar colecciones del árbol escribiendo](done/28_filtro_colecciones.md) | 15 Explorador | 23 | ✅ Terminada |
 | 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
-| 30 | [Temas de color para la aplicación y el código](pending/30_temas_app_y_codigo.md) | 16 Temas | – | ⬜ Pendiente |
+| 30 | [Temas de color para la aplicación y el código](done/30_temas_app_y_codigo.md) | 16 Temas | – | ✅ Terminada |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

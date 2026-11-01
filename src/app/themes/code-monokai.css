@@ -1,0 +1,22 @@
+/* Monokai, the original (Wimer Hazenberg, Sublime Text): olive-black background, pink keywords, yellow strings. */
+[data-code-theme="monokai"] {
+  --syn-background: #272822;
+  --syn-foreground: #f8f8f2;
+  --syn-line-highlight: rgb(62 61 50 / 0.6); /* translucent: the selection is drawn under the line */
+  --syn-selection: #49483e;
+  --syn-gutter: #90908a;
+  --syn-widget: #1e1f1c;
+  --syn-widget-border: #171814;
+  --syn-widget-selected: #3e3d32;
+  --syn-find-match: #6b6a2c;
+  --syn-find-match-highlight: #4a4a30;
+  --syn-comment: #75715e;
+  --syn-string: #e6db74;
+  --syn-template: #fd971f;
+  --syn-constant: #ae81ff;
+  --syn-keyword: #f92672;
+  --syn-label: #66d9ef;
+  --syn-variable: #66d9ef;
+  --syn-function: #a6e22e;
+  --syn-scheme: dark;
+}

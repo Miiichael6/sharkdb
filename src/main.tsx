@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import { ModalWindow } from "./app/ModalWindow";
 import { OperationsProvider } from "./app/operations/useOperations";
+import "./app/themes/loadThemes";
 import { createServices, ServicesProvider } from "./app/services";
 import { currentModalView } from "./shared/ui/modalWindow";
 import { initTheme } from "./shared/ui/theme";

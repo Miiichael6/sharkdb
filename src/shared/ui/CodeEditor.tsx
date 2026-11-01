@@ -1,10 +1,9 @@
 import { javascript } from "@codemirror/lang-javascript";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
-import { monokaiVibrant } from "./monokaiVibrant";
-import { useTheme } from "./theme";
+import { codeTheme } from "./codeTheme";
 
 interface Props {
   value: string;
@@ -15,8 +14,6 @@ interface Props {
   onView?: (view: EditorView) => void;
   readOnly?: boolean;
   autoFocus?: boolean;
-  /** Dark whatever the app theme (its CSS must also give it the dark `--syn-*` colors). */
-  alwaysDark?: boolean;
   className: string;
 }
 
@@ -51,15 +48,12 @@ export function replaceAll(view: EditorView, code: string) {
   view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: code } });
 }
 
-/** CodeMirror JavaScript editor in the app's theme. `value` changes from outside are applied in place. */
-export function CodeEditor({ value, onChange, extensions = [], onView, readOnly, autoFocus, alwaysDark, className }: Props) {
+/** CodeMirror JavaScript editor in the code theme. `value` changes from outside are applied in place. */
+export function CodeEditor({ value, onChange, extensions = [], onView, readOnly, autoFocus, className }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
   changed.current = onChange;
-  const appTheme = useTheme();
-  const theme = alwaysDark ? "dark" : appTheme;
-  const themeSlot = useRef(new Compartment());
 
   useEffect(() => {
     const editor = new EditorView({
@@ -70,7 +64,7 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
           ...extensions,
           basicSetup,
           javascript(),
-          themeSlot.current.of(monokaiVibrant(theme === "dark")),
+          codeTheme,
           fillParent,
           spanish,
           readOnly ? readOnlySetup : [],
@@ -89,10 +83,6 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
     const editor = view.current;
     if (editor && editor.state.doc.toString() !== value) replaceAll(editor, value);
   }, [value]);
-
-  useEffect(() => {
-    view.current?.dispatch({ effects: themeSlot.current.reconfigure(monokaiVibrant(theme === "dark")) });
-  }, [theme]);
 
   return <div className={className} ref={host} />;
 }

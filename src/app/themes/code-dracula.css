@@ -1,0 +1,22 @@
+/* Dracula (draculatheme.com): pink keywords, yellow strings, purple constants, green functions. */
+[data-code-theme="dracula"] {
+  --syn-background: #282a36;
+  --syn-foreground: #f8f8f2;
+  --syn-line-highlight: rgb(68 71 90 / 0.45); /* translucent: the selection is drawn under the line */
+  --syn-selection: #44475a;
+  --syn-gutter: #6272a4;
+  --syn-widget: #21222c;
+  --syn-widget-border: #191a21;
+  --syn-widget-selected: #44475a;
+  --syn-find-match: #6a5a2c;
+  --syn-find-match-highlight: #4b4630;
+  --syn-comment: #6272a4;
+  --syn-string: #f1fa8c;
+  --syn-template: #ffb86c;
+  --syn-constant: #bd93f9;
+  --syn-keyword: #ff79c6;
+  --syn-label: #8be9fd;
+  --syn-variable: #8be9fd;
+  --syn-function: #50fa7b;
+  --syn-scheme: dark;
+}

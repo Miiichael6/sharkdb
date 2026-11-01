@@ -1,0 +1,22 @@
+/* Monokai Vibrant (VS Code), the default code theme: script editors and highlighted shell text (shared/ui/codeTheme.ts). */
+[data-code-theme="monokai-vibrant"] {
+  --syn-background: #16171d;
+  --syn-foreground: #f8f8f0;
+  --syn-line-highlight: rgb(255 255 255 / 0.045); /* translucent: the selection is drawn under the line */
+  --syn-selection: #3e4451;
+  --syn-gutter: #495162;
+  --syn-widget: #21252b;
+  --syn-widget-border: #181a1f;
+  --syn-widget-selected: #2c313a;
+  --syn-find-match: #42557b;
+  --syn-find-match-highlight: #314365;
+  --syn-comment: #5c6370;
+  --syn-string: #ffd945;
+  --syn-template: #e5a422;
+  --syn-constant: #e373ce;
+  --syn-keyword: #ff3f4f;
+  --syn-label: #19d1e5;
+  --syn-variable: #00a0e4;
+  --syn-function: #81f900;
+  --syn-scheme: dark;
+}

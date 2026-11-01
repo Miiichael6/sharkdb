@@ -147,7 +147,7 @@ export function DetailPanel({ node, mode, version, childCount, onAction, onEditI
 
 /** JSON or code as "Ver documento" shows it: the read-only dark editor, which scrolls on its own. */
 function CodeView({ text, className = "detail-code" }: { text: string; className?: string }) {
-  return <CodeEditor className={className} value={text} readOnly alwaysDark />;
+  return <CodeEditor className={className} value={text} readOnly />;
 }
 
 const isBytes =(k: string) => /size$/i.test(k) && k !== "scaleFactor";

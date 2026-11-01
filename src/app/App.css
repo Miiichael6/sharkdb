@@ -1,179 +1,14 @@
 :root {
-  --bg: #1e1e1e;
-  --bg-side: #191919;
-  --surface: #262626;
-  --surface-2: #2e2e2e;
-  --border: #333;
-  --border-strong: #444;
-  --text: #e6e6e6;
-  --muted: #9a9a9a;
-  --accent: #2f7fd6;
-  --accent-hover: #3a8ce6;
-  --accent-ring: rgb(47 127 214 / 0.25);
-  --accent-soft: rgb(47 127 214 / 0.45);
-  --select: #0e3a5c;
-  --ok: #4ade80;
-  --danger: #f05252;
-  --warn: #f5b041;
-  --hover: #383838;
-  --divider: #111;
   /* Panels are rounded cards separated by a gap of the window frame's color (the divider). */
   --panel-radius: 8px;
   --panel-gap: 6px;
-  --disabled: #666;
-  --row-hover: #252a30;
-  --row-selected: #2a2f36;
-  --pill: #4a5266;
-  --close-hover: rgb(255 255 255 / 0.12);
-  --cell-focus: rgb(255 255 255 / 0.35);
-  --spinner-track: rgb(255 255 255 / 0.2);
-  --safe-bg: #4a3410;
-  --ok-bg: #173322;
-  --ok-border: #23573a;
-  --error-bg: #3a1d1d;
-  --error-border: #6b2a2a;
-  --error-text: #ffc4c4;
-  --error-fg: #ff9c9c;
-  --info-bg: #172a3d;
-  --info-border: #24476b;
-  --info-text: #cfe3fa;
-  --tag-local-bg: #1f6b35;
-  --tag-local-fg: #b8f3c8;
-  --tag-development-bg: #1d5f66;
-  --tag-development-fg: #b5ecf2;
-  --tag-testing-bg: #4c3a8a;
-  --tag-testing-fg: #ddd2ff;
-  --tag-staging-bg: #7a5212;
-  --tag-staging-fg: #ffe2b0;
-  --tag-production-bg: #8a1f1f;
-  --tag-production-fg: #ffc9c9;
-  --icon-server: #7cc4ff;
-  --icon-database: #f0b04a;
-  --icon-collection: #6fd29a;
-  --icon-index: #e59bff;
-  --icon-other: #c9c9c9;
-  --code-fg: #f8f8f0;
-  --code-bg: #16171d;
-  --code-comment: #5c6370;
-  --bson-id: #fd971f;
-  --bson-date: #66d9ef;
-  --bson-number: #ae81ff;
-  --bson-string: #e6db74;
-  --bson-constant: #f92672;
-  --bson-code: #a6e22e;
-  --bson-array: #fc9867;
-  /* Script editor and highlighted shell text (shared/ui/monokaiVibrant.ts). */
-  --syn-background: #16171d;
-  --syn-foreground: #f8f8f0;
-  --syn-line-highlight: rgb(255 255 255 / 0.045); /* translucent: the selection is drawn under the line */
-  --syn-selection: #3e4451;
-  --syn-gutter: #495162;
-  --syn-widget: #21252b;
-  --syn-widget-border: #181a1f;
-  --syn-widget-selected: #2c313a;
-  --syn-find-match: #42557b;
-  --syn-find-match-highlight: #314365;
-  --syn-comment: #5c6370;
-  --syn-string: #ffd945;
-  --syn-template: #e5a422;
-  --syn-constant: #e373ce;
-  --syn-keyword: #ff3f4f;
-  --syn-cyan: #19d1e5;
-  --syn-blue: #00a0e4;
-  --syn-green: #81f900;
 
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.4;
   color: var(--text);
   background: var(--bg);
-  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
-}
-
-/* Light theme, chosen from the gear in the toolbar (see shared/ui/theme.ts): the warm ivory
-   palette and clay accent of the Claude desktop app. */
-:root[data-theme="light"] {
-  --bg: #faf9f5;
-  --bg-side: #f5f4ed;
-  --surface: #f0eee6;
-  --surface-2: #e8e6dc;
-  --border: #e3e1d7;
-  --border-strong: #d1cfc5;
-  --text: #141413;
-  --muted: #73726c;
-  --accent: #c6613f;
-  --accent-hover: #b5563a;
-  --accent-ring: rgb(198 97 63 / 0.25);
-  --accent-soft: rgb(198 97 63 / 0.22);
-  --select: #f2dfd5;
-  --ok: #2f7a3e;
-  --danger: #c4372b;
-  --warn: #8f5a00;
-  --hover: #dedcd1;
-  --divider: #e3e1d7;
-  --disabled: #a9a79e;
-  --row-hover: #efede4;
-  --row-selected: #e8e5da;
-  --pill: #ffffff;
-  --close-hover: rgb(20 20 19 / 0.08);
-  --cell-focus: rgb(20 20 19 / 0.35);
-  --spinner-track: rgb(20 20 19 / 0.15);
-  --safe-bg: #f7e6c4;
-  --ok-bg: #e6f0e0;
-  --ok-border: #bcd6b3;
-  --error-bg: #f9e5e0;
-  --error-border: #ecbcb2;
-  --error-text: #8c2a1f;
-  --error-fg: #b5382a;
-  --info-bg: #ece9f6;
-  --info-border: #cdc7e6;
-  --info-text: #3e3670;
-  --tag-local-bg: #dfeccf;
-  --tag-local-fg: #3b5e1f;
-  --tag-development-bg: #d6ebe8;
-  --tag-development-fg: #1f5a54;
-  --tag-testing-bg: #e7e2f3;
-  --tag-testing-fg: #4e4285;
-  --tag-staging-bg: #f6e3c3;
-  --tag-staging-fg: #77490a;
-  --tag-production-bg: #f6d8d0;
-  --tag-production-fg: #8c2a1f;
-  --icon-server: #4f6fa8;
-  --icon-database: #b0702a;
-  --icon-collection: #4f8a4a;
-  --icon-index: #8a5aa8;
-  --icon-other: #73726c;
-  --code-fg: #141413;
-  --code-bg: #fdfcf9;
-  --code-comment: #9a988f;
-  --bson-id: #b5562f;
-  --bson-date: #2f7487;
-  --bson-number: #7a4fb0;
-  --bson-string: #7d6a12;
-  --bson-constant: #b8325e;
-  --bson-code: #4f7f1f;
-  --bson-array: #b0602a;
-  --syn-background: #fdfcf9;
-  --syn-foreground: #141413;
-  --syn-line-highlight: rgb(110 90 30 / 0.05);
-  --syn-selection: #f0dccf;
-  --syn-gutter: #a9a79e;
-  --syn-widget: #ffffff;
-  --syn-widget-border: #e3e1d7;
-  --syn-widget-selected: #f2dfd5;
-  --syn-find-match: #f0d58a;
-  --syn-find-match-highlight: #f7ebc4;
-  --syn-comment: #9a988f;
-  --syn-string: #7d6a12;
-  --syn-template: #a8601c;
-  --syn-constant: #9b3f8f;
-  --syn-keyword: #c4372b;
-  --syn-cyan: #2f7487;
-  --syn-blue: #3d64a8;
-  --syn-green: #4f7f1f;
-
-  color-scheme: light;
 }
 
 * {
@@ -2127,31 +1962,9 @@ button.shell-action {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-/* The shell, the document editor and the validation editor stay dark in the light theme too: the dark palette, scoped to the editor. */
-:root[data-theme="light"] .query-editor,
-:root[data-theme="light"] .document-editor,
-:root[data-theme="light"] .validation-editor,
-:root[data-theme="light"] .detail-code {
-  --syn-background: #16171d;
-  --syn-foreground: #f8f8f0;
-  --syn-line-highlight: rgb(255 255 255 / 0.045);
-  --syn-selection: #3e4451;
-  --syn-gutter: #495162;
-  --syn-widget: #21252b;
-  --syn-widget-border: #181a1f;
-  --syn-widget-selected: #2c313a;
-  --syn-find-match: #42557b;
-  --syn-find-match-highlight: #314365;
-  --syn-comment: #5c6370;
-  --syn-string: #ffd945;
-  --syn-template: #e5a422;
-  --syn-constant: #e373ce;
-  --syn-keyword: #ff3f4f;
-  --syn-cyan: #19d1e5;
-  --syn-blue: #00a0e4;
-  --syn-green: #81f900;
-  border-color: #16171d;
-  color-scheme: dark;
+/* Scrollbars and form controls of every editor in the code theme's scheme, not the app's. */
+.cm-editor {
+  color-scheme: var(--syn-scheme);
 }
 /* No horizontal scrollbar: on a one-line script it hides the line. It still scrolls sideways
    (Shift+wheel, touchpad, cursor). The vertical one comes from the global rule. */
@@ -2466,11 +2279,12 @@ button.shell-action {
   white-space: pre;
   user-select: text;
   outline: none;
-  color: var(--code-fg);
-  background: var(--code-bg);
+  color: var(--syn-foreground);
+  background: var(--syn-background);
+  color-scheme: var(--syn-scheme);
 }
 .text-doc-number {
-  color: var(--code-comment);
+  color: var(--syn-comment);
   font-style: italic;
 }
 
@@ -2667,6 +2481,119 @@ button.shell-action {
 .db-dialog-list li.active {
   background: var(--select);
 }
+/* "Tema" (ThemeDialog): the two lists on the left, the preview of what they pick on the right. */
+.theme-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 14px;
+  background: var(--surface);
+}
+.theme-dialog-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+}
+.theme-dialog-lists {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.theme-list h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.theme-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+}
+.theme-list ul:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.theme-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.theme-list li:hover {
+  background: var(--row-hover);
+}
+.theme-list li.active {
+  background: var(--select);
+}
+/* Scoped palettes (data-theme, data-code-theme on this box): its own text and background. */
+.theme-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px;
+  color: var(--text);
+  background: var(--divider);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+.theme-preview-ui {
+  flex: none;
+  background: var(--bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.theme-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.theme-preview-rows {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--bg-side);
+}
+.theme-preview-rows li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.theme-preview-rows li.selected {
+  background: var(--select);
+}
+.theme-preview-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.theme-preview-code {
+  flex: 1;
+  min-height: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
 /* Modal windows have no OS title bar: their own one (ModalTitleBar) sits over the view. */
 .modal-window {
   display: flex;

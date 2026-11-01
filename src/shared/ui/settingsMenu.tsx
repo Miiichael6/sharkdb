@@ -1,20 +1,8 @@
 import type { ContextMenuItem } from "./ContextMenu";
-import { THEME_CHOICES, useThemeChoice } from "./theme";
+import { openThemeWindow } from "./themeWindow";
 
 /** The settings menu (the gear), the same on the welcome screen and in the workspace toolbar. */
-export function useSettingsItems(): ContextMenuItem[] {
-  const theme = useThemeChoice();
-  return [
-    {
-      label: "Tema",
-      items: THEME_CHOICES.map(({ id, label }) => ({
-        label,
-        checked: theme.choice === id,
-        onSelect: () => theme.choose(id),
-      })),
-    },
-  ];
-}
+export const SETTINGS_ITEMS: ContextMenuItem[] = [{ label: "Tema…", onSelect: () => void openThemeWindow() }];
 
 export function GearIcon() {
   return (
