@@ -5,7 +5,7 @@ import { MISSING_DATABASE } from "../../explorer/domain/pinnedDatabases";
 interface Props {
   name: string;
   favorite: boolean;
-  selected: boolean;
+  checked: boolean;
   /** The row the arrows move from (Shift extends from it). */
   anchor: boolean;
   /** A favorite the server no longer has: it can only be unmarked. */
@@ -13,26 +13,27 @@ interface Props {
   onClick: (e: MouseEvent) => void;
   onToggle: () => void;
   onToggleStar: () => void;
-  onOpen: () => void;
 }
 
+const FAVORITE_STAYS = "Favorita: quita la estrella para sacarla del explorador";
+
 /** One database of the "Bases de datos" window: checkbox, star and name. */
-export function DatabaseChoiceRow({ name, favorite, selected, anchor, missing, onClick, onToggle, onToggleStar, onOpen }: Props) {
+export function DatabaseChoiceRow({ name, favorite, checked, anchor, missing, onClick, onToggle, onToggleStar }: Props) {
   const starLabel = favorite ? `Quitar ${name} de favoritas` : `Marcar ${name} como favorita`;
   return (
     <li
       role="option"
-      aria-selected={selected}
-      className={`${selected ? "active" : ""} ${anchor ? "anchor" : ""} ${missing ? "missing" : ""}`}
+      aria-selected={checked}
+      className={`${checked ? "active" : ""} ${anchor ? "anchor" : ""} ${missing ? "missing" : ""}`}
       title={missing ? MISSING_DATABASE : undefined}
       onClick={onClick}
-      onDoubleClick={() => !missing && onOpen()}
     >
       <input
         type="checkbox"
         aria-label={`Elegir ${name}`}
-        checked={selected}
-        disabled={missing}
+        title={favorite ? FAVORITE_STAYS : undefined}
+        checked={checked}
+        disabled={missing || favorite}
         onClick={(e) => e.stopPropagation()}
         onChange={onToggle}
       />
@@ -46,7 +47,6 @@ export function DatabaseChoiceRow({ name, favorite, selected, anchor, missing, o
           e.stopPropagation();
           onToggleStar();
         }}
-        onDoubleClick={(e) => e.stopPropagation()}
       >
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
           <path

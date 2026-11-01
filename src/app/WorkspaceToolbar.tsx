@@ -82,9 +82,11 @@ export function WorkspaceToolbar(props: Props) {
       log.error("No se pudo abrir la lista de bases de datos", e);
       return;
     }
-    // The stars may have changed even when the window was just closed.
-    if (chosen?.length) layout.showSidebar();
-    controls.openDatabases(selectedSession.conn.id, chosen ?? []);
+    // The stars may have changed even when the window was just closed: the tree reloads anyway.
+    const sid = selectedSession.conn.id;
+    if (!chosen) return controls.openDatabases(sid, []);
+    layout.showSidebar();
+    controls.showDatabases(sid, chosen);
   };
 
   const showConnections = async () => {

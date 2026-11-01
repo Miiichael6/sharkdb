@@ -90,6 +90,10 @@ export function isLeaf(n: TreeNode): boolean {
   return n.kind === "index" || n.kind === "user" || n.kind === "function";
 }
 
+/** Number of items in a folder's children: preset folders (System) count as their contents, like Robo 3T. */
+export const childCount = (kids: TreeNode[]) =>
+  kids.reduce((n, k) => n + (k.data?.children ? k.data.children.length : 1), 0);
+
 /** Groups the items matching `isSystem` under a "System" folder node, as Robo 3T does. */
 export function withSystemFolder<T>(
   parent: TreeNode,

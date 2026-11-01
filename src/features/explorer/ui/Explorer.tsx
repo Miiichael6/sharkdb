@@ -1,15 +1,19 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import { Spinner } from "../../../shared/ui/common";
 import { MenuList } from "../../../shared/ui/MenuList";
 import { MISSING_DATABASE } from "../domain/pinnedDatabases";
-import { FOLDER_KINDS, isLeaf, isMissingDatabase, parentKey, type TreeNode } from "../domain/tree";
+import { isFilterActive, showsFilter } from "../domain/collectionFilter";
+import { childCount, FOLDER_KINDS, isLeaf, isMissingDatabase, parentKey, type TreeNode } from "../domain/tree";
 import { blockedInSafeMode } from "../domain/writeActions";
+import { CollectionFilter } from "./CollectionFilter";
 import { menuFor, type Action } from "./explorerMenu";
+import { HighlightedLabel } from "./HighlightedLabel";
 import { NodeIcon } from "./NodeIcon";
 import { useCollectionDrag } from "./useCollectionDrag";
 import type { Tree } from "./useTree";
+import { useTreeKeyboard } from "./useTreeKeyboard";
 
 export type { Action } from "./explorerMenu";
 
@@ -27,6 +31,7 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
   const isReadOnly = useReadOnly();
   const rootRef = useRef<HTMLDivElement>(null);
   const dragStart = useCollectionDrag(onDragCollection);
+  const { onKeyDown, filterFocus, clearFilterFocus } = useTreeKeyboard(tree, { onAction, onRunCollection });
 
   useEffect(() => {
     if (!menu) return;
@@ -44,48 +49,13 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
     rootRef.current?.querySelector(".tree-row.selected")?.scrollIntoView({ block: "nearest" });
   }, [tree.selected]);
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    const current = tree.node(tree.selected);
-    const rows = tree.visible();
-    const i = current ? rows.findIndex((r) => r.key === current.key) : -1;
-    const go = (n?: TreeNode) => n && tree.select(n.key);
-
-    switch (e.key) {
-      case "ArrowDown":
-        go(rows[Math.min(i + 1, rows.length - 1)]);
-        break;
-      case "ArrowUp":
-        go(rows[Math.max(i - 1, 0)]);
-        break;
-      case "ArrowRight":
-        if (!current || isLeaf(current)) break;
-        if (!tree.expanded.has(current.key)) tree.expand(current);
-        else go(tree.children.get(current.key)?.[0]);
-        break;
-      case "ArrowLeft":
-        if (!current) break;
-        if (tree.expanded.has(current.key)) tree.collapse(current);
-        else go(tree.node(parentKey(current.key)));
-        break;
-      case "Enter":
-        if (e.ctrlKey || e.metaKey) {
-          if (current?.kind === "collection") onRunCollection?.(current);
-        } else if (current) tree.toggle(current);
-        break;
-      case "F5":
-        if (current) onAction("refresh", current);
-        break;
-      default:
-        return;
-    }
-    e.preventDefault();
-  };
-
   const renderNode = (n: TreeNode, depth: number): ReactNode => {
     const open = tree.expanded.has(n.key);
-    const kids = tree.children.get(n.key);
+    const all = tree.children.get(n.key);
+    const kids = tree.shownChildren(n.key);
     const leaf = isLeaf(n);
-    const count = kids && (n.kind === "server" || FOLDER_KINDS.includes(n.kind)) ? countOf(kids) : null;
+    const filterable = n.kind === "collections" && !!all && showsFilter(all);
+    const query = tree.filters.get(n.key) ?? "";
     const error = tree.errors.get(n.key);
     const missing = isMissingDatabase(n);
 
@@ -117,9 +87,15 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
           </span>
           <NodeIcon kind={n.kind} view={n.data?.type === "view"} open={open} />
           <span className="tree-label" title={missing ? `${n.label}: ${MISSING_DATABASE}` : n.label}>
-            {n.label}
+            {n.kind === "collection" ? (
+              <HighlightedLabel label={n.label} query={tree.filters.get(parentKey(n.key)!) ?? ""} />
+            ) : (
+              n.label
+            )}
           </span>
-          {count !== null && <span className="tree-count">({count})</span>}
+          {all && kids && (n.kind === "server" || FOLDER_KINDS.includes(n.kind)) && (
+            <span className="tree-count">({countLabel(childCount(kids), childCount(all), isFilterActive(query))})</span>
+          )}
           {n.kind === "index" && <span className="tree-detail">{JSON.stringify(n.data.key)}</span>}
           {n.kind === "collection" && n.data?.type === "view" && <span className="tree-detail">vista</span>}
           {tree.loading.has(n.key) && <Spinner />}
@@ -129,8 +105,26 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
             {error}
           </div>
         )}
-        {open && kids && kids.length > 0 && (
-          <ul role="group">{kids.map((k) => renderNode(k, depth + 1))}</ul>
+        {open && kids && (kids.length > 0 || filterable) && (
+          <ul role="group">
+            {filterable && (
+              <CollectionFilter
+                value={query}
+                shown={kids}
+                indent={26 + depth * 16}
+                focusRequested={filterFocus === n.key}
+                onChange={(text) => tree.setFilter(n.key, text)}
+                onFocused={clearFilterFocus}
+                onSelect={(k) => {
+                  tree.select(k.key);
+                  rootRef.current?.focus();
+                }}
+                onOpen={(k) => onAction("openShell", k)}
+                onLeave={() => rootRef.current?.focus()}
+              />
+            )}
+            {kids.map((k) => renderNode(k, depth + 1))}
+          </ul>
         )}
       </li>
     );
@@ -166,7 +160,6 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
   );
 }
 
-/** Folders that hold preset children (System) count as their contents, like Robo 3T. */
-function countOf(kids: TreeNode[]): number {
-  return kids.reduce((n, k) => n + (k.data?.children ? k.data.children.length : 1), 0);
-}
+/** "158", or "12 de 158" while filtering. */
+const countLabel = (shown: number, total: number, filtering: boolean) =>
+  filtering ? `${shown} de ${total}` : `${total}`;

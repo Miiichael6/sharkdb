@@ -17,6 +17,9 @@
   --warn: #f5b041;
   --hover: #383838;
   --divider: #111;
+  /* Panels are rounded cards separated by a gap of the window frame's color (the divider). */
+  --panel-radius: 8px;
+  --panel-gap: 6px;
   --disabled: #666;
   --row-hover: #252a30;
   --row-selected: #2a2f36;
@@ -375,14 +378,17 @@ input[type="checkbox"] {
 
 .welcome {
   display: flex;
+  gap: var(--panel-gap);
   height: 100%;
+  padding: var(--panel-gap);
+  box-sizing: border-box;
+  background: var(--divider);
 }
 
 .welcome-side {
   width: 270px;
   flex: none;
   background: var(--bg-side);
-  border-right: 1px solid var(--divider);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -405,6 +411,7 @@ input[type="checkbox"] {
   flex-direction: column;
   min-width: 0;
   position: relative;
+  background: var(--bg);
 }
 
 .toolbar {
@@ -1008,6 +1015,54 @@ input[type="checkbox"] {
 .ws-sidebar {
   background: var(--bg-side);
 }
+.ws-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---------- rounded panels ---------- */
+
+.workspace {
+  background: var(--divider);
+}
+.workspace > .split-pane {
+  padding: var(--panel-gap);
+}
+/* Each panel is a card: the explorer, the main area, the operations panel and the logs. */
+.welcome-side,
+.welcome-main,
+.workspace .split-side,
+.with-ops-main,
+.ops-panel,
+.log-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  overflow: hidden;
+}
+.with-ops-main {
+  background: var(--bg);
+}
+.workspace .split-main {
+  overflow: hidden;
+}
+/* Between cards the splitters are the gap itself, lit only while hovered or focused. */
+.workspace .splitter,
+.ws-main > .stack-split > .stack-splitter {
+  background: transparent;
+  border-radius: var(--panel-radius);
+}
+.workspace .splitter {
+  width: var(--panel-gap);
+}
+.ws-main > .stack-split > .stack-splitter {
+  height: var(--panel-gap);
+}
+.workspace .splitter:hover,
+.ws-main > .stack-split > .stack-splitter:hover,
+.ws-main > .stack-split > .stack-splitter:focus-visible {
+  background: var(--accent-soft);
+}
 
 /* ---------- explorer tree ---------- */
 
@@ -1110,6 +1165,27 @@ input[type="checkbox"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* "Filtrar colecciones…" box, first row of a Collections folder with many collections. */
+.tree-filter {
+  padding: 3px 8px 3px 0;
+}
+.tree-filter .search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.tree-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 2px 8px 4px 0;
+}
+.tree-label mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 2px;
 }
 .context-menu li.disabled {
   color: var(--disabled);
@@ -2294,7 +2370,8 @@ button.shell-action {
 /* ---------- logs ---------- */
 
 .log-panel {
-  flex: 0 0 180px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--divider);

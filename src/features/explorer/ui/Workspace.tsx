@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useDataOperations } from "../../../app/operations/useDataOperations";
 import { useServices } from "../../../app/services";
 import { LogPanel } from "../../../shared/ui/LogPanel";
+import { StackSplit } from "../../../shared/ui/StackSplit";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
 import { SplitPane } from "../../../shared/ui/SplitPane";
 import { useLog } from "../../../shared/ui/useLog";
@@ -15,7 +16,8 @@ import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
 import { isMenuScript, type MenuScriptKind } from "../../shell/domain/menuScripts";
-import { databaseNode, databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
+import { childCount, databaseNode, databaseNodes, serverKey, serverNode, type TreeNode } from "../domain/tree";
+import { listChanges } from "../domain/pinnedDatabases";
 import { blockedInSafeMode } from "../domain/writeActions";
 import { useTree } from "./useTree";
 import { DetailPanel, type PanelMode } from "./DetailPanel";
@@ -36,6 +38,8 @@ export interface WorkspaceControls {
   reveal: (node: TreeNode) => void;
   /** Adds `names` (maybe none) to the connection's list as temporary, reloads it and selects the first one. */
   openDatabases: (sid: string, names: string[]) => void;
+  /** Leaves the connection's list with exactly `checked` (favorites always stay), as the "Bases de datos" window asks. */
+  showDatabases: (sid: string, checked: string[]) => void;
   openMongosh: (sid: string, db?: string) => void;
   /** Runs a context-menu action on `node`, exactly as the tree does. */
   runAction: (action: Action, node: TreeNode) => void;
@@ -139,6 +143,12 @@ export function Workspace(props: Props) {
     if (names.length) tree.reveal(databaseNode(server, names[0]));
   };
 
+  const showDatabases = (sid: string, checked: string[]) => {
+    const { open, close } = listChanges(checked, explorer.favoritesOf(sid), explorer.temporariesOf(sid));
+    close.forEach((name) => explorer.forgetTemporary(sid, name));
+    openDatabases(sid, open);
+  };
+
   const selected = tree.node(tree.selected) ?? roots[0];
   const controls: WorkspaceControls = {
     selected,
@@ -147,18 +157,20 @@ export function Workspace(props: Props) {
     databases: (sid) => databaseNodes(tree.children.get(serverKey(sid)) ?? []),
     reveal: tree.reveal,
     openDatabases,
+    showDatabases,
     openMongosh,
     runAction: onAction,
   };
   const readOnlySelected = !!selected && isReadOnly(selected.sid);
   const mode: PanelMode = panel && panel.key === selected?.key ? panel.mode : "default";
+  const selectedKids = selected && tree.children.get(selected.key);
 
   const details = selected && (
     <DetailPanel
       node={selected}
       mode={mode}
       version={actions.version}
-      childCount={tree.children.get(selected.key)?.length}
+      childCount={selectedKids ? childCount(selectedKids) : undefined}
       onAction={(m) => setPanel({ key: selected.key, mode: m })}
       onEditIndex={readOnlySelected ? undefined : (ix) => actions.editIndex(selected, ix)}
       onDropIndex={readOnlySelected ? undefined : (ix) => actions.dropIndex(selected, ix)}
@@ -170,10 +182,17 @@ export function Workspace(props: Props) {
       {props.renderToolbar(controls)}
 
       <SplitPane sideClassName="ws-sidebar" sideHidden={sidebarHidden} side={<Explorer tree={tree} onAction={onAction} onRunCollection={props.onRunCollection} onDragCollection={props.onDragCollection} />}>
-        {props.renderMain(details, selected)}
+        {/* The logs open under the main area only (never under the explorer), at half its height. */}
+        <div className="ws-main">
+          <StackSplit
+            label="Redimensionar área principal y logs"
+            initialRatio={0.5}
+            bottomHidden={!logsOpen}
+            top={props.renderMain(details, selected)}
+            bottom={<LogPanel onClose={onCloseLogs} />}
+          />
+        </div>
       </SplitPane>
-
-      {logsOpen && <LogPanel onClose={onCloseLogs} />}
 
       <NoticeToast />
 

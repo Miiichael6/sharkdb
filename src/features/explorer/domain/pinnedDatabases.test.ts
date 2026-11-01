@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DatabaseEntry } from "./mongo";
-import { hasUserDatabases, orderForDialog, toggleFavorite, visibleDatabases } from "./pinnedDatabases";
+import { hasUserDatabases, listChanges, orderForDialog, toggleFavorite, visibleDatabases } from "./pinnedDatabases";
 
 const entry = (name: string): DatabaseEntry => ({ name, sizeOnDisk: 1024, empty: false });
 const SERVER = ["shop", "logs", "admin", "crm"].map(entry);
@@ -41,6 +41,12 @@ describe("toggleFavorite", () => {
   it("marks keeping the list alphabetical and unmarks", () => {
     expect(toggleFavorite(["crm", "shop"], "logs")).toEqual(["crm", "logs", "shop"]);
     expect(toggleFavorite(["crm", "logs"], "crm")).toEqual(["logs"]);
+  });
+});
+
+describe("listChanges", () => {
+  it("opens the new checked ones and closes the unchecked temporaries, never touching the favorites", () => {
+    expect(listChanges(["crm", "logs", "shop"], ["crm", "admin"], ["shop", "old"])).toEqual({ open: ["logs"], close: ["old"] });
   });
 });
 

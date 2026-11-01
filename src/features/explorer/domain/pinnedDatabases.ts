@@ -36,6 +36,14 @@ export function toggleFavorite(favorites: string[], name: string): string[] {
   return favorites.includes(name) ? favorites.filter((f) => f !== name) : [...favorites, name].sort(alphabetical);
 }
 
+/** What the explorer must change so it shows exactly `checked` (plus the favorites, which always stay). */
+export function listChanges(checked: string[], favorites: string[], temporaries: string[]) {
+  return {
+    open: checked.filter((name) => !favorites.includes(name) && !temporaries.includes(name)),
+    close: temporaries.filter((name) => !checked.includes(name)),
+  };
+}
+
 /**
  * Order of the "Bases de datos" window, computed once when it opens: the favorites at that moment
  * first (also those the server no longer has), then the rest, each group alphabetical. Marking a

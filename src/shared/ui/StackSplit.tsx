@@ -20,6 +20,8 @@ interface Props {
   label?: string;
   /** Hides the top pane (it stays mounted) and gives all the height to the bottom one. */
   topHidden?: boolean;
+  /** Hides the bottom pane (it stays mounted) and gives all the height to the top one. */
+  bottomHidden?: boolean;
   /** Sizes the top pane to its content; measured when shown and whenever `fitKey` changes. */
   fitTop?: (top: HTMLElement) => TopFit;
   fitKey?: unknown;
@@ -36,7 +38,7 @@ const clampTo = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo),
  * `height..max`, so emptying the content always shrinks it back.
  */
 export function StackSplit(props: Props) {
-  const { top, bottom, initialRatio = 0.4, minPx = 80, label = "Redimensionar", topHidden, fitTop, fitKey } = props;
+  const { top, bottom, initialRatio = 0.4, minPx = 80, label = "Redimensionar", topHidden, bottomHidden, fitTop, fitKey } = props;
   const box = useRef<HTMLDivElement>(null);
   const topBox = useRef<HTMLDivElement>(null);
   // null until measured (or without fitTop and not yet dragged): initialRatio applies.
@@ -88,14 +90,14 @@ export function StackSplit(props: Props) {
       <div
         className="stack-top"
         ref={topBox}
-        style={{ flexBasis: topPx === null ? `${initialRatio * 100}%` : `${topPx}px` }}
+        style={bottomHidden ? { flexGrow: 1 } : { flexBasis: topPx === null ? `${initialRatio * 100}%` : `${topPx}px` }}
         hidden={topHidden}
       >
         {top}
       </div>
       <div
         className="stack-splitter"
-        hidden={topHidden}
+        hidden={topHidden || bottomHidden}
         role="separator"
         aria-orientation="horizontal"
         aria-label={label}
@@ -108,7 +110,9 @@ export function StackSplit(props: Props) {
         onPointerMove={onPointerMove}
         onKeyDown={onKeyDown}
       />
-      <div className="stack-bottom">{bottom}</div>
+      <div className="stack-bottom" hidden={bottomHidden}>
+        {bottom}
+      </div>
     </div>
   );
 }
