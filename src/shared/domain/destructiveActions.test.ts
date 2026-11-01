@@ -17,7 +17,7 @@ describe("confirmLevel", () => {
   });
 
   it("keeps one click for selected documents, functions and saved connections", () => {
-    const simple: DestructiveAction[] = ["removeDocuments", "removeFunction", "deleteConnection"];
+    const simple: DestructiveAction[] = ["removeDocuments", "removeFunction", "deleteConnection", "deleteSchedule"];
     for (const action of simple) expect(confirmLevel(action)).toBe("simple");
   });
 });

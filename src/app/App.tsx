@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { renderSchedules } from "../features/backup/ui/renderSchedules";
+import { useBackupSchedules } from "../features/backup/ui/useBackupSchedules";
 import {
   displayName,
   duplicateConnection,
@@ -23,6 +25,7 @@ import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
 import { useNotify } from "../shared/ui/useNotifications";
+import { useDataOperations } from "./operations/useDataOperations";
 import { WithOperationsPanel } from "./operations/WithOperationsPanel";
 import { useServices } from "./services";
 import { useDatabaseWindow } from "./useDatabaseWindow";
@@ -109,6 +112,10 @@ function App() {
     }
   };
 
+  // A backup only reads its connection: nothing to refresh when it ends.
+  const data = useDataOperations(connections, () => {});
+  const schedules = useBackupSchedules({ connections, sessions, borrowSession, run: data.startBackup, cancel: data.cancel });
+
   const disconnect = async (sid: string) => {
     await service.close(sid).catch(() => {});
     tabs.closeSession(sid);
@@ -149,6 +156,7 @@ function App() {
         <DocumentActionsProvider>
           {showWelcome || !sessions.length ? (
             <Welcome
+              backups={{ onNew: schedules.create, render: (query) => renderSchedules(schedules, query) }}
               connections={connections}
               openIds={sessions.map((s) => s.conn.id)}
               connectingId={connectingId}

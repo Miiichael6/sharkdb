@@ -1,8 +1,10 @@
 // Composition root: the only place that knows which adapters back each port.
 import { createContext, useContext, type ReactNode } from "react";
 import { createBackupService, type BackupService } from "../features/backup/application/backupService";
+import { createScheduleService, type ScheduleService } from "../features/backup/application/scheduleService";
 import { tauriBackupGateway } from "../features/backup/infrastructure/tauriBackupGateway";
 import { tauriFolderPicker } from "../features/backup/infrastructure/tauriFolderPicker";
+import { tauriScheduleStore } from "../features/backup/infrastructure/tauriScheduleStore";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
 import { tauriFilePicker } from "../features/connections/infrastructure/tauriFilePicker";
@@ -42,6 +44,7 @@ export interface Services {
   terminal: TerminalService;
   windowTitle: WindowTitleService;
   backup: BackupService;
+  schedules: ScheduleService;
   sync: SyncService;
   operations: OperationsService;
 }
@@ -59,6 +62,7 @@ export function createServices(): Services {
     terminal: createTerminalService(tauriTerminalGateway),
     windowTitle: createWindowTitleService(tauriWindowGateway),
     backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),
+    schedules: createScheduleService(tauriScheduleStore),
     sync: createSyncService(tauriSyncGateway, startJob),
     operations: createOperationsService(),
   };

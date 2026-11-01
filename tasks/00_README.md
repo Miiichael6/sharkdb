@@ -84,6 +84,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D14** Temas incluidos → **la propuesta, aceptada por el usuario** (2026-10-31); los actuales se quedan como una opción más → afecta 30:
   - **Aplicación**: Oscuro (actual), Claro (actual), Según el sistema, y además Nord, Solarized claro, Dracula, Monokai, Monokai Pro y Monokai Pro (Machine) (añadidos a pedido del usuario).
   - **Código y vistas JSON**: Monokai Vibrant (actual), One Dark, Claro (a juego con el Claro de la aplicación), GitHub claro, Dracula, Solarized oscuro, Monokai, Monokai Pro y Monokai Pro (Machine) (añadidos a pedido del usuario).
+- [x] **D15** Backups programados → **solo con la app abierta**; si al abrirla ya pasó la hora del día, se ejecuta entonces. Sin arranque automático de Windows (2026-10-31) → afecta 32
+- [x] **D16** Carpeta de cada ejecución → **fechada** `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>`, conservando las **últimas 7** (se borran las más viejas) (2026-10-31) → afecta 31, 32
+- [x] **D17** Confirmación de las programaciones → `confirmo` **una sola vez al guardar**; ni la ejecución diaria ni el ▶ manual vuelven a pedirlo (2026-10-31) → afecta 31
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -120,6 +123,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 28 | [Filtrar colecciones del árbol escribiendo](done/28_filtro_colecciones.md) | 15 Explorador | 23 | ✅ Terminada |
 | 29 | [Decir qué campo falla la validación](pending/29_campo_que_falla_validacion.md) | 14 Validación | 27 | ⬜ Pendiente |
 | 30 | [Temas de color para la aplicación y el código](done/30_temas_app_y_codigo.md) | 16 Temas | – | ✅ Terminada |
+| 31 | [Backups programados: lista y formulario como TablePlus](done/31_backups_programados.md) | 17 Backups programados | 22 | ✅ Terminada |
+| 32 | [Ejecución automática de los backups programados](pending/32_ejecucion_diaria_backups.md) | 17 Backups programados | 31 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -185,6 +190,11 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R55 Varios temas de color para la aplicación, elegidos en Configuración (el actual es uno de ellos) | 30 |
 | R57 "Tema…" en la tuerca abre una sub-ventana con los dos selectores y vista previa del código y de la interfaz | 30 |
 | R56 Varios temas para el código y las vistas JSON, independientes del de la aplicación (el actual es uno de ellos) | 30 |
+| R58 Iconos Conexiones / Backups en la bienvenida; lista de backups programados como el "Backup schedule" de TablePlus | 31 |
+| R59 Programación: nombre, repetir (diario, semanal, cada hora, una vez, mensual o manual) a una hora de 12 h, avisar, origen (conexión + BDs/colecciones) y carpeta de destino | 31 |
+| R60 Ejecutar una programación ya (▶), reutilizando el backup de la tarea 22 y el panel de Operaciones | 31 |
+| R61 Ejecución automática de las programaciones activas según su frecuencia | 32 |
+| R62 Aviso del resultado de cada ejecución y retención de las últimas copias | 32 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -207,5 +217,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 13, 17, 18 → 27 → 29
 23 → 28
 30 (independiente)
+22 → 31 → 32
 12 ────────────────────┘
 ```
