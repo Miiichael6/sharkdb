@@ -5,7 +5,7 @@ import { Avatar, Logo, Spinner } from "../../../shared/ui/common";
 import { confirmDeleteInWindow } from "../../../shared/ui/confirmInWindow";
 import { ContextMenu } from "../../../shared/ui/ContextMenu";
 import { MenuList } from "../../../shared/ui/MenuList";
-import { GearIcon, useSettingsItems } from "../../../shared/ui/settingsMenu";
+import { GearIcon, SETTINGS_ITEMS } from "../../../shared/ui/settingsMenu";
 import { WindowControls } from "../../../shared/ui/WindowControls";
 import { TagBadge } from "./TagBadge";
 
@@ -36,7 +36,6 @@ export function Welcome(props: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [settingsAt, setSettingsAt] = useState<{ x: number; y: number } | null>(null);
-  const settingsItems = useSettingsItems();
   const confirmDelete = async (conn: MongoConnection) => {
     const request = destructiveRequest("deleteConnection", { server: targetServerOf(conn) });
     if (await confirmDeleteInWindow(request)) onDelete(conn);
@@ -204,7 +203,7 @@ export function Welcome(props: Props) {
         </MenuList>
       )}
       {settingsAt && (
-        <ContextMenu x={settingsAt.x} y={settingsAt.y} items={settingsItems} onClose={() => setSettingsAt(null)} label="Ajustes" />
+        <ContextMenu x={settingsAt.x} y={settingsAt.y} items={SETTINGS_ITEMS} onClose={() => setSettingsAt(null)} label="Ajustes" />
       )}
     </div>
   );

@@ -2,9 +2,10 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 
-// Monokai Vibrant (VS Code), with the user's italics: comments, keywords, constants, classes and
-// function names are italic; operators and numbers are not. The colors are CSS variables (`--syn-*`
-// in App.css), so the light theme swaps them without rebuilding editors or highlighted text.
+// The code theme: which token gets which role color, with the user's italics (comments, keywords,
+// constants, classes and function names are italic; operators and numbers are not). The colors are
+// CSS variables (`--syn-*`, one file per theme in app/themes/code-*.css), so switching the code theme
+// swaps them without rebuilding editors or highlighted text.
 const color = {
   background: "var(--syn-background)",
   foreground: "var(--syn-foreground)",
@@ -21,9 +22,9 @@ const color = {
   template: "var(--syn-template)",
   constant: "var(--syn-constant)",
   keyword: "var(--syn-keyword)",
-  cyan: "var(--syn-cyan)",
-  blue: "var(--syn-blue)",
-  green: "var(--syn-green)",
+  label: "var(--syn-label)",
+  variable: "var(--syn-variable)",
+  function: "var(--syn-function)",
 };
 
 const CONTROL = { height: "26px", margin: 0, boxSizing: "border-box", borderRadius: "5px", fontSize: "12px" };
@@ -49,7 +50,7 @@ const searchPanel = {
     border: `1px solid ${color.widgetBorder}`,
     outline: "none",
   },
-  ".cm-panel.cm-search .cm-textfield:focus": { borderColor: color.blue },
+  ".cm-panel.cm-search .cm-textfield:focus": { borderColor: color.variable },
   ".cm-panel.cm-search .cm-button, .cm-panel.cm-search label": {
     ...CONTROL,
     display: "inline-flex",
@@ -65,8 +66,8 @@ const searchPanel = {
   },
   ".cm-panel.cm-search .cm-button:hover, .cm-panel.cm-search label:hover": { backgroundColor: color.selection },
   ".cm-panel.cm-search label": { color: color.comment, backgroundColor: "transparent" },
-  ".cm-panel.cm-search label:has(input:checked)": { color: color.foreground, backgroundColor: color.findMatchHighlight, borderColor: color.blue },
-  ".cm-panel.cm-search label:has(input:focus-visible)": { outline: `1px solid ${color.blue}` },
+  ".cm-panel.cm-search label:has(input:checked)": { color: color.foreground, backgroundColor: color.findMatchHighlight, borderColor: color.variable },
+  ".cm-panel.cm-search label:has(input:focus-visible)": { outline: `1px solid ${color.variable}` },
   ".cm-panel.cm-search input[type=checkbox]": { position: "absolute", opacity: 0, width: 0, height: 0, margin: 0 },
   ".cm-panel.cm-search [name=replace]": { gridRow: 2, gridColumn: 1 },
   ".cm-panel.cm-search button[name=replace]": { gridRow: 2, gridColumn: 2 },
@@ -104,13 +105,13 @@ const spec = {
   ".cm-foldPlaceholder": { backgroundColor: "transparent", border: "none", color: color.comment },
   ".cm-tooltip": { backgroundColor: color.widget, border: `1px solid ${color.widgetBorder}`, color: color.foreground },
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: color.widgetSelected, color: color.foreground },
-  ".cm-completionMatchedText": { color: color.cyan, textDecoration: "none" },
+  ".cm-completionMatchedText": { color: color.label, textDecoration: "none" },
   ".cm-panels": { backgroundColor: color.widget, color: color.foreground },
   ".cm-panels-bottom": { borderTop: `1px solid ${color.widgetBorder}` },
   ...searchPanel,
 };
 
-export const monokaiHighlight = HighlightStyle.define([
+export const codeHighlight = HighlightStyle.define([
   { tag: t.comment, color: color.comment, fontStyle: "italic" },
   { tag: t.string, color: color.string },
   { tag: t.special(t.string), color: color.template },
@@ -122,14 +123,14 @@ export const monokaiHighlight = HighlightStyle.define([
   // The dot of `db.coll.find` is an operator too; in red it reads like an error.
   { tag: t.derefOperator, color: color.foreground },
   { tag: t.self, color: color.keyword, fontStyle: "italic" },
-  { tag: t.variableName, color: color.blue },
+  { tag: t.variableName, color: color.variable },
   { tag: t.propertyName, color: color.foreground },
-  { tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName))], color: color.green, fontStyle: "italic" },
-  { tag: [t.className, t.typeName], color: color.blue, fontStyle: "italic" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName))], color: color.function, fontStyle: "italic" },
+  { tag: [t.className, t.typeName], color: color.variable, fontStyle: "italic" },
   { tag: t.definition(t.variableName), color: color.foreground },
-  { tag: t.labelName, color: color.cyan },
+  { tag: t.labelName, color: color.label },
   { tag: t.invalid, color: color.keyword, textDecoration: "underline" },
 ]);
 
-/** The editor theme; `dark` picks CodeMirror's base styles (search fields, buttons…) to match. */
-export const monokaiVibrant = (dark: boolean) => [EditorView.theme(spec, { dark }), syntaxHighlighting(monokaiHighlight)];
+/** The editor theme, in whatever code theme the page has (`data-code-theme`). */
+export const codeTheme = [EditorView.theme(spec), syntaxHighlighting(codeHighlight)];

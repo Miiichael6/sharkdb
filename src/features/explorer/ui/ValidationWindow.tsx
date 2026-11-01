@@ -113,7 +113,7 @@ export function ValidationWindow({
           ? "El validador tiene más que un $jsonSchema (puesto desde un script): se edita y se guarda entero."
           : "$jsonSchema de la colección. Vacío si no tiene validación."}
       </p>
-      <CodeEditor className="validation-editor" value={text} onChange={setText} autoFocus alwaysDark />
+      <CodeEditor className="validation-editor" value={text} onChange={setText} autoFocus />
 
       <div className="validation-options">
         <ValidationOption title="Nivel" hint={LEVEL_HINTS[settings.level]}>

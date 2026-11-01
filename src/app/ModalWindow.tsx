@@ -22,8 +22,10 @@ import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
 import { OpenDatabaseDialog } from "../features/workspace/ui/OpenDatabaseDialog";
+import { ThemeDialog } from "../features/workspace/ui/ThemeDialog";
 import type { ConfirmRequest, DangerConfirmRequest } from "../shared/domain/confirmation";
 import type { DeleteConfirmRequest } from "../shared/domain/destructiveActions";
+import type { ThemeSelection } from "../shared/domain/themes";
 import { CONFIRM_VIEW, DANGER_CONFIRM_VIEW, DELETE_CONFIRM_VIEW } from "../shared/ui/confirmInWindow";
 import { ConfirmWindow } from "../shared/ui/ConfirmWindow";
 import { DangerConfirmWindow } from "../shared/ui/DangerConfirmWindow";
@@ -39,6 +41,7 @@ import {
   releaseOpener,
   showModalWindow,
 } from "../shared/ui/modalWindow";
+import { THEME_VIEW } from "../shared/ui/themeWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
 
@@ -131,6 +134,8 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <RestoreWindow data={data as RestoreWindowData} onDone={done} onClose={() => done(null)} />
         </ServicesProvider>
       );
+    case THEME_VIEW:
+      return <ThemeDialog data={data as ThemeSelection} onDone={done} />;
     case VALIDATION_VIEW:
       return (
         <ServicesProvider services={createServices()}>

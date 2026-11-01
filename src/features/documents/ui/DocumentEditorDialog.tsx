@@ -103,7 +103,6 @@ export function DocumentEditorDialog({
         onView={(v) => (view.current = v)}
         readOnly={mode === "view"}
         autoFocus
-        alwaysDark
       />
       {status && <p className={`test ${status.kind}`}>{status.text}</p>}
       <div className="modal-footer">

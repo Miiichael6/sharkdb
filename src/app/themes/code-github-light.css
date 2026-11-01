@@ -1,0 +1,22 @@
+/* GitHub light: white background, red keywords, dark blue strings, purple functions. */
+[data-code-theme="github-light"] {
+  --syn-background: #ffffff;
+  --syn-foreground: #1f2328;
+  --syn-line-highlight: rgb(234 238 242 / 0.5); /* translucent: the selection is drawn under the line */
+  --syn-selection: #cfe3ff;
+  --syn-gutter: #8c959f;
+  --syn-widget: #f6f8fa;
+  --syn-widget-border: #d0d7de;
+  --syn-widget-selected: #ddf4ff;
+  --syn-find-match: #f2cc60;
+  --syn-find-match-highlight: #fff1b8;
+  --syn-comment: #6e7781;
+  --syn-string: #0a3069;
+  --syn-template: #0550ae;
+  --syn-constant: #0550ae;
+  --syn-keyword: #cf222e;
+  --syn-label: #0969da;
+  --syn-variable: #953800;
+  --syn-function: #8250df;
+  --syn-scheme: light;
+}

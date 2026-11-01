@@ -1,0 +1,22 @@
+/* Monokai Pro (Machine): the Monokai Pro hues on a cold blue-slate background. */
+[data-code-theme="monokai-machine"] {
+  --syn-background: #273136;
+  --syn-foreground: #f2fffc;
+  --syn-line-highlight: rgb(255 255 255 / 0.04); /* translucent: the selection is drawn under the line */
+  --syn-selection: #545f62;
+  --syn-gutter: #545f62;
+  --syn-widget: #1d2528;
+  --syn-widget-border: #161b1e;
+  --syn-widget-selected: #3a4449;
+  --syn-find-match: #66603a;
+  --syn-find-match-highlight: #464a3c;
+  --syn-comment: #6b7678;
+  --syn-string: #ffed72;
+  --syn-template: #ffb270;
+  --syn-constant: #baa0f8;
+  --syn-keyword: #ff6d7e;
+  --syn-label: #7cd5f1;
+  --syn-variable: #7cd5f1;
+  --syn-function: #a2e57b;
+  --syn-scheme: dark;
+}

@@ -1,0 +1,22 @@
+/* Monokai Pro: the softer, warm-grey take on Monokai, with pastel accents. */
+[data-code-theme="monokai-pro"] {
+  --syn-background: #2d2a2e;
+  --syn-foreground: #fcfcfa;
+  --syn-line-highlight: rgb(255 255 255 / 0.04); /* translucent: the selection is drawn under the line */
+  --syn-selection: #5b595c;
+  --syn-gutter: #5b595c;
+  --syn-widget: #221f22;
+  --syn-widget-border: #19181a;
+  --syn-widget-selected: #403e41;
+  --syn-find-match: #6e5f34;
+  --syn-find-match-highlight: #4d4536;
+  --syn-comment: #727072;
+  --syn-string: #ffd866;
+  --syn-template: #fc9867;
+  --syn-constant: #ab9df2;
+  --syn-keyword: #ff6188;
+  --syn-label: #78dce8;
+  --syn-variable: #78dce8;
+  --syn-function: #a9dc76;
+  --syn-scheme: dark;
+}

@@ -1,0 +1,22 @@
+/* One Dark (Atom): soft blue-grey background, purple keywords, green strings, blue functions. */
+[data-code-theme="one-dark"] {
+  --syn-background: #282c34;
+  --syn-foreground: #abb2bf;
+  --syn-line-highlight: rgb(255 255 255 / 0.04); /* translucent: the selection is drawn under the line */
+  --syn-selection: #3e4451;
+  --syn-gutter: #636d83;
+  --syn-widget: #21252b;
+  --syn-widget-border: #181a1f;
+  --syn-widget-selected: #2c313a;
+  --syn-find-match: #42557b;
+  --syn-find-match-highlight: #314365;
+  --syn-comment: #7f848e;
+  --syn-string: #98c379;
+  --syn-template: #56b6c2;
+  --syn-constant: #d19a66;
+  --syn-keyword: #c678dd;
+  --syn-label: #56b6c2;
+  --syn-variable: #e06c75;
+  --syn-function: #61afef;
+  --syn-scheme: dark;
+}

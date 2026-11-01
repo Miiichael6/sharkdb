@@ -1,0 +1,22 @@
+/* "Claro": the code side of the app's light palette, warm ivory with a clay accent, as in Claude. */
+[data-code-theme="light"] {
+  --syn-background: #faf9f5;
+  --syn-foreground: #141413;
+  --syn-line-highlight: rgb(240 238 230 / 0.6); /* translucent: the selection is drawn under the line */
+  --syn-selection: #f1dccf;
+  --syn-gutter: #a09d92;
+  --syn-widget: #f0eee6;
+  --syn-widget-border: #e3e1d7;
+  --syn-widget-selected: #f4e4da;
+  --syn-find-match: #efcf8a;
+  --syn-find-match-highlight: #f7e9c4;
+  --syn-comment: #858275;
+  --syn-string: #4d7a2a;
+  --syn-template: #8a5a14;
+  --syn-constant: #a3477a;
+  --syn-keyword: #b8502e;
+  --syn-label: #1e6a8a;
+  --syn-variable: #1e6a8a;
+  --syn-function: #6b4fb0;
+  --syn-scheme: light;
+}

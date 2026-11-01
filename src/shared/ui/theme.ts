@@ -1,67 +1,61 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useCallback, useEffect, useState } from "react";
+import {
+  parseAppThemeChoice,
+  parseCodeTheme,
+  resolveAppTheme,
+  SYSTEM_THEME,
+  type AppThemeChoice,
+  type ThemeSelection,
+} from "../domain/themes";
 
-export type ThemeChoice = "dark" | "light" | "system";
-export type Theme = "dark" | "light";
-
-export const THEME_CHOICES: { id: ThemeChoice; label: string }[] = [
-  { id: "dark", label: "Oscuro" },
-  { id: "light", label: "Claro" },
-  { id: "system", label: "Según el sistema" },
-];
-
-const THEME_KEY = "robo3b.theme";
+const APP_THEME_KEY = "robo3b.theme";
+const CODE_THEME_KEY = "robo3b.codeTheme";
 const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)");
 
-export function readThemeChoice(): ThemeChoice {
+function readStored(key: string): string | null {
   try {
-    const stored = localStorage.getItem(THEME_KEY);
-    return stored === "light" || stored === "system" ? stored : "dark";
+    return localStorage.getItem(key);
   } catch {
-    return "dark";
+    return null;
   }
 }
 
-const resolve = (choice: ThemeChoice): Theme => (choice === "system" ? (systemDark().matches ? "dark" : "light") : choice);
+/** The saved themes; an unknown or missing value is the default one. */
+export function readThemes(): ThemeSelection {
+  return { app: parseAppThemeChoice(readStored(APP_THEME_KEY)), code: parseCodeTheme(readStored(CODE_THEME_KEY)) };
+}
 
-/** Puts the chosen theme on the page and on the native title bar. */
-export function applyTheme(choice: ThemeChoice = readThemeChoice()) {
-  document.documentElement.dataset.theme = resolve(choice);
+/** The palette id an app choice shows right now ("system" follows the OS). */
+export const appThemeId = (choice: AppThemeChoice) => resolveAppTheme(choice, systemDark().matches).id;
+
+/** Puts the themes on the page (`data-theme`, `data-code-theme`) and the app theme on the native title bar. */
+export function applyThemes({ app, code }: ThemeSelection = readThemes()) {
+  const palette = resolveAppTheme(app, systemDark().matches);
+  document.documentElement.dataset.theme = palette.id;
+  document.documentElement.dataset.codeTheme = code;
   // The title bar follows the OS on "system"; failing here only leaves it in its own theme.
   getCurrentWindow()
-    .setTheme(choice === "system" ? null : choice)
+    .setTheme(app === SYSTEM_THEME ? null : palette.dark ? "dark" : "light")
     .catch(() => {});
 }
 
-/** Applies the theme now and keeps it following the system while the choice is "system". */
+/** Saves the themes and applies them here; the other open windows pick them up from the storage event. */
+export function saveThemes(themes: ThemeSelection) {
+  try {
+    localStorage.setItem(APP_THEME_KEY, themes.app);
+    localStorage.setItem(CODE_THEME_KEY, themes.code);
+  } catch {
+    // Without storage the choice just lasts until the app closes.
+  }
+  applyThemes(themes);
+}
+
+/**
+ * Applies the themes now and keeps them current: following the system while the choice is "system",
+ * and following what another window saved.
+ */
 export function initTheme() {
-  applyTheme();
-  systemDark().addEventListener("change", () => readThemeChoice() === "system" && applyTheme("system"));
-}
-
-/** The resolved theme of this window, updated when it changes. */
-export function useTheme(): Theme {
-  const current = () => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
-  const [theme, setTheme] = useState<Theme>(current);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setTheme(current()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
-  return theme;
-}
-
-/** The stored choice and a setter that saves and applies it. */
-export function useThemeChoice() {
-  const [choice, setChoice] = useState(readThemeChoice);
-  const choose = useCallback((next: ThemeChoice) => {
-    try {
-      localStorage.setItem(THEME_KEY, next);
-    } catch {
-      // Without storage the choice just lasts until the app closes.
-    }
-    applyTheme(next);
-    setChoice(next);
-  }, []);
-  return { choice, choose };
+  applyThemes();
+  systemDark().addEventListener("change", () => readThemes().app === SYSTEM_THEME && applyThemes());
+  window.addEventListener("storage", (e) => (e.key === APP_THEME_KEY || e.key === CODE_THEME_KEY) && applyThemes());
 }

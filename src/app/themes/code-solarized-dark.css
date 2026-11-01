@@ -1,0 +1,22 @@
+/* Solarized dark (Ethan Schoonover): base03 background, green keywords, cyan strings, blue functions. */
+[data-code-theme="solarized-dark"] {
+  --syn-background: #002b36;
+  --syn-foreground: #93a1a1;
+  --syn-line-highlight: rgb(7 54 66 / 0.7); /* translucent: the selection is drawn under the line */
+  --syn-selection: #0d4a5a;
+  --syn-gutter: #586e75;
+  --syn-widget: #073642;
+  --syn-widget-border: #00212b;
+  --syn-widget-selected: #0d4a5a;
+  --syn-find-match: #5c4f00;
+  --syn-find-match-highlight: #3d3a10;
+  --syn-comment: #657b83;
+  --syn-string: #2aa198;
+  --syn-template: #cb4b16;
+  --syn-constant: #d33682;
+  --syn-keyword: #859900;
+  --syn-label: #2aa198;
+  --syn-variable: #b58900;
+  --syn-function: #268bd2;
+  --syn-scheme: dark;
+}
