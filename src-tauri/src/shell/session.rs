@@ -42,8 +42,13 @@ impl ShellSession {
         let hooks = ShellRun {
             db,
             first_batch: FIRST_BATCH_SIZE,
+            bridge: self.bridge.as_ref(),
         };
-        let outcome = self.engine.run(&syntax::rewrite(code), &hooks);
+        let mut outcome = self.engine.run(&syntax::rewrite(code), &hooks);
+        outcome.query_ms = self
+            .bridge
+            .take_query_time()
+            .map(|spent| spent.as_millis() as u64);
         self.bridge.retain_cursors(&outcome.open_cursors());
         outcome
     }

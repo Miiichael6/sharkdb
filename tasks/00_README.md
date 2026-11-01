@@ -130,7 +130,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 34.1 | ↳ [Líneas reales y error marcado en el editor](done/34.1_lineas_reales_y_error_editor.md) | 19 Consola | 34 | ✅ Terminada |
 | 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
 | 35 | [Compatibilidad del shell con Robo 3T](pending/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ⬜ Pendiente |
-| 36 | [Rendimiento de los resultados](pending/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ⬜ Pendiente |
+| 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

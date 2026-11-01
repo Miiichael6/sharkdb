@@ -98,6 +98,7 @@ impl Engine {
             error: run.error.map(|e| self.classify(e)),
             truncated: run.truncated,
             elapsed_ms: started.elapsed().as_millis() as u64,
+            query_ms: None,
         };
         if outcome
             .error

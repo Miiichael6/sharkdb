@@ -150,16 +150,30 @@
       this._buffer = [];
     }
 
-    // Primer lote para mostrar como resultado; incluye lo que el script ya tenía leído.
+    // Primer lote para mostrar como resultado: lo que el script ya tenía leído y, en `missing`,
+    // cuántos más debe leer prelude/mod.rs directamente del servidor sin pasarlos por JS. Si
+    // la consulta aún no se abrió, se abre pidiendo de entrada solo esa página.
     _take(size) {
-      while (this._buffer.length < size && !this._done) this._fetch(size - this._buffer.length);
+      if (this._id === null && !this._done && this._buffer.length < size) {
+        this._options.batchSize ??= size;
+        this._id = this._open(this._options);
+      }
+      const documents = this._buffer.splice(0);
       return {
         kind: 'cursor',
         ns: this._ns,
         id: this._id,
-        documents: this._buffer.splice(0),
+        documents,
         exhausted: this._done,
+        missing: this._done ? 0 : Math.max(0, size - documents.length),
+        cursor: this,
       };
+    }
+
+    // prelude/mod.rs leyó el cursor hasta el final.
+    _exhaust() {
+      this._id = null;
+      this._done = true;
     }
 
     toString() { return `DBQuery: ${this._ns}`; }

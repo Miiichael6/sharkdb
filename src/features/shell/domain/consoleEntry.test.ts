@@ -10,6 +10,7 @@ const outcomeOf = (results: ScriptResult[], error: ScriptOutcome["error"] = null
   error,
   truncated: false,
   elapsedMs: 1,
+  queryMs: null,
 });
 
 const at = (line: number) => ({ line, source: `s${line}` });

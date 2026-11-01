@@ -85,6 +85,53 @@ fn final_cursor_returns_first_batch_and_stays_open() {
     assert!(bridge.retained.borrow().is_empty());
 }
 
+/// Ids `_id` del cursor que deja la última sentencia.
+fn cursor_ids(outcome: &ScriptOutcome) -> Vec<i32> {
+    let [.., ScriptOutput::Cursor { documents, .. }] = &outputs(outcome)[..] else {
+        panic!("se esperaba un cursor: {:?}", outcome.results);
+    };
+    documents
+        .iter()
+        .map(|d| d.as_document().unwrap().get_f64("_id").unwrap() as i32)
+        .collect()
+}
+
+#[test]
+fn final_cursor_opens_asking_only_for_the_page() {
+    let (mut page, _) = session();
+    run_ok(&mut page, "db.x.find({})");
+    let find = first_call(&mut page);
+    assert_eq!(
+        find.get_document("options"),
+        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as f64 })
+    );
+
+    let (mut custom, _) = session();
+    run_ok(&mut custom, "db.x.find({}).batchSize(7)");
+    let find = first_call(&mut custom);
+    assert_eq!(find.get_document("options"), Ok(&doc! { "batchSize": 7.0 }));
+}
+
+#[test]
+fn final_cursor_keeps_what_the_script_already_read() {
+    let (mut session, _) = session();
+    let outcome = run_ok(&mut session, "var c = db.x.find({}); c.next(); c");
+    assert_eq!(cursor_ids(&outcome), (1..100).collect::<Vec<_>>());
+
+    let outcome = run_ok(&mut session, "c.next()._id");
+    assert_eq!(value(&outcome), Some(Bson::Double(100.0)));
+}
+
+#[test]
+fn final_cursor_drained_outside_js_is_exhausted_for_the_script() {
+    let (mut session, _) = session();
+    let outcome = run_ok(&mut session, "var c = db.x.find({}).limit(3); c");
+    assert_eq!(cursor_ids(&outcome), [0, 1, 2]);
+
+    let outcome = run_ok(&mut session, "c.hasNext()");
+    assert_eq!(value(&outcome), Some(Bson::Boolean(false)));
+}
+
 #[test]
 fn each_find_leaves_its_own_open_cursor() {
     let (mut session, bridge) = session();
