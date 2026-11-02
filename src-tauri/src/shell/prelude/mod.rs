@@ -11,7 +11,7 @@ use rquickjs::{Ctx, Function, Object, Value};
 use self::cursor_result::cursor_result;
 use super::bridge::MongoBridge;
 use super::errors::{describe_thrown, to_bson_reported};
-use super::module::{RunHooks, ShellModule};
+use super::module::{BegunResult, RunHooks, ShellModule};
 use super::outcome::{ScriptError, ScriptErrorKind, ScriptOutput};
 
 /// Piezas del prelude en orden de dependencia: cada una deja en `lib` lo que usan las siguientes.
@@ -67,6 +67,19 @@ impl RunHooks for ShellRun<'_> {
         ctx: &Ctx<'js>,
         value: Value<'js>,
     ) -> Result<Option<ScriptOutput>, ScriptError> {
+        match self.begin_result(ctx, value)? {
+            Some(BegunResult::Pending(described)) => self.finish_result(ctx, described).map(Some),
+            Some(BegunResult::Ready(output)) => Ok(Some(output)),
+            None => Ok(None),
+        }
+    }
+
+    /// Un cursor queda pendiente: su consulta ya está en marcha y el primer lote se lee después.
+    fn begin_result<'js>(
+        &self,
+        ctx: &Ctx<'js>,
+        value: Value<'js>,
+    ) -> Result<Option<BegunResult<'js>>, ScriptError> {
         let script_error = || describe_thrown(ctx, ctx.catch(), ScriptErrorKind::Script);
         let described: Value = hook(ctx, "describe")
             .and_then(|describe| describe.call((value, self.first_batch)))
@@ -77,6 +90,12 @@ impl RunHooks for ShellRun<'_> {
         let field = |name: &str| described.get::<_, Value>(name).map_err(|_| script_error());
         let kind: String = described.get("kind").map_err(|_| script_error())?;
         let result = match kind.as_str() {
+            // Solo queda pendiente si la consulta la acaba de abrir: un cursor que el script ya
+            // estaba leyendo tendría que pedir más lotes, y eso no puede esperar a sentencias
+            // posteriores que quizá escriben.
+            "cursor" if described.get("fresh").map_err(|_| script_error())? => {
+                return Ok(Some(BegunResult::Pending(described)));
+            }
             "cursor" => cursor_result(ctx, &described, self.bridge)?,
             "write" => ScriptOutput::Write {
                 value: to_bson_reported(ctx, &field("value")?)?,
@@ -85,7 +104,15 @@ impl RunHooks for ShellRun<'_> {
                 value: to_bson_reported(ctx, &field("value")?)?,
             },
         };
-        Ok(Some(result))
+        Ok(Some(BegunResult::Ready(result)))
+    }
+
+    fn finish_result<'js>(
+        &self,
+        ctx: &Ctx<'js>,
+        described: Object<'js>,
+    ) -> Result<ScriptOutput, ScriptError> {
+        cursor_result(ctx, &described, self.bridge)
     }
 }
 

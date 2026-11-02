@@ -106,10 +106,22 @@ fn final_cursor_opens_asking_only_for_the_page() {
         Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as f64 })
     );
 
-    let (mut custom, _) = session();
-    run_ok(&mut custom, "db.x.find({}).batchSize(7)");
-    let find = first_call(&mut custom);
-    assert_eq!(find.get_document("options"), Ok(&doc! { "batchSize": 7.0 }));
+    // Un lote menor que la página se sube a la página: la respuesta la trae entera.
+    let (mut small, _) = session();
+    run_ok(&mut small, "db.x.find({}).batchSize(7)");
+    let find = first_call(&mut small);
+    assert_eq!(
+        find.get_document("options"),
+        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as f64 })
+    );
+
+    let (mut large, _) = session();
+    run_ok(&mut large, "db.x.find({}).batchSize(500)");
+    let find = first_call(&mut large);
+    assert_eq!(
+        find.get_document("options"),
+        Ok(&doc! { "batchSize": 500.0 })
+    );
 }
 
 #[test]
