@@ -3,7 +3,47 @@
 
 use std::collections::HashMap;
 
+use mongodb::Cursor;
+use mongodb::bson::Document;
+use tokio::task::JoinHandle;
+
 use crate::shell::outcome::CursorId;
+
+/// Un cursor de la sesión: abriéndose en el servidor, ya abierto o con la apertura fallida.
+pub enum Slot {
+    Opening(Opening),
+    Open(Box<Cursor<Document>>),
+    /// Falló mientras nadie lo esperaba; quien lo lea recibe el error.
+    Failed(String),
+}
+
+impl Slot {
+    pub fn is_opening(&self) -> bool {
+        matches!(self, Self::Opening(_))
+    }
+}
+
+/// Tarea que abre un cursor. Si se suelta sin esperarla (cursor cerrado, ejecución cancelada),
+/// se aborta.
+pub struct Opening(JoinHandle<Result<Cursor<Document>, String>>);
+
+impl Opening {
+    pub fn new(task: JoinHandle<Result<Cursor<Document>, String>>) -> Self {
+        Self(task)
+    }
+
+    pub async fn finish(mut self) -> Result<Cursor<Document>, String> {
+        (&mut self.0)
+            .await
+            .unwrap_or_else(|error| Err(error.to_string()))
+    }
+}
+
+impl Drop for Opening {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
 
 pub struct CursorRegistry<C> {
     next_id: CursorId,
@@ -35,6 +75,18 @@ impl<C> CursorRegistry<C> {
 
     pub fn insert_at(&mut self, id: CursorId, cursor: C) {
         self.open.insert(id, cursor);
+    }
+
+    /// Ids de los cursores que cumplen `matches`, en orden de apertura.
+    pub fn ids_where(&self, matches: impl Fn(&C) -> bool) -> Vec<CursorId> {
+        let mut ids: Vec<_> = self
+            .open
+            .iter()
+            .filter(|(_, cursor)| matches(cursor))
+            .map(|(id, _)| *id)
+            .collect();
+        ids.sort_unstable();
+        ids
     }
 
     pub fn retain(&mut self, keep: &[CursorId]) {

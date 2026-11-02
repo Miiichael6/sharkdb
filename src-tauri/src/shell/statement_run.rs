@@ -5,10 +5,10 @@
 use std::time::Instant;
 
 use rquickjs::context::EvalOptions;
-use rquickjs::{Ctx, Value};
+use rquickjs::{Ctx, Object, Value};
 
 use super::errors::{SCRIPT_NAME, describe_thrown};
-use super::module::RunHooks;
+use super::module::{BegunResult, RunHooks};
 use super::outcome::{MAX_RESULTS, ScriptError, ScriptErrorKind, ScriptOutput, ScriptResult};
 use super::output::Output;
 use super::statements::Statement;
@@ -36,16 +36,33 @@ impl StatementsRun {
 }
 
 /// Lo que dejó una sentencia.
-enum Step {
+enum Step<'js> {
     Nothing,
     Output(ScriptOutput),
+    /// Cursor cuya consulta ya va en marcha; su primer lote se lee al final.
+    Pending(Object<'js>),
     /// Devolvió algo, pero ya se alcanzó `MAX_RESULTS`.
     Dropped,
     Failed(ScriptError),
 }
 
+/// Un resultado en su sitio, ya completo o a falta de leer su primer lote.
+enum Entry<'js> {
+    Done(ScriptResult),
+    Pending {
+        line: u32,
+        source: String,
+        started: Instant,
+        described: Object<'js>,
+    },
+}
+
 /// Las declaraciones de función van primero (hoisting); del resto, se muestra el valor de cada
 /// expresión y el de la última sentencia, sea cual sea, como cuando se evaluaba el script entero.
+///
+/// Los cursores que quedan como valor no se esperan: se lanza la sentencia siguiente y sus
+/// primeros lotes se leen al final, en orden, así varias consultas seguidas van en paralelo. Si
+/// una falla, el script se da por parado ahí, como si se hubiera esperado.
 pub fn run_statements<'js>(
     ctx: &Ctx<'js>,
     statements: &[Statement<'_>],
@@ -62,24 +79,36 @@ pub fn run_statements<'js>(
     );
 
     let mut run = StatementsRun::default();
+    let mut entries = Vec::new();
     for (statement, shows_value) in steps {
         let room = run.values < MAX_RESULTS;
         let started = Instant::now();
         let step = run_statement(ctx, statement, shows_value, room, hooks);
         let elapsed_ms = started.elapsed().as_millis() as u64;
         let source = source_of(statement);
-        let located = |output| ScriptResult {
-            line: statement.line,
-            source: source.clone(),
-            elapsed_ms,
-            output,
+        let located = |output| {
+            Entry::Done(ScriptResult {
+                line: statement.line,
+                source: source.clone(),
+                elapsed_ms,
+                output,
+            })
         };
-        run.results.extend(output.take().into_iter().map(&located));
+        entries.extend(output.take().into_iter().map(&located));
         match step {
             Step::Nothing => {}
             Step::Output(output) => {
                 run.values += 1;
-                run.results.push(located(output));
+                entries.push(located(output));
+            }
+            Step::Pending(described) => {
+                run.values += 1;
+                entries.push(Entry::Pending {
+                    line: statement.line,
+                    source,
+                    started,
+                    described,
+                });
             }
             Step::Dropped => run.truncated = true,
             Step::Failed(mut error) => {
@@ -89,7 +118,43 @@ pub fn run_statements<'js>(
             }
         }
     }
+    finish(ctx, entries, hooks, &mut run);
     run
+}
+
+/// Completa los resultados pendientes en orden. El primero que falla manda: lo que vino
+/// después no se muestra y su error sustituye al que hubiera.
+fn finish<'js>(
+    ctx: &Ctx<'js>,
+    entries: Vec<Entry<'js>>,
+    hooks: &dyn RunHooks,
+    run: &mut StatementsRun,
+) {
+    for entry in entries {
+        let result = match entry {
+            Entry::Done(result) => result,
+            Entry::Pending {
+                line,
+                source,
+                started,
+                described,
+            } => match hooks.finish_result(ctx, described) {
+                Ok(output) => ScriptResult {
+                    line,
+                    source,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                    output,
+                },
+                Err(mut error) => {
+                    error.line.get_or_insert(line);
+                    run.error = Some(error);
+                    run.truncated = false;
+                    return;
+                }
+            },
+        };
+        run.results.push(result);
+    }
 }
 
 fn run_statement<'js>(
@@ -98,7 +163,7 @@ fn run_statement<'js>(
     shows_value: bool,
     room: bool,
     hooks: &dyn RunHooks,
-) -> Step {
+) -> Step<'js> {
     let value = match eval(ctx, &statement.padded()) {
         Ok(value) => value,
         Err(_) => {
@@ -111,8 +176,9 @@ fn run_statement<'js>(
     if !room {
         return Step::Dropped;
     }
-    match hooks.final_result(ctx, value) {
-        Ok(Some(output)) => Step::Output(output),
+    match hooks.begin_result(ctx, value) {
+        Ok(Some(BegunResult::Ready(output))) => Step::Output(output),
+        Ok(Some(BegunResult::Pending(described))) => Step::Pending(described),
         Ok(None) => Step::Nothing,
         Err(error) => Step::Failed(error),
     }

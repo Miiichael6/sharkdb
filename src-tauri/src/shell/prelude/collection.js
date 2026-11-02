@@ -212,8 +212,16 @@
       }));
     }
 
+    // Como mongosh: `false` si la colección no existe, en vez de fallar. Desde MongoDB 7.0 el
+    // servidor ya no falla ahí y responde `ok`, así que da `true`. El mensaje termina en
+    // `(codeName)`, como lo arma `mongo::describe`.
     drop() {
-      this._run({ drop: this._name });
+      try {
+        this._run({ drop: this._name });
+      } catch (e) {
+        if (e.name === 'MongoError' && /\(NamespaceNotFound\)$/.test(e.message)) return false;
+        throw e;
+      }
       return true;
     }
 

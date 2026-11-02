@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { consoleEntries, resultConsoleEntries, WRITE_RESULT_LABEL } from "./consoleEntry";
+import { consoleEntries, WRITE_RESULT_LABEL } from "./consoleEntry";
 import type { ScriptOutcome, ScriptResult } from "./outcome";
-import { resultEntries } from "./resultLayout";
 
 const doc = { _id: { $oid: "5f1d7a3c9b1e8a0012345678" }, name: "Lima" };
 
@@ -62,24 +61,5 @@ describe("consoleEntries", () => {
   it("an error without a line (timeout, cancelled) has none", () => {
     const error = { kind: "timeout" as const, message: "t", line: null, column: null };
     expect(consoleEntries(outcomeOf([], error))).toEqual([{ kind: "error", line: null, error }]);
-  });
-});
-
-describe("resultConsoleEntries", () => {
-  const results: ScriptResult[] = [
-    { ...at(1), kind: "print", text: "hola" },
-    { ...at(1), kind: "value", value: doc },
-    { ...at(2), kind: "value", value: 5 },
-  ];
-  const outcome = outcomeOf(results, { message: "boom", line: 3 } as never);
-
-  it("keeps everything its statement printed and returned, prints included", () => {
-    const [first] = resultEntries(outcome);
-    expect(resultConsoleEntries(outcome, first).map((e) => e.kind)).toEqual(["print", "object"]);
-  });
-
-  it("keeps only the error for the error's result", () => {
-    const entries = resultEntries(outcome);
-    expect(resultConsoleEntries(outcome, entries[entries.length - 1]).map((e) => e.kind)).toEqual(["error"]);
   });
 });

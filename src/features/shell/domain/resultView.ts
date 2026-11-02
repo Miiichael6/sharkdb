@@ -2,14 +2,29 @@
 import { formatValue, summarizeValue, type DateZone } from "./bsonFormat";
 import { BSON_TYPE_LABEL, bsonValue, childrenOf, isContainer, type BsonType, type BsonValue } from "./bsonValue";
 
-export type ViewMode = "tree" | "table" | "text" | "console";
+/** How each result's documents are shown. */
+export type DocumentViewMode = "tree" | "table" | "text";
 
-export const VIEW_MODES: { mode: ViewMode; label: string }[] = [
+/** A document view, or the Console: the whole run's output in one list, as a script prints it. */
+export type ViewMode = DocumentViewMode | "console";
+
+export const DOCUMENT_VIEW_MODES: { mode: DocumentViewMode; label: string }[] = [
   { mode: "tree", label: "Árbol" },
   { mode: "table", label: "Tabla" },
   { mode: "text", label: "Texto" },
-  { mode: "console", label: "Consola" },
 ];
+
+export const VIEW_MODES: { mode: ViewMode; label: string }[] = [...DOCUMENT_VIEW_MODES, { mode: "console", label: "Consola" }];
+
+/** The document view a preferred mode starts results in; with the Console preferred, the tree. */
+export function documentViewMode(preferred: ViewMode): DocumentViewMode {
+  return preferred === "console" ? "tree" : preferred;
+}
+
+/** Whether the Console is on: as switched (`choice`), or, until then, as the preferences say. */
+export function isConsoleOn(choice: boolean | null, preferred: ViewMode): boolean {
+  return choice ?? preferred === "console";
+}
 
 /** Keys of a value from its document's root; empty for the document itself. */
 export type KeyPath = string[];

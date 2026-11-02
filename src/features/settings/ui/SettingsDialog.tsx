@@ -55,24 +55,26 @@ export function SettingsDialog({ onDone }: { onDone: (result: null) => void }) {
         <Field label="Fechas">
           <SegmentedControl segments={ZONE_SEGMENTS} value={draft.dateZone} onChange={(z) => set("dateZone", z)} label="Fechas" />
         </Field>
-        <Field label="Documentos por página">
-          <input
-            type="number"
-            min={PAGE_SIZE_RANGE.min}
-            max={PAGE_SIZE_RANGE.max}
-            value={draft.pageSize || ""}
-            onChange={(e) => set("pageSize", Number(e.target.value))}
-          />
-        </Field>
-        <Field label="Tiempo máximo por script (s)">
-          <input
-            type="number"
-            min={TIMEOUT_RANGE.min}
-            max={TIMEOUT_RANGE.max}
-            value={draft.timeoutSeconds || ""}
-            onChange={(e) => set("timeoutSeconds", Number(e.target.value))}
-          />
-        </Field>
+        <div className="settings-dialog-row">
+          <Field label="Documentos por página">
+            <input
+              type="number"
+              min={PAGE_SIZE_RANGE.min}
+              max={PAGE_SIZE_RANGE.max}
+              value={draft.pageSize || ""}
+              onChange={(e) => set("pageSize", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Tiempo máximo por script (s)">
+            <input
+              type="number"
+              min={TIMEOUT_RANGE.min}
+              max={TIMEOUT_RANGE.max}
+              value={draft.timeoutSeconds || ""}
+              onChange={(e) => set("timeoutSeconds", Number(e.target.value))}
+            />
+          </Field>
+        </div>
         {error && (
           <p className="field-error" role="alert">
             {error}

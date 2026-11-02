@@ -3,7 +3,6 @@ import { elapsedText } from "../../domain/outcome";
 import { resultTitle, type ResultEntry } from "../../domain/resultLayout";
 import { useActivePill } from "../useActivePill";
 import type { RunState } from "../useShellRun";
-import { ConsoleView } from "./ConsoleView";
 import { ResultEntryView } from "./ResultEntryView";
 import type { ResultTabsState } from "./useResultTabs";
 import { useTrackScroll } from "./useTrackScroll";
@@ -16,7 +15,6 @@ interface Props {
   /** Which tabs are open and shown, kept by the panel, whose toolbar sets the shown one's view. */
   tabs: ResultTabsState;
   views: ResultViews;
-  onGoToLine: (line: number) => void;
 }
 
 const MIDDLE_BUTTON = 1;
@@ -25,10 +23,9 @@ const MIDDLE_BUTTON = 1;
  * Many results in sub-tabs, drawn like the shell tabs: a segmented control whose highlight slides to
  * the selected one, each with its ×. When they don't fit, tabs keep a fixed width and the track
  * scrolls, with arrows at both ends. Hidden tabs stay mounted, so each cursor keeps its own page;
- * closing a tab frees its cursor and forgets its view. Each tab has its own view; in the Console one it
- * lists only its statement.
+ * closing a tab frees its cursor and forgets its view. Each tab has its own view.
  */
-export function ResultTabs({ sid, entries, run, tabs, views, onGoToLine }: Props) {
+export function ResultTabs({ sid, entries, run, tabs, views }: Props) {
   const { open, selected, select, close, onPanelKeyDown, onListKeyDown } = tabs;
   const id = useId();
   const tabId = (i: number) => `${id}-tab-${i}`;
@@ -99,25 +96,18 @@ export function ResultTabs({ sid, entries, run, tabs, views, onGoToLine }: Props
           </button>
         )}
       </div>
-      {open.map((index, position) => {
-        const view = views.stateOf([index]);
-        return (
-          <div
-            key={index}
-            id={panelId(index)}
-            role="tabpanel"
-            aria-labelledby={tabId(index)}
-            hidden={position !== selected}
-            className="script-output result-tab-panel"
-          >
-            {view.mode === "console" ? (
-              <ConsoleView outcome={run.outcome!} run={run} view={view} entry={entries[index]} onGoToLine={onGoToLine} />
-            ) : (
-              <ResultEntryView sid={sid} entry={entries[index]} run={run} view={view} />
-            )}
-          </div>
-        );
-      })}
+      {open.map((index, position) => (
+        <div
+          key={index}
+          id={panelId(index)}
+          role="tabpanel"
+          aria-labelledby={tabId(index)}
+          hidden={position !== selected}
+          className="script-output result-tab-panel"
+        >
+          <ResultEntryView sid={sid} entry={entries[index]} run={run} view={views.stateOf([index])} />
+        </div>
+      ))}
     </div>
   );
 }

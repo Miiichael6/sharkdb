@@ -1,7 +1,6 @@
 // The run's results as the Console view lists them: one entry per result, by its real type.
 import { bsonValue } from "./bsonValue";
 import type { ScriptError, ScriptOutcome, ScriptResult } from "./outcome";
-import type { ResultEntry } from "./resultLayout";
 
 /** Label of a write's result, as the shell names its class. */
 export const WRITE_RESULT_LABEL = "WriteResult";
@@ -52,11 +51,4 @@ function valueEntry(value: unknown, at: At): ConsoleEntry {
   if (v.type === "array") return { ...at, kind: "array", value: v.items };
   if (v.type === "object") return { ...at, kind: "object", value, label: null };
   return { ...at, kind: "scalar", value };
-}
-
-/** The Console view of one result (a sub-tab): all its statement printed and returned, or the error. */
-export function resultConsoleEntries(outcome: ScriptOutcome, entry: ResultEntry): ConsoleEntry[] {
-  const entries = consoleEntries(outcome);
-  if (entry.kind === "error") return entries.filter((e) => e.kind === "error");
-  return entries.filter((e) => e.kind !== "error" && e.line === entry.line && outcome.results[e.index].source === entry.source);
 }

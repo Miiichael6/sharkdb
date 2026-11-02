@@ -21,5 +21,8 @@
   --syn-identifier: #1e6a8a;
   --syn-parameter: #141413;
   --syn-function: #6b4fb0;
+  --syn-bracket-1: #0431fa; /* by depth, VS Code's bracket pair colors */
+  --syn-bracket-2: #319331;
+  --syn-bracket-3: #7b3814;
   --syn-scheme: light;
 }

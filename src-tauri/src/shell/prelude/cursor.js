@@ -123,10 +123,12 @@
 
     // Primer lote para mostrar como resultado: lo que el script ya tenía leído y, en `missing`,
     // cuántos más debe leer prelude/mod.rs directamente del servidor sin pasarlos por JS. Si
-    // la consulta aún no se abrió, se abre pidiendo de entrada solo esa página.
+    // la consulta aún no se abrió, se abre pidiendo de entrada al menos esa página: la respuesta
+    // trae el lote entero y leerlo más tarde (`fresh`) da lo mismo que leerlo ahora.
     _take(size) {
-      if (this._id === null && !this._done && this._buffer.length < size) {
-        this._options.batchSize ??= size;
+      const fresh = this._id === null && !this._done && this._buffer.length < size;
+      if (fresh) {
+        this._options.batchSize = Math.max(this._options.batchSize ?? 0, size);
         this._id = this._source.open(this._options);
       }
       const documents = this._buffer.splice(0);
@@ -137,6 +139,7 @@
         documents,
         exhausted: this._done,
         missing: this._done ? 0 : Math.max(0, size - documents.length),
+        fresh,
         cursor: this,
       };
     }

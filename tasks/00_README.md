@@ -101,7 +101,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 05 | [Visor de resultados: árbol, tabla y texto](done/05_visor_resultados.md) | 3 Shell | 04 | ✅ Terminada |
 | 06 | [CRUD de documentos](done/06_crud_documentos.md) | 4 Datos | 05 | ✅ Terminada (criterios 2–3 pendientes de prueba manual en la UI) |
 | 07 | [Conexión avanzada: SSH, TLS y réplicas](done/07_conexion_avanzada.md) | 5 Conexión | 01 | ✅ Terminada |
-| 08 | [Preferencias y empaquetado](in_progress/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | 🔄 En progreso (commit hecho; falta prueba manual) |
+| 08 | [Preferencias y empaquetado](done/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ✅ Terminada (instalador sin probar en máquina limpia) |
 | 09 | [Administración: usuarios y copia de colecciones](done/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |
 | 11 | [Barra de herramientas del workspace](done/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | ✅ Terminada |
@@ -132,7 +132,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
 | 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
-| 37 | [Actualizador](in_progress/37_actualizador.md) | 22 Actualizador | 08 | 🔄 En progreso (falta la prueba real) |
+| 37 | [Actualizador](done/37_actualizador.md) | 22 Actualizador | 08 | ✅ Terminada |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

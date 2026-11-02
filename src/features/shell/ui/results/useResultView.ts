@@ -1,14 +1,14 @@
 import { useState } from "react";
 import type { DateZone } from "../../domain/bsonFormat";
-import type { ViewMode } from "../../domain/resultView";
+import { documentViewMode, isConsoleOn, type DocumentViewMode, type ViewMode } from "../../domain/resultView";
 
 export interface ResultView {
-  mode: ViewMode;
+  mode: DocumentViewMode;
   zone: DateZone;
 }
 
 export interface ResultViewState extends ResultView {
-  setMode: (mode: ViewMode) => void;
+  setMode: (mode: DocumentViewMode) => void;
   setZone: (zone: DateZone) => void;
 }
 
@@ -17,15 +17,22 @@ export interface ResultViews {
   stateOf: (indexes: readonly number[]) => ResultViewState;
   /** Back to the default, for a closed sub-tab. */
   reset: (index: number) => void;
+  /** The Console is on: the whole run in one list, without sub-tabs, whatever each result's view. */
+  consoleOn: boolean;
+  setConsoleOn: (on: boolean) => void;
 }
 
 /**
  * How a shell tab shows its results: each result (by its position among the run's results, so each
  * sub-tab) has its own view, kept across the tab's runs until its sub-tab is closed. Until it is
- * changed, a result shows `initial` (the preferences).
+ * changed, a result shows the preferences' view. The Console belongs to the whole tab, not to a result.
  */
-export function useResultViews(initial: ResultView): ResultViews {
+export function useResultViews(preferred: { mode: ViewMode; zone: DateZone }): ResultViews {
+  const initial: ResultView = { mode: documentViewMode(preferred.mode), zone: preferred.zone };
   const [views, setViews] = useState<ReadonlyMap<number, ResultView>>(new Map());
+  // Null until switched: follows the preferences, like a result's view.
+  const [consoleChoice, setConsoleOn] = useState<boolean | null>(null);
+  const consoleOn = isConsoleOn(consoleChoice, preferred.mode);
 
   const patch = (indexes: readonly number[], change: Partial<ResultView>) =>
     setViews((current) => {
@@ -48,5 +55,5 @@ export function useResultViews(initial: ResultView): ResultViews {
       return next;
     });
 
-  return { stateOf, reset };
+  return { stateOf, reset, consoleOn, setConsoleOn };
 }

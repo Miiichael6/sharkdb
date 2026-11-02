@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { bsonValue } from "../../domain/bsonValue";
-import { consoleEntries, resultConsoleEntries, type ConsoleEntry } from "../../domain/consoleEntry";
+import { consoleEntries, type ConsoleEntry } from "../../domain/consoleEntry";
 import { topLevelText } from "../../domain/consolePreview";
 import type { ScriptOutcome } from "../../domain/outcome";
-import type { ResultEntry } from "../../domain/resultLayout";
 import type { RunState } from "../useShellRun";
 import { ConsoleCursor } from "./ConsoleCursor";
 import { ConsolePrint } from "./ConsolePrint";
@@ -15,8 +14,6 @@ interface Props {
   outcome: ScriptOutcome;
   run: RunState;
   view: ResultViewState;
-  /** Only this result's (a sub-tab's); else the whole run's. */
-  entry?: ResultEntry;
   /** Clicked `L#`: shows that line of the editor. */
   onGoToLine: (line: number) => void;
 }
@@ -40,9 +37,9 @@ function EntryBody({ entry, run, view }: { entry: ConsoleEntry; run: RunState; v
   }
 }
 
-/** Every result of the run (or of one statement) in one list, in order and with its line, as the browser's console shows them. */
-export function ConsoleView({ outcome, run, view, entry, onGoToLine }: Props) {
-  const entries = useMemo(() => (entry ? resultConsoleEntries(outcome, entry) : consoleEntries(outcome)), [outcome, entry]);
+/** Every result of the run in one list, in order and with its line, as the browser's console shows them. */
+export function ConsoleView({ outcome, run, view, onGoToLine }: Props) {
+  const entries = useMemo(() => consoleEntries(outcome), [outcome]);
   if (!entries.length) return <div className="script-output muted small">El script no devolvió nada.</div>;
   return (
     <div className="console-view" role="log" aria-label="Consola">

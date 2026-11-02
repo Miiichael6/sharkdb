@@ -2,6 +2,10 @@
 //! Se ejecutan en el hilo del script; cada espera al servidor se hace con `Handle::block_on`
 //! (nunca desde un worker de tokio) y se corta si el watchdog salta. Las escrituras pasan antes
 //! por el safe mode de la sesión: es la sesión, no la UI, la que decide si se permiten.
+//!
+//! `find` y `aggregate` no esperan: lanzan la consulta en una tarea y devuelven el id al
+//! momento; se espera al leer el cursor. Así varias sentencias seguidas consultan en paralelo.
+//! Las escrituras esperan antes a las consultas en curso, para no adelantarse a ellas.
 
 mod cursors;
 mod options;
@@ -17,7 +21,7 @@ use mongodb::{Client, Cursor};
 use rquickjs::{Array, Ctx, Exception, Function, Object, Value};
 use tokio::runtime::Handle;
 
-use self::cursors::CursorRegistry;
+use self::cursors::{CursorRegistry, Opening, Slot};
 use self::options::{aggregate_options, find_options};
 use self::query_clock::QueryClock;
 use super::bridge::MongoBridge;
@@ -25,7 +29,9 @@ use super::convert::{bson_to_js, js_to_bson};
 use super::outcome::{CursorBatch, CursorId};
 use super::watchdog::{Interruption, Watchdog};
 use crate::mongo::describe;
-use crate::safe_mode::{SAFE_MODE_ERROR, SAFE_MODE_ERROR_NAME, SafeMode};
+use crate::safe_mode::{
+    SAFE_MODE_ERROR, SAFE_MODE_ERROR_NAME, SafeMode, is_write_command, is_write_pipeline,
+};
 
 const CANCELLED: &str = "Operación cancelada";
 const TIMED_OUT: &str = "La operación superó el tiempo máximo";
@@ -39,7 +45,7 @@ pub struct MongoNatives {
     safe_mode: SafeMode,
     handle: Handle,
     watchdog: Watchdog,
-    cursors: Rc<RefCell<CursorRegistry<Cursor<Document>>>>,
+    cursors: Rc<RefCell<CursorRegistry<Slot>>>,
     query_clock: QueryClock,
 }
 
@@ -68,6 +74,13 @@ impl MongoNatives {
         &self,
         future: impl Future<Output = mongodb::error::Result<T>>,
     ) -> Result<T, String> {
+        self.wait_described(async { future.await.map_err(describe) })
+    }
+
+    fn wait_described<T>(
+        &self,
+        future: impl Future<Output = Result<T, String>>,
+    ) -> Result<T, String> {
         let watchdog = self.watchdog.clone();
         let outcome = self.handle.block_on(async move {
             tokio::select! {
@@ -76,10 +89,56 @@ impl MongoNatives {
             }
         });
         match outcome {
-            Ok(result) => result.map_err(describe),
+            Ok(result) => result,
             Err(Interruption::Cancelled) => Err(CANCELLED.into()),
             Err(Interruption::Timeout) => Err(TIMED_OUT.into()),
         }
+    }
+
+    /// Lanza la apertura de un cursor sin esperarla.
+    fn open(
+        &self,
+        future: impl Future<Output = mongodb::error::Result<Cursor<Document>>> + Send + 'static,
+    ) -> CursorId {
+        let task = self
+            .handle
+            .spawn(async move { future.await.map_err(describe) });
+        self.cursors
+            .borrow_mut()
+            .insert(Slot::Opening(Opening::new(task)))
+    }
+
+    /// El cursor abierto: si la consulta sigue en curso, la espera (cuenta como tiempo de
+    /// consulta).
+    fn resolve(&self, slot: Slot) -> Result<Cursor<Document>, String> {
+        match slot {
+            Slot::Open(cursor) => Ok(*cursor),
+            Slot::Failed(message) => Err(message),
+            Slot::Opening(opening) => self
+                .query_clock
+                .measure(|| self.wait_described(opening.finish())),
+        }
+    }
+
+    /// Espera a las consultas en curso antes de una escritura. Las que fallan se quedan con su
+    /// error para quien las lea, y la escritura no se hace: el script ya habría parado ahí.
+    fn settle(&self) -> Result<(), String> {
+        let opening = self.cursors.borrow().ids_where(Slot::is_opening);
+        let mut first_error = None;
+        for id in opening {
+            let Some(slot) = self.cursors.borrow_mut().take(id) else {
+                continue;
+            };
+            let slot = match self.resolve(slot) {
+                Ok(cursor) => Slot::Open(Box::new(cursor)),
+                Err(message) => {
+                    first_error.get_or_insert_with(|| message.clone());
+                    Slot::Failed(message)
+                }
+            };
+            self.cursors.borrow_mut().insert_at(id, slot);
+        }
+        first_error.map_or(Ok(()), Err)
     }
 
     fn find(
@@ -91,8 +150,7 @@ impl MongoNatives {
     ) -> Result<CursorId, String> {
         let options = find_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
-        let cursor = self.query(collection.find(filter, options))?;
-        Ok(self.cursors.borrow_mut().insert(cursor))
+        Ok(self.open(async move { collection.find(filter, options).await }))
     }
 
     fn aggregate(
@@ -105,21 +163,29 @@ impl MongoNatives {
         self.safe_mode.check_pipeline(&pipeline)?;
         let options = aggregate_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
+        if !is_write_pipeline(&pipeline) {
+            return Ok(self.open(async move { collection.aggregate(pipeline, options).await }));
+        }
+        self.settle()?;
         let cursor = self.query(collection.aggregate(pipeline, options))?;
-        Ok(self.cursors.borrow_mut().insert(cursor))
+        Ok(self.cursors.borrow_mut().insert(Slot::Open(Box::new(cursor))))
     }
 
     fn run_command(&self, db: &str, command: Document) -> Result<Document, String> {
         self.safe_mode.check_command(&command)?;
+        if is_write_command(&command) {
+            self.settle()?;
+        }
         self.query(self.client.database(db).run_command(command, None))
     }
 
     /// Lee hasta `size` documentos. Un cursor agotado, o que falla, se suelta (y se cierra).
     fn read(&self, id: CursorId, size: usize) -> Result<CursorBatch, String> {
-        let mut cursor = self.cursors.borrow_mut().take(id).ok_or(CURSOR_CLOSED)?;
+        let slot = self.cursors.borrow_mut().take(id).ok_or(CURSOR_CLOSED)?;
+        let mut cursor = self.resolve(slot)?;
         let (documents, exhausted) = self.wait(read_batch(&mut cursor, size))?;
         if !exhausted {
-            self.cursors.borrow_mut().insert_at(id, cursor);
+            self.cursors.borrow_mut().insert_at(id, Slot::Open(Box::new(cursor)));
         }
         Ok(CursorBatch {
             documents: documents.into_iter().map(Bson::Document).collect(),

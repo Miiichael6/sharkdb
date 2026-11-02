@@ -95,6 +95,9 @@ async fn live_shell_against_local_mongo() {
     let query_ms = sorted.query_ms.expect("tiempo de consulta");
     assert!(query_ms <= sorted.elapsed_ms);
     assert_eq!(run_ok(&shell, "1 + 1").await.query_ms, None);
+    // Antes de 7.0 el servidor falla con NamespaceNotFound y `drop()` da `false`; desde 7.0, `true`.
+    let dropped = run_ok(&shell, "db.no_existe.drop() === parseInt(db.version()) >= 7").await;
+    assert_eq!(value(&dropped), Some(Bson::Boolean(true)));
 
     let each = run_ok(
         &shell,
@@ -306,4 +309,88 @@ async fn live_collection_menu_scripts() {
 
     drop(shell);
     client.database(MENU_DB).drop(None).await.unwrap();
+}
+
+const PARALLEL_DB: &str = "robo3b_test_paralelo";
+
+/// Los cursores de varias sentencias se consultan a la vez, pero el script se ve como si se
+/// hubieran esperado uno a uno: resultados en orden, escrituras detrás de las consultas previas y
+/// nada después de una consulta que falla.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_parallel_queries_keep_script_order() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        PARALLEL_DB,
+        "db.dropDatabase(); db.x.insertMany([1, 2, 3].map((i) => ({ _id: NumberInt(i) })))",
+    )
+    .await;
+
+    let three = run_ok_in(
+        &shell,
+        PARALLEL_DB,
+        "db.x.find({ _id: 1 })\ndb.x.find({ _id: 2 })\ndb.x.aggregate([{ $match: { _id: 3 } }])",
+    )
+    .await;
+    let found: Vec<_> = three
+        .results
+        .iter()
+        .map(|result| match &result.output {
+            ScriptOutput::Cursor { documents, .. } => (result.line, ids(documents)),
+            other => panic!("se esperaba un cursor: {other:?}"),
+        })
+        .collect();
+    assert_eq!(found, [(1, vec![1]), (2, vec![2]), (3, vec![3])]);
+
+    let before_write = run_ok_in(
+        &shell,
+        PARALLEL_DB,
+        "db.x.find()\ndb.x.insertOne({ _id: NumberInt(4) })",
+    )
+    .await;
+    let ScriptOutput::Cursor { documents, .. } = &before_write.results[0].output else {
+        panic!("se esperaba un cursor");
+    };
+    assert_eq!(ids(documents), [1, 2, 3]);
+
+    // Con lotes pequeños, la página que se muestra se lee entera antes de borrar.
+    let before_delete = run_ok_in(
+        &shell,
+        PARALLEL_DB,
+        "db.y.insertMany(Array.from({ length: 30 }, (_, i) => ({ _id: NumberInt(i) })))\n\
+         db.y.find().batchSize(5)\n\
+         db.y.deleteMany({})",
+    )
+    .await;
+    let shown = before_delete
+        .results
+        .iter()
+        .find_map(|result| match &result.output {
+            ScriptOutput::Cursor { documents, .. } => Some(documents.len()),
+            _ => None,
+        });
+    assert_eq!(shown, Some(30));
+
+    let failed = shell
+        .run(
+            PARALLEL_DB.into(),
+            "db.x.find({ $nope: 1 })\ndb.x.insertOne({ _id: NumberInt(5) })".into(),
+            None,
+            RunOptions::default(),
+        )
+        .await
+        .unwrap();
+    let error = failed.error.expect("el find falla");
+    assert_eq!(error.line, Some(1));
+    assert!(failed.results.is_empty());
+    assert_eq!(
+        value(&run_ok_in(&shell, PARALLEL_DB, "db.x.count()").await),
+        Some(Bson::Double(4.0)),
+        "la escritura de después no se hizo"
+    );
+
+    drop(shell);
+    client.database(PARALLEL_DB).drop(None).await.unwrap();
 }
