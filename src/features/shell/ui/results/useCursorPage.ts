@@ -3,10 +3,15 @@ import { errorMessage } from "../../../../shared/errors";
 import type { CursorPager } from "../../application/cursorPager";
 import type { Page } from "../../domain/outcome";
 import { firstPage, type Paging } from "../../domain/paging";
+import { useSettings } from "../useSettings";
 
-/** The page of a cursor result on screen; changing `paging` or calling `reload` reads it from the cursor. */
+/**
+ * The page of a cursor result on screen, at first as long as the preferences say (`pageSize`);
+ * changing `paging` or calling `reload` reads it from the cursor.
+ */
 export function useCursorPage(pager: CursorPager) {
-  const [paging, setPaging] = useState<Paging>(firstPage);
+  const { pageSize } = useSettings();
+  const [paging, setPaging] = useState<Paging>(() => firstPage(pageSize));
   const [page, setPage] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,5 +34,5 @@ export function useCursorPage(pager: CursorPager) {
     };
   }, [pager, paging, reads]);
 
-  return { paging, setPaging, page, loading, error, reload };
+  return { paging, setPaging, page, loading, error, reload, pageSize };
 }

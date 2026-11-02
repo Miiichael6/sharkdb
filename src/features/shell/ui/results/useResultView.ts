@@ -12,9 +12,6 @@ export interface ResultViewState extends ResultView {
   setZone: (zone: DateZone) => void;
 }
 
-/** How a result starts out. */
-export const DEFAULT_VIEW: ResultView = { mode: "tree", zone: "utc" };
-
 export interface ResultViews {
   /** The view of the results at `indexes` (by the first one); setting it sets them all. */
   stateOf: (indexes: readonly number[]) => ResultViewState;
@@ -24,20 +21,21 @@ export interface ResultViews {
 
 /**
  * How a shell tab shows its results: each result (by its position among the run's results, so each
- * sub-tab) has its own view, kept across the tab's runs until its sub-tab is closed.
+ * sub-tab) has its own view, kept across the tab's runs until its sub-tab is closed. Until it is
+ * changed, a result shows `initial` (the preferences).
  */
-export function useResultViews(): ResultViews {
+export function useResultViews(initial: ResultView): ResultViews {
   const [views, setViews] = useState<ReadonlyMap<number, ResultView>>(new Map());
 
   const patch = (indexes: readonly number[], change: Partial<ResultView>) =>
     setViews((current) => {
       const next = new Map(current);
-      for (const i of indexes) next.set(i, { ...(current.get(i) ?? DEFAULT_VIEW), ...change });
+      for (const i of indexes) next.set(i, { ...(current.get(i) ?? initial), ...change });
       return next;
     });
 
   const stateOf = (indexes: readonly number[]): ResultViewState => ({
-    ...(views.get(indexes[0] ?? 0) ?? DEFAULT_VIEW),
+    ...(views.get(indexes[0] ?? 0) ?? initial),
     setMode: (mode) => patch(indexes, { mode }),
     setZone: (zone) => patch(indexes, { zone }),
   });

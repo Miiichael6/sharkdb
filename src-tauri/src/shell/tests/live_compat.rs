@@ -8,6 +8,7 @@ use mongodb::bson::{Bson, Document, doc};
 use super::live::{LIVE_URI, run_ok_in, spawn};
 use super::{outputs, prints, value};
 use crate::shell::outcome::{ScriptOutcome, ScriptOutput};
+use crate::shell::session::RunOptions;
 
 const LARGE_DB: &str = "robo3b_test_lotes";
 const BULK_DB: &str = "robo3b_test_bulk";
@@ -115,6 +116,7 @@ async fn live_bulk_counters_match_the_classic_shell() {
             BULK_DB.into(),
             "db.x.insertMany([{ _id: 5 }, { _id: 1 }, { _id: 6 }])".into(),
             None,
+            RunOptions::default(),
         )
         .await
         .unwrap();
@@ -130,6 +132,7 @@ async fn live_bulk_counters_match_the_classic_shell() {
             BULK_DB.into(),
             "db.x.insertMany([{ _id: 7 }, { _id: 1 }, { _id: 8 }], { ordered: false })".into(),
             None,
+            RunOptions::default(),
         )
         .await
         .unwrap();
@@ -251,7 +254,12 @@ async fn live_classic_shortcuts() {
     assert_eq!((documents.len(), *exhausted), (23, true));
 
     let not_mongos = shell
-        .run(SHORTCUTS_DB.into(), "sh.status()".into(), None)
+        .run(
+            SHORTCUTS_DB.into(),
+            "sh.status()".into(),
+            None,
+            RunOptions::default(),
+        )
         .await
         .unwrap();
     assert!(

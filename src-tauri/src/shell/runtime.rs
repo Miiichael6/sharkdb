@@ -15,7 +15,7 @@ use tokio::sync::oneshot;
 use super::bridge::MongoBridge;
 use super::engine::EngineLimits;
 use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
-use super::session::ShellSession;
+use super::session::{RunOptions, ShellSession};
 use super::watchdog::Watchdog;
 
 const THREAD_NAME: &str = "sharkdb-shell";
@@ -26,6 +26,7 @@ enum Job {
         db: String,
         code: String,
         script_dir: Option<PathBuf>,
+        options: RunOptions,
         reply: oneshot::Sender<ScriptOutcome>,
     },
     NextBatch {
@@ -75,18 +76,21 @@ impl ShellRuntime {
     }
 
     /// Ejecuta un script; los trabajos de una misma sesión se hacen en orden, uno a uno.
-    /// `script_dir` es la carpeta del fichero abierto en la pestaña, para `load`.
+    /// `script_dir` es la carpeta del fichero abierto en la pestaña, para `load`; `options`, las
+    /// preferencias vigentes, que valen también para las páginas que se lean después.
     pub async fn run(
         &self,
         db: String,
         code: String,
         script_dir: Option<PathBuf>,
+        options: RunOptions,
     ) -> Result<ScriptOutcome, String> {
         let (reply, outcome) = oneshot::channel();
         self.send(Job::Run {
             db,
             code,
             script_dir,
+            options,
             reply,
         })?;
         outcome.await.map_err(|_| STOPPED.to_string())
@@ -130,8 +134,12 @@ fn handle_job(session: &mut ShellSession, job: Job) {
             db,
             code,
             script_dir,
+            options,
             reply,
-        } => drop(reply.send(session.run(&db, &code, script_dir))),
+        } => {
+            session.configure(options);
+            drop(reply.send(session.run(&db, &code, script_dir)))
+        }
         Job::NextBatch {
             cursor,
             size,

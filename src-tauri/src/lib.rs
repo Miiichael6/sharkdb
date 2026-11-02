@@ -20,6 +20,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(mongo::Sessions::default())
         .manage(shell::ShellSessions::default())
         .manage(jobs::Jobs::default())
@@ -32,6 +34,8 @@ pub fn run() {
             store::save_connections,
             store::load_backup_schedules,
             store::save_backup_schedules,
+            store::load_settings,
+            store::save_settings,
             store::load_history,
             store::save_history,
             files::read_script,

@@ -28,5 +28,6 @@ describe("paging", () => {
   it("grows the console's page by one more page from the first document", () => {
     expect(grownPage(firstPage())).toEqual({ skip: 0, limit: DEFAULT_PAGE_SIZE * 2 });
     expect(grownPage({ skip: 0, limit: 120 })).toEqual({ skip: 0, limit: 120 + DEFAULT_PAGE_SIZE });
+    expect(grownPage({ skip: 0, limit: 20 }, 20)).toEqual({ skip: 0, limit: 40 });
   });
 });

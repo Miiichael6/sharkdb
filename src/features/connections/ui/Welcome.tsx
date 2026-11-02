@@ -7,6 +7,7 @@ import { ContextMenu } from "../../../shared/ui/ContextMenu";
 import { MenuList } from "../../../shared/ui/MenuList";
 import { GearIcon, SETTINGS_ITEMS } from "../../../shared/ui/settingsMenu";
 import { WindowControls } from "../../../shared/ui/WindowControls";
+import { UpdateNotice } from "../../updates/ui/UpdateNotice";
 import { ScreenSwitch, type Screen } from "./ScreenSwitch";
 import { TagBadge } from "./TagBadge";
 
@@ -117,7 +118,8 @@ export function Welcome(props: Props) {
           <>
             <Logo size={190} swimming />
             <h1>SharkDB</h1>
-            <span className="muted">Versión 0.1.0</span>
+            <span className="muted">Versión {__APP_VERSION__}</span>
+            <UpdateNotice />
             <p className="side-hint">Cliente de escritorio para MongoDB</p>
           </>
         )}

@@ -1,8 +1,12 @@
 import type { ContextMenuItem } from "./ContextMenu";
+import { openPreferencesWindow } from "./preferencesWindow";
 import { openThemeWindow } from "./themeWindow";
 
 /** The settings menu (the gear), the same on the welcome screen and in the workspace toolbar. */
-export const SETTINGS_ITEMS: ContextMenuItem[] = [{ label: "Tema…", onSelect: () => void openThemeWindow() }];
+export const SETTINGS_ITEMS: ContextMenuItem[] = [
+  { label: "Preferencias…", hint: "Ctrl+,", onSelect: () => void openPreferencesWindow() },
+  { label: "Tema…", onSelect: () => void openThemeWindow() },
+];
 
 export function GearIcon() {
   return (

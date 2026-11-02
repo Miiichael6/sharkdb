@@ -62,7 +62,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D1** ¿Cómo se ejecuta el shell? → **Motor JS embebido (QuickJS vía `rquickjs`) en el backend Rust**, con API `db`/colección/cursor propia; scripts JS completos como Robo 3T (2026-10-30) → afecta 02, 03
 - [x] **D2** ¿Qué formato de documento se muestra en la vista texto? → **Estilo shell** como Robo 3T: `ObjectId("…")`, `ISODate("…")`, `NumberLong(…)`; al editar se acepta sintaxis de shell (2026-10-30) → afecta 05
 - [x] **D3** ¿Túneles SSH? → **Sí, con contraseña o clave privada (con passphrase opcional)**, como Robo 3T (2026-10-30) → afecta 07
-- [ ] **D4** ¿Plataformas y formato de instalador? (p. ej. solo Windows NSIS/MSI, o también macOS/Linux) → afecta 08
+- [x] **D4** ¿Plataformas y formato de instalador? → solo Windows NSIS por ahora; configuración preparada para macOS/Linux a futuro (2026-11-01)
 - [x] **D5** Safe mode → **interruptor de solo lectura**: activo, ninguna escritura llega a la BD (scripts del shell ni acciones manuales: árbol, CRUD, restore, sync); solo lecturas (2026-10-30) → afecta 13
 - [x] **D6** Backup/restore → **nativo en Rust con formato compatible con `mongodump`** (`<colección>.bson` + `<colección>.metadata.json`): sin dependencias que instalar, usa la misma conexión de la app (SSH/TLS de 07), progreso y cancelación propios, restaurable también con `mongorestore` (2026-10-30) → afecta 14
 - [x] **D7** Sync database → **restaurar entre entornos (p. ej. prod → QA) una BD completa o colecciones sueltas** (reemplaza el contenido del destino). Las conexiones se pueden marcar **protegidas** (prod): nunca son destino de restore/sync y abren con safe mode activo. El diálogo muestra siempre, de forma destacada, cuál es el origen y cuál el destino que se va a modificar (2026-10-30) → afecta 13, 15
@@ -87,6 +87,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D15** Backups programados → **solo con la app abierta**; si al abrirla ya pasó la hora del día, se ejecuta entonces. Sin arranque automático de Windows (2026-10-31) → afecta 32
 - [x] **D16** Carpeta de cada ejecución → **fechada** `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>`, conservando las **últimas 7** (se borran las más viejas) (2026-10-31) → afecta 31, 32
 - [x] **D17** Confirmación de las programaciones → `confirmo` **una sola vez al guardar**; ni la ejecución diaria ni el ▶ manual vuelven a pedirlo (2026-10-31) → afecta 31
+- [x] **D18** Actualizador → **GitHub Releases del repo público `Miiichael6/sharkdb`**; endpoint `releases/latest/download/latest.json` (2026-11-01) → afecta 37
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -100,7 +101,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 05 | [Visor de resultados: árbol, tabla y texto](done/05_visor_resultados.md) | 3 Shell | 04 | ✅ Terminada |
 | 06 | [CRUD de documentos](done/06_crud_documentos.md) | 4 Datos | 05 | ✅ Terminada (criterios 2–3 pendientes de prueba manual en la UI) |
 | 07 | [Conexión avanzada: SSH, TLS y réplicas](done/07_conexion_avanzada.md) | 5 Conexión | 01 | ✅ Terminada |
-| 08 | [Preferencias y empaquetado](pending/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | ⛔ Bloqueada (D4) |
+| 08 | [Preferencias y empaquetado](in_progress/08_preferencias_empaquetado.md) | 6 Cierre | 06, 07, 11 | 🔄 En progreso (commit hecho; falta prueba manual) |
 | 09 | [Administración: usuarios y copia de colecciones](done/09_administracion_usuarios_copia.md) | 7 Administración | 01 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 10 | [Crear y editar funciones guardadas](pending/10_funciones_guardadas.md) | 7 Administración | 04 | ⬜ Pendiente (opcional) |
 | 11 | [Barra de herramientas del workspace](done/11_barra_herramientas.md) | 8 Barra de herramientas | 04 | ✅ Terminada |
@@ -131,6 +132,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
 | 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
+| 37 | [Actualizador](in_progress/37_actualizador.md) | 22 Actualizador | 08 | 🔄 En progreso (falta la prueba real) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -214,6 +216,9 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R73 Cursor devuelto tal cual llega a la vista sin pasar por JavaScript | 36 |
 | R74 El primer lote trae solo la página que se muestra | 36 |
 | R75 Tiempo de consulta y de carga por separado | 36 |
+| R76 Actualizador firmado (plugin updater + instalador NSIS) | 37 |
+| R77 Aviso de versión nueva al arrancar y botón «Buscar actualizaciones» | 37 |
+| R78 Aviso y botón bajo el título «SharkDB» de la pantalla principal | 37 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -241,5 +246,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 33 → 34
 03 → 35
 34 → 36
+08 → 37
 12 ────────────────────┘
 ```

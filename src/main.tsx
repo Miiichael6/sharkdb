@@ -15,21 +15,27 @@ import { NotificationsProvider } from "./shared/ui/useNotifications";
 moveRenamedStorage();
 initTheme();
 const modal = currentModalView();
+// The main window follows the saved preferences from the start; a modal reads them if it needs them.
+const services = modal ? null : createServices();
+void services?.settings.start();
+void services?.updates.checkOnStartup();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     {modal ? (
       <ModalWindow view={modal} />
     ) : (
-      <ServicesProvider services={createServices()}>
-        <NotificationsProvider>
-          <LogProvider>
-            <OperationsProvider>
-              <App />
-            </OperationsProvider>
-          </LogProvider>
-        </NotificationsProvider>
-      </ServicesProvider>
+      services && (
+        <ServicesProvider services={services}>
+          <NotificationsProvider>
+            <LogProvider>
+              <OperationsProvider>
+                <App />
+              </OperationsProvider>
+            </LogProvider>
+          </NotificationsProvider>
+        </ServicesProvider>
+      )
     )}
   </React.StrictMode>,
 );

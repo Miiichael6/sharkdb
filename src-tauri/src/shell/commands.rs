@@ -17,6 +17,7 @@ use super::engine::EngineLimits;
 use super::native::MongoNatives;
 use super::outcome::{CursorBatch, CursorId, ScriptOutcome};
 use super::runtime::ShellRuntime;
+use super::session::RunOptions;
 use crate::mongo::{self, Sessions};
 use crate::safe_mode::SafeMode;
 
@@ -53,7 +54,12 @@ impl ShellSessions {
         let handle = Handle::current();
         let bridge_handle = handle.clone();
         let runtime = ShellRuntime::spawn(EngineLimits::default(), handle, move |watchdog| {
-            Rc::new(MongoNatives::new(client, safe_mode, bridge_handle, watchdog)) as Rc<dyn MongoBridge>
+            Rc::new(MongoNatives::new(
+                client,
+                safe_mode,
+                bridge_handle,
+                watchdog,
+            )) as Rc<dyn MongoBridge>
         })?;
         let runtime = Arc::new(runtime);
         tabs.insert(tab.to_string(), runtime.clone());
@@ -92,12 +98,24 @@ pub async fn execute_script(
     db: String,
     code: String,
     script_path: Option<String>,
+    options: RunOptions,
 ) -> Result<ScriptOutcome, String> {
     let shell = match shells.get(&sid, &tab) {
         Some(shell) => shell,
-        None => shells.get_or_spawn(&sid, &tab, mongo::session_with_safe_mode(&sessions, &sid).await?)?,
+        None => shells.get_or_spawn(
+            &sid,
+            &tab,
+            mongo::session_with_safe_mode(&sessions, &sid).await?,
+        )?,
     };
-    shell.run(db, code, script_path.as_deref().and_then(folder_of)).await
+    shell
+        .run(
+            db,
+            code,
+            script_path.as_deref().and_then(folder_of),
+            options,
+        )
+        .await
 }
 
 /// Carpeta del script abierto en la pestaña, desde la que `load` resuelve rutas relativas.
