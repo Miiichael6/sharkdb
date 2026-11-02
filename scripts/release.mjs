@@ -13,8 +13,16 @@ const MAIN_BRANCH = "main";
 const BUNDLE_DIR = join("src-tauri", "target", "release", "bundle", "nsis");
 const OUTPUT_DIR = "releases";
 const DEFAULT_KEY = join(homedir(), ".tauri", "sharkdb.key");
-const VERSION_FILES = ["package.json", "package-lock.json"];
+const CARGO_TOML = join("src-tauri", "Cargo.toml");
+// package.json holds the version; Cargo.toml gets a copy because Windows shows it in the .exe's properties.
+const VERSION_FILES = ["package.json", "package-lock.json", CARGO_TOML, join("src-tauri", "Cargo.lock")];
 const USAGE = 'Uso: npm run release -- <patch|minor|major|x.y.z> "notas"   (o --local [versión] para solo compilar)';
+
+/** Copies the version to Cargo.toml's [package]; the build then updates Cargo.lock. */
+function syncCargoVersion(version) {
+  const toml = readFileSync(CARGO_TOML, "utf8");
+  writeFileSync(CARGO_TOML, toml.replace(/^version = ".*"$/m, `version = "${version}"`));
+}
 
 const run = (command, args, options = {}) => execFileSync(command, args, { stdio: "inherit", ...options });
 const output = (command, args) => execFileSync(command, args, { encoding: "utf8" }).trim();
@@ -104,6 +112,7 @@ const originals = VERSION_FILES.map((file) => [file, readFileSync(file, "utf8")]
 // --allow-same-version: the first release publishes the version package.json already has.
 if (bump) npm(["version", bump, "--no-git-tag-version", "--allow-same-version"]);
 const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+syncCargoVersion(version);
 const notes = givenNotes || `SharkDB ${version}`;
 
 let files;

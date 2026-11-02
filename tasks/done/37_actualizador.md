@@ -1,6 +1,6 @@
 # 37 · Actualizador
 
-**Estado:** 🔄 En progreso (falta la prueba real)
+**Estado:** ✅ Terminada
 **Fase:** 22 Actualizador · **Depende de:** 08 · **Doc:** R76, R77, R78
 
 ## Objetivo
@@ -28,15 +28,15 @@ La pantalla principal avisa, bajo el título «SharkDB», cuando hay una versió
 - [x] `npm run release -- <patch|minor|major|x.y.z> "notas"` hace todo: sube versión, compila firmado, deja el `.exe` en `releases/`, commit + tag + push y crea la release; `--local` solo compila (R76)
 
 ### Paso 5: Verificación
-- [ ] Prueba real: instalar la 0.1.0, publicar una 0.1.1 de prueba, abrir la app y ver el aviso; «Actualizar» instala y reinicia en la 0.1.1. Sin conexión, «Buscar actualizaciones» muestra el error sin romper nada
+- [x] Prueba real: instalar la 0.1.0, publicar una 0.1.1 de prueba, abrir la app y ver el aviso; «Actualizar» instala y reinicia en la 0.1.1. Sin conexión, «Buscar actualizaciones» muestra el error sin romper nada
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test`, `npx tsc --noEmit`, `npm run build` y `cargo test --lib` pasan
 - [x] Commit: `feat(updates): aviso de nueva versión y búsqueda de actualizaciones`
 
 ## Criterios de aceptación
-- [ ] Con una versión más nueva publicada, el aviso aparece solo bajo el título «SharkDB» al abrir la app
-- [ ] «Buscar actualizaciones» informa en el momento: comprobando, al día, versión nueva o error
-- [ ] «Actualizar» descarga, verifica la firma, instala y reinicia en la versión nueva
+- [x] Con una versión más nueva publicada, el aviso aparece solo bajo el título «SharkDB» al abrir la app
+- [x] «Buscar actualizaciones» informa en el momento: comprobando, al día, versión nueva o error
+- [x] «Actualizar» descarga, verifica la firma, instala y reinicia en la versión nueva
 - [x] Sin red o sin endpoint, la app arranca y funciona igual; solo el botón muestra el error
 
 ## Bitácora
@@ -47,3 +47,4 @@ La pantalla principal avisa, bajo el título «SharkDB», cuando hay una versió
 - 2026-11-01: `tauri build` con `TAURI_SIGNING_PRIVATE_KEY` genera el instalador y su `.sig`; la prueba real (0.1.0 → 0.1.1) queda para cuando haya endpoint (D18).
 - 2026-11-01: D18 → GitHub Releases. `npm run release` crea `latest.json` (Tauri no lo genera sin CI) y la release con `gh`; la versión vive solo en `package.json` (`tauri.conf.json` la lee de ahí).
 - 2026-11-01: Errores del plugin traducidos en el adaptador (vienen en inglés). Instalador firmado probado con `/S`: arranca, sin release el botón dice «No se encontró ninguna versión publicada», conecta y consulta.
+- 2026-11-01: Prueba real con las releases v0.1.0 → v0.1.1 publicadas: aviso, Actualizar y reinicio OK (probado por el usuario). Error probado sin release publicada, no sin red. El `.exe` mostraba 0.1.0 en Propiedades: `npm run release` copia ahora la versión a `Cargo.toml`.

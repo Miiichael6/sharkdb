@@ -109,7 +109,8 @@ en `~/.tauri/sharkdb.key`.
 
 El script, antes de tocar nada, comprueba la clave, la rama, que no haya cambios y la sesión de `gh`. Después:
 
-1. Sube la versión en `package.json`, que es la única: `tauri.conf.json` y la pantalla de inicio la leen de ahí.
+1. Sube la versión en `package.json`, que es la de referencia: `tauri.conf.json` y la pantalla de inicio la leen
+   de ahí, y el script la copia a `src-tauri/Cargo.toml` (Windows la muestra en las propiedades del `.exe`).
 2. Compila el instalador firmado y lo deja en `releases/` con su `.sig` y `latest.json`.
 3. Hace commit `chore(release): v<versión>`, crea el tag y sube `main` y el tag.
 4. Crea la release `v<versión>` en GitHub con esos tres archivos.
