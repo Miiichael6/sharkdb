@@ -24,6 +24,7 @@ import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
 import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
 import { useLog } from "../shared/ui/useLog";
+import { usePreferencesShortcut } from "../shared/ui/usePreferencesShortcut";
 import { useNotify } from "../shared/ui/useNotifications";
 import { useDataOperations } from "./operations/useDataOperations";
 import { WithOperationsPanel } from "./operations/WithOperationsPanel";
@@ -46,6 +47,7 @@ function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  usePreferencesShortcut();
   const [error, setError] = useState("");
   const { connections, loaded: connectionsLoaded, persist, upsert, saveFavorites, removeFromList } =
     useSavedConnections(setError);

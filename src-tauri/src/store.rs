@@ -1,6 +1,7 @@
 // App data lives as JSON in <app config dir>: saved connections in connections.json, backup
-// schedules in backup-schedules.json and each connection's query history in history/<connection id>.json. The frontend owns the shapes;
-// here they are just opaque JSON values, except for the secrets `secrets` keeps out of the file.
+// schedules in backup-schedules.json, the preferences in settings.json and each connection's query
+// history in history/<connection id>.json. The frontend owns the shapes; here they are just opaque
+// JSON values, except for the secrets `secrets` keeps out of the file.
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -11,6 +12,7 @@ use crate::secrets::{self, KeyringVault};
 
 const CONNECTIONS_FILE: &str = "connections.json";
 const SCHEDULES_FILE: &str = "backup-schedules.json";
+const SETTINGS_FILE: &str = "settings.json";
 const HISTORY_DIR: &str = "history";
 
 pub(crate) fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -81,12 +83,26 @@ pub fn save_connections(app: AppHandle, mut connections: Value) -> Result<(), St
 
 #[tauri::command]
 pub fn load_backup_schedules(app: AppHandle) -> Result<Value, String> {
-    read_json(&config_dir(&app)?.join(SCHEDULES_FILE), Value::Array(vec![]))
+    read_json(
+        &config_dir(&app)?.join(SCHEDULES_FILE),
+        Value::Array(vec![]),
+    )
 }
 
 #[tauri::command]
 pub fn save_backup_schedules(app: AppHandle, schedules: Value) -> Result<(), String> {
     write_json(&config_dir(&app)?.join(SCHEDULES_FILE), &schedules)
+}
+
+/// The saved preferences, or `null` before the first save: the frontend fills in the defaults.
+#[tauri::command]
+pub fn load_settings(app: AppHandle) -> Result<Value, String> {
+    read_json(&config_dir(&app)?.join(SETTINGS_FILE), Value::Null)
+}
+
+#[tauri::command]
+pub fn save_settings(app: AppHandle, settings: Value) -> Result<(), String> {
+    write_json(&config_dir(&app)?.join(SETTINGS_FILE), &settings)
 }
 
 /// Tag of production connections: like a protected one, it's never modified.
@@ -95,7 +111,10 @@ const PRODUCTION_TAG: &str = "production";
 /// Whether a saved connection is marked protected or tagged production: restore and sync never
 /// write to it. Reads the file as is: the secrets aren't needed for this.
 pub(crate) fn is_protected(app: &AppHandle, connection_id: &str) -> Result<bool, String> {
-    let connections = read_json(&config_dir(app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))?;
+    let connections = read_json(
+        &config_dir(app)?.join(CONNECTIONS_FILE),
+        Value::Array(vec![]),
+    )?;
     Ok(connection_is_protected(&connections, connection_id))
 }
 

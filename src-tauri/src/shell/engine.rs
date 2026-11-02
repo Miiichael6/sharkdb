@@ -79,6 +79,11 @@ impl Engine {
         })
     }
 
+    /// Cambia el tiempo máximo de las ejecuciones siguientes (lo elige el usuario en Preferencias).
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.limits.timeout = timeout;
+    }
+
     /// Ejecuta el script sentencia a sentencia: cada una que devuelve algo deja su resultado.
     pub fn run(&mut self, code: &str, hooks: &dyn RunHooks) -> ScriptOutcome {
         let started = Instant::now();
@@ -86,11 +91,9 @@ impl Engine {
         self.watchdog.arm(self.limits.timeout);
         let run = self.context.with(|ctx| match hooks.before_run(&ctx) {
             Ok(()) => run_statements(&ctx, &statements, hooks, &self.output),
-            Err(_) => StatementsRun::failed(describe_thrown(
-                &ctx,
-                ctx.catch(),
-                ScriptErrorKind::Script,
-            )),
+            Err(_) => {
+                StatementsRun::failed(describe_thrown(&ctx, ctx.catch(), ScriptErrorKind::Script))
+            }
         });
         self.watchdog.disarm();
         let outcome = ScriptOutcome {

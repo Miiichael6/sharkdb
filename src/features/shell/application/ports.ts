@@ -7,10 +7,17 @@ export interface ShellRef {
   tab: string;
 }
 
+/** The limits of a run, from the preferences; they also hold for the pages read afterwards. */
+export interface RunOptions {
+  timeoutSeconds: number;
+  /** Documents in the first batch of a cursor result: one page. */
+  pageSize: number;
+}
+
 /** Runs scripts in the shell of a tab. */
 export interface ShellGateway {
   /** `scriptPath` is the tab's file on disk, if saved: `load()` resolves relative paths from its folder. */
-  execute(shell: ShellRef, db: string, code: string, scriptPath: string | null): Promise<ScriptOutcome>;
+  execute(shell: ShellRef, db: string, code: string, scriptPath: string | null, options: RunOptions): Promise<ScriptOutcome>;
   nextBatch(shell: ShellRef, cursorId: number, size: number): Promise<CursorBatch>;
   closeCursor(shell: ShellRef, cursorId: number): Promise<void>;
   /** Stops the script (or batch read) running in the shell, if any. */

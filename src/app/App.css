@@ -3104,6 +3104,23 @@ button.link.console-more {
 .db-dialog-list li.active {
   background: var(--select);
 }
+/* "Preferencias" (SettingsDialog): one field under another, the buttons at the bottom. */
+.settings-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 14px;
+  background: var(--surface);
+}
+.settings-dialog-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-dialog input[type="number"] {
+  width: 120px;
+}
 /* "Tema" (ThemeDialog): the two lists on the left, the preview of what they pick on the right. */
 .theme-dialog {
   display: flex;

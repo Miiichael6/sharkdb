@@ -15,6 +15,7 @@ import { ResultsPanel } from "./results/ResultsPanel";
 import { revealLine } from "./revealLine";
 import { useResultViews } from "./results/useResultView";
 import { useHistoryBrowser } from "./useHistoryBrowser";
+import { useSettings } from "./useSettings";
 import { useShellRun } from "./useShellRun";
 
 /** Whether the script editor was last hidden (new tabs start the same way). */
@@ -89,7 +90,8 @@ export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange,
   const { schema } = useServices();
   const serverOf = useServerOf();
   const run = useShellRun(tab);
-  const views = useResultViews();
+  const settings = useSettings();
+  const views = useResultViews({ mode: settings.defaultView, zone: settings.dateZone });
   const history = useHistoryBrowser(tab.sid);
   const [editorHidden, setEditorHidden] = useState(readEditorHidden);
   const target = useRef(tab);

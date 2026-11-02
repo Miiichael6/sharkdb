@@ -32,6 +32,8 @@ pub fn run() {
             store::save_connections,
             store::load_backup_schedules,
             store::save_backup_schedules,
+            store::load_settings,
+            store::save_settings,
             store::load_history,
             store::save_history,
             files::read_script,

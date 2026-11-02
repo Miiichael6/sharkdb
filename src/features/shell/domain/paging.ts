@@ -14,8 +14,8 @@ export const nextPage = (p: Paging): Paging => ({ ...p, skip: p.skip + p.limit }
 
 export const previousPage = (p: Paging): Paging => ({ ...p, skip: Math.max(0, p.skip - p.limit) });
 
-/** The documents shown plus one more page, from the first: the console's «más…». */
-export const grownPage = (p: Paging): Paging => ({ skip: 0, limit: p.skip + p.limit + DEFAULT_PAGE_SIZE });
+/** The documents shown plus `step` more, from the first: the console's «más…». */
+export const grownPage = (p: Paging, step = DEFAULT_PAGE_SIZE): Paging => ({ skip: 0, limit: p.skip + p.limit + step });
 
 const wholeAtLeast = (n: number, min: number) => (Number.isFinite(n) ? Math.max(min, Math.trunc(n)) : min);
 

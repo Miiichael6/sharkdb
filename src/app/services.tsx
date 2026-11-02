@@ -17,6 +17,8 @@ import { createCommandDocumentStore } from "../features/documents/infrastructure
 import { tauriDocumentParser } from "../features/documents/infrastructure/tauriDocumentParser";
 import { createExplorerService, type ExplorerService } from "../features/explorer/application/explorerService";
 import { createCommandMongoAdmin } from "../features/explorer/infrastructure/commandMongoAdmin";
+import { createSettingsService, type SettingsService } from "../features/settings/application/settingsService";
+import { tauriSettingsStore } from "../features/settings/infrastructure/tauriSettingsStore";
 import { createHistoryService, type HistoryService } from "../features/shell/application/historyService";
 import { createSchemaService, type SchemaService } from "../features/shell/application/schemaService";
 import { createScriptFileService, type ScriptFileService } from "../features/shell/application/scriptFileService";
@@ -50,14 +52,16 @@ export interface Services {
   schedules: ScheduleService;
   sync: SyncService;
   operations: OperationsService;
+  settings: SettingsService;
 }
 
 export function createServices(): Services {
   const startJob = createJobRunner(tauriJobEvents);
+  const settings = createSettingsService(tauriSettingsStore);
   return {
     connections: createConnectionService(tauriConnectionStore, tauriSessionGateway, tauriFilePicker),
     explorer: createExplorerService(createCommandMongoAdmin(tauriCommandRunner)),
-    shell: createShellService(tauriShellGateway),
+    shell: createShellService(tauriShellGateway, settings.current),
     history: createHistoryService(tauriHistoryStore),
     schema: createSchemaService(createCommandSchemaSource(tauriCommandRunner)),
     scriptFiles: createScriptFileService(tauriScriptFiles),
@@ -73,6 +77,7 @@ export function createServices(): Services {
     }),
     sync: createSyncService(tauriSyncGateway, startJob),
     operations: createOperationsService(),
+    settings,
   };
 }
 

@@ -18,6 +18,7 @@ import {
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
 import { VALIDATION_VIEW, ValidationWindow, type ValidationWindowData } from "../features/explorer/ui/ValidationWindow";
+import { SettingsDialog } from "../features/settings/ui/SettingsDialog";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
@@ -41,6 +42,7 @@ import {
   releaseOpener,
   showModalWindow,
 } from "../shared/ui/modalWindow";
+import { PREFERENCES_VIEW } from "../shared/ui/preferencesWindow";
 import { THEME_VIEW } from "../shared/ui/themeWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
@@ -132,6 +134,12 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
       return (
         <ServicesProvider services={createServices()}>
           <RestoreWindow data={data as RestoreWindowData} onDone={done} onClose={() => done(null)} />
+        </ServicesProvider>
+      );
+    case PREFERENCES_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <SettingsDialog onDone={done} />
         </ServicesProvider>
       );
     case THEME_VIEW:
