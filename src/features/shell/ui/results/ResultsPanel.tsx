@@ -23,15 +23,18 @@ interface Laid {
   entries: ResultEntry[];
   layout: ResultLayout;
   tabs: ResultTabsState;
-  /** The view the toolbar sets: the shown sub-tab's, or the one all results share outside sub-tabs. */
+  /**
+   * The view the toolbar sets: the shown sub-tab's, or the one all results share outside sub-tabs. In
+   * the Console, its date zone is all results', since it lists them all.
+   */
   view: ResultViewState;
 }
 
 /** One result fills the area as it always did; two stack; three or more go into sub-tabs. */
-function LaidOutResults({ sid, run, views, onGoToLine, entries, layout, tabs, view }: Props & Laid) {
+function LaidOutResults({ sid, run, views, entries, layout, tabs, view }: Props & Laid) {
   switch (layout) {
     case "tabs":
-      return <ResultTabs sid={sid} entries={entries} run={run} tabs={tabs} views={views} onGoToLine={onGoToLine} />;
+      return <ResultTabs sid={sid} entries={entries} run={run} tabs={tabs} views={views} />;
     case "stacked":
       return <StackedResults sid={sid} entries={entries} run={run} view={view} />;
     default:
@@ -45,7 +48,7 @@ function LaidOutResults({ sid, run, views, onGoToLine, entries, layout, tabs, vi
 
 /** What the last run printed and returned, one result per statement. */
 function RunOutput(props: Props & Laid) {
-  const { run, view, layout, onGoToLine } = props;
+  const { run, views, view, onGoToLine } = props;
   if (run.running) return <div className="script-output center"><SwimmingShark /></div>;
   if (run.failure) return <div className="script-output"><div className="output-error">{run.failure}</div></div>;
   if (!run.outcome) {
@@ -53,8 +56,8 @@ function RunOutput(props: Props & Laid) {
   }
   return (
     <>
-      {/* In sub-tabs each one picks its own view, Console included. */}
-      {view.mode === "console" && layout !== "tabs" ? (
+      {/* The Console lists the whole run as a script prints it: no sub-tabs, however many results. */}
+      {views.consoleOn ? (
         <ConsoleView outcome={run.outcome} run={run} view={view} onGoToLine={onGoToLine} />
       ) : (
         <LaidOutResults {...props} />
@@ -70,14 +73,13 @@ export function ResultsPanel(props: Props) {
   const entries = useMemo(() => (run.outcome ? resultEntries(run.outcome) : []), [run.outcome]);
   const layout = resultLayout(entries);
   const tabs = useResultTabs(entries.length, run.outcome);
-  const view =
-    layout === "tabs" && tabs.open.length
-      ? views.stateOf([tabs.open[tabs.selected]])
-      : views.stateOf(entries.length ? entries.map((_, i) => i) : [0]);
+  const all = views.stateOf(entries.length ? entries.map((_, i) => i) : [0]);
+  const shown = layout === "tabs" && tabs.open.length ? views.stateOf([tabs.open[tabs.selected]]) : all;
+  const view = views.consoleOn ? { ...shown, zone: all.zone, setZone: all.setZone } : shown;
   const laid = { entries, layout, tabs, view };
   return (
     <div className="results-panel">
-      <ResultsToolbar view={view} />
+      <ResultsToolbar view={view} consoleOn={views.consoleOn} onConsole={views.setConsoleOn} />
       <RunOutput {...props} {...laid} />
     </div>
   );

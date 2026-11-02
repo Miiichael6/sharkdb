@@ -95,6 +95,9 @@ async fn live_shell_against_local_mongo() {
     let query_ms = sorted.query_ms.expect("tiempo de consulta");
     assert!(query_ms <= sorted.elapsed_ms);
     assert_eq!(run_ok(&shell, "1 + 1").await.query_ms, None);
+    // Antes de 7.0 el servidor falla con NamespaceNotFound y `drop()` da `false`; desde 7.0, `true`.
+    let dropped = run_ok(&shell, "db.no_existe.drop() === parseInt(db.version()) >= 7").await;
+    assert_eq!(value(&dropped), Some(Bson::Boolean(true)));
 
     let each = run_ok(
         &shell,

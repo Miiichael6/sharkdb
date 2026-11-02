@@ -1,6 +1,7 @@
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
+import { bracketColors } from "./bracketColors";
 import { shellTags } from "./shellLanguage";
 
 // The code theme: which token gets which role color, with the user's italics (comments, keywords,
@@ -29,6 +30,7 @@ const color = {
   identifier: "var(--syn-identifier)",
   parameter: "var(--syn-parameter)",
   function: "var(--syn-function)",
+  bracket: ["var(--syn-bracket-1)", "var(--syn-bracket-2)", "var(--syn-bracket-3)"],
 };
 
 const CONTROL = { height: "26px", margin: 0, boxSizing: "border-box", borderRadius: "5px", fontSize: "12px" };
@@ -105,6 +107,9 @@ const spec = {
   ".cm-searchMatch": { backgroundColor: color.findMatchHighlight },
   ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: color.findMatch },
   ".cm-selectionMatch": { backgroundColor: color.findMatchHighlight },
+  ".cm-bracket-1": { color: color.bracket[0] },
+  ".cm-bracket-2": { color: color.bracket[1] },
+  ".cm-bracket-3": { color: color.bracket[2] },
   "&.cm-focused .cm-matchingBracket": { backgroundColor: color.selection, outline: `1px solid ${color.gutter}` },
   ".cm-foldPlaceholder": { backgroundColor: "transparent", border: "none", color: color.comment },
   ".cm-tooltip": { backgroundColor: color.widget, border: `1px solid ${color.widgetBorder}`, color: color.foreground },
@@ -143,4 +148,4 @@ export const codeHighlight = HighlightStyle.define([
 ]);
 
 /** The editor theme, in whatever code theme the page has (`data-code-theme`). */
-export const codeTheme = [EditorView.theme(spec), syntaxHighlighting(codeHighlight)];
+export const codeTheme = [EditorView.theme(spec), syntaxHighlighting(codeHighlight), bracketColors];

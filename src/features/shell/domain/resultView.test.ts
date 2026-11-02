@@ -4,7 +4,9 @@ import {
   collapseRecursively,
   documentKey,
   documentsOf,
+  documentViewMode,
   expandRecursively,
+  isConsoleOn,
   lookup,
   rowId,
   tableColumns,
@@ -146,5 +148,24 @@ describe("expand / collapse recursively", () => {
   it("closes the row and its descendants only", () => {
     const open = new Set([rowId(0, []), rowId(0, ["a"]), rowId(0, ["a", "b"]), rowId(1, ["a"])]);
     expect([...collapseRecursively(open, 0, ["a"])]).toEqual([rowId(0, []), rowId(1, ["a"])]);
+  });
+});
+
+describe("documentViewMode", () => {
+  it("keeps a document view and starts the Console's results in the tree", () => {
+    expect(documentViewMode("table")).toBe("table");
+    expect(documentViewMode("console")).toBe("tree");
+  });
+});
+
+describe("isConsoleOn", () => {
+  it("follows the preferences until switched", () => {
+    expect(isConsoleOn(null, "console")).toBe(true);
+    expect(isConsoleOn(null, "tree")).toBe(false);
+  });
+
+  it("keeps the switch whatever the preferences", () => {
+    expect(isConsoleOn(false, "console")).toBe(false);
+    expect(isConsoleOn(true, "text")).toBe(true);
   });
 });
