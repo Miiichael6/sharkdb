@@ -15,6 +15,13 @@ export interface ConfirmRequest {
 
 export const DISMISS_LABEL = "Cancelar";
 
+/** Asked when Escape would close an editor with changes nobody saved. */
+export const discardChangesRequest = (what: string): ConfirmRequest => ({
+  title: "Cambios sin guardar",
+  message: `${what} tiene cambios sin guardar. ¿Cerrar y descartarlos?`,
+  confirmLabel: "Descartar",
+});
+
 export const CONFIRM_WINDOW_WIDTH = 440;
 /** Wide enough for the connection, address, database and collection on one line. */
 export const CONFIRM_WHERE_WINDOW_WIDTH = 600;

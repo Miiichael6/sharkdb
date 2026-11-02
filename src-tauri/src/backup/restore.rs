@@ -1,6 +1,7 @@
 //! Restore: reemplaza colecciones de una o varias BDs con las de una carpeta de backup (formato
-//! `mongodump`). Como el sync, cada colección se escribe en una provisional que solo al final
-//! reemplaza a la original (`staging`): un fallo o una cancelación dejan el destino como estaba.
+//! `mongodump`). Como el sync, cada colección se escribe en una provisional y solo cuando todas
+//! están llenas reemplazan a las originales (`staging`): un fallo o una cancelación mientras se
+//! escriben dejan el destino como estaba.
 
 use std::fs::File;
 use std::io::BufReader;
@@ -10,7 +11,7 @@ use mongodb::Database;
 
 use super::folder;
 use super::format::DocumentReader;
-use super::staging::{Destination, new_run, replace_through_staging, staging_name};
+use super::staging::{Destination, Replacements, new_run, staging_name};
 use super::writer::{self, BatchWriter};
 use crate::jobs::CancelFlag;
 use crate::jobs::report::{CollectionResult, Progress};
@@ -23,8 +24,21 @@ pub struct DatabaseRestore {
     pub collections: Vec<String>,
 }
 
-/// Restaura las colecciones de cada `restores` en el destino, en un solo trabajo.
+/// Restaura las colecciones de cada `restores` en el destino, en un solo trabajo: no se reemplaza
+/// ninguna hasta que todas se escribieron.
 pub async fn restore_databases(
+    destination: &Destination<'_>,
+    restores: &[DatabaseRestore],
+    cancel: &CancelFlag,
+    report: impl Fn(Progress),
+) -> Result<Vec<CollectionResult>, String> {
+    let mut replacements = Replacements::new(destination);
+    let restored = restore_all(&mut replacements, destination, restores, cancel, report).await;
+    replacements.finish(restored).await
+}
+
+async fn restore_all(
+    replacements: &mut Replacements<'_>,
     destination: &Destination<'_>,
     restores: &[DatabaseRestore],
     cancel: &CancelFlag,
@@ -41,9 +55,10 @@ pub async fn restore_databases(
         let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
         let staging = staging_name(collection, &run);
         let fill = restore_into(destination, &restore.dir, &restore.target, collection, &staging, cancel, progress);
-        let result = replace_through_staging(destination, &restore.target, collection, &staging, fill).await?;
+        let result = replacements.stage(&restore.target, collection, &staging, fill).await?;
         results.push(CollectionResult { collection: label, ..result });
     }
+    cancel.check()?;
     Ok(results)
 }
 

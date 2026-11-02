@@ -109,6 +109,21 @@
     toNumber() { return this._value; },
   });
 
+  // Double con valor entero: un número JS entero se guarda como Int32 (ver convert).
+  function Double(value) {
+    const instance = construct(this, Double, arguments);
+    if (instance) return instance;
+    const n = Number(value ?? 0);
+    if (Number.isNaN(n) && typeof value !== 'number') throw new TypeError(`Double: número no válido "${value}"`);
+    hidden(this, { _value: n });
+  }
+  defineType(Double, 'Double', {
+    toString() { return `Double(${this._value})`; },
+    tojson() { return this.toString(); },
+    valueOf() { return this._value; },
+    toNumber() { return this._value; },
+  });
+
   function NumberDecimal(value) {
     const instance = construct(this, NumberDecimal, arguments);
     if (instance) return instance;

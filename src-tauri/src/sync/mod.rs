@@ -107,6 +107,47 @@ mod tests {
         assert_eq!(count(&qa_a, "orders").await, 10);
         assert!(!staging_left(&qa_a).await);
 
+        // Si falla la última colección, las ya copiadas tampoco se reemplazan.
+        safe_mode.set(false);
+        let failing_last = [copy(&prod_a, &qa_a, &["orders", "users"]), copy(&prod_b, &prod_b, &["orders"])];
+        assert_eq!(sync(&destination, &failing_last, &CancelFlag::default(), |_| {}).await, Err(SAME_COLLECTION.into()));
+        assert_eq!(count(&qa_a, "orders").await, 10);
+        assert!(!staging_left(&qa_a).await && !staging_left(&prod_b).await);
+
+        for name in names {
+            client.database(name).drop(None).await.unwrap();
+        }
+    }
+
+    /// Documentos anteriores al validador (`moderate`) que no lo cumplen: se copian igual y el
+    /// destino queda con el mismo validador.
+    #[tokio::test]
+    #[ignore = "needs a mongod on 127.0.0.1:27017"]
+    async fn live_sync_copies_documents_older_than_the_validator() {
+        let client = Client::with_uri_str(LOCAL_URI).await.unwrap();
+        let names = ["robo3b_it_sync_validator_prod", "robo3b_it_sync_validator_qa"];
+        let [prod, qa] = names.map(|n| client.database(n));
+        seed(&client, names[0], 5).await;
+        client.database(names[1]).drop(None).await.unwrap();
+        let validator = doc! { "$jsonSchema": { "required": ["email"] } };
+        prod.run_command(doc! { "collMod": "orders", "validator": validator.clone(), "validationLevel": "moderate" }, None)
+            .await
+            .unwrap();
+
+        let safe_mode = SafeMode::new(false);
+        let destination = Destination { client: &client, safe_mode: &safe_mode };
+        sync(&destination, &[copy(&prod, &qa, &["orders"])], &CancelFlag::default(), |_| {}).await.unwrap();
+        assert_eq!(count(&qa, "orders").await, 5);
+        let info = qa.run_command(doc! { "listCollections": 1, "filter": { "name": "orders" } }, None).await.unwrap();
+        let options = info.get_document("cursor").unwrap().get_array("firstBatch").unwrap()[0]
+            .as_document()
+            .unwrap()
+            .get_document("options")
+            .unwrap()
+            .clone();
+        assert_eq!(options.get_document("validator").unwrap(), &validator);
+        assert_eq!(options.get_str("validationLevel").unwrap(), "moderate");
+
         for name in names {
             client.database(name).drop(None).await.unwrap();
         }

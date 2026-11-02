@@ -14,9 +14,10 @@
   const DRIVER_ONLY_OPTIONS = ['readPref'];
 
   const verbosityOf = (verbosity) => VERBOSITY[verbosity] ?? verbosity ?? DEFAULT_VERBOSITY;
+  const hasFields = (spec) => spec != null && typeof spec === 'object' && Object.keys(spec).length > 0;
 
   // `source` dice cómo abrir el cursor en el servidor y, si se puede, cómo contarlo y con qué
-  // comando se explica: { open(options), count(options), command(options), run(command) }.
+  // comando se explica: { open(options), count(options), command(options), run(command), editable }.
   class Cursor {
     constructor(ns, source) {
       this._ns = ns;
@@ -140,9 +141,15 @@
         exhausted: this._done,
         missing: this._done ? 0 : Math.max(0, size - documents.length),
         fresh,
+        editable: this._editable(),
         cursor: this,
       };
     }
+
+    // Solo los documentos enteros de la colección se pueden editar o eliminar desde el resultado:
+    // con proyección, guardar reemplazaría el documento por los campos que se ven; los de un
+    // aggregate (`editable: false` en `source`) no son documentos de la colección.
+    _editable() { return this._source.editable !== false && !hasFields(this._options.projection); }
 
     // prelude/mod.rs leyó el cursor hasta el final.
     _exhaust() {

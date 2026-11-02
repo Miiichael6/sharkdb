@@ -10,7 +10,7 @@ use crate::shell::convert::{bson_to_js, js_to_bson};
 fn all_types() -> Vec<Bson> {
     vec![
         Bson::Double(1.5),
-        Bson::Double(3.0),
+        Bson::Double(1e10), // entero que no cabe en 32 bits: sigue siendo Double
         Bson::String("hola".into()),
         Bson::Boolean(true),
         Bson::Null,
@@ -42,12 +42,12 @@ fn all_types() -> Vec<Bson> {
         Bson::JavaScriptCode("function () { return 1; }".into()),
         Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
             code: "x + 1".into(),
-            scope: doc! { "x": 1.0 },
+            scope: doc! { "x": 1.5 },
         }),
         Bson::MinKey,
         Bson::MaxKey,
         Bson::Array(vec![Bson::Int32(1), Bson::String("dos".into())]),
-        Bson::Document(doc! { "z": 1.0, "a": { "nested": [ { "deep": Bson::Int64(5) } ] } }),
+        Bson::Document(doc! { "z": 1.5, "a": { "nested": [ { "deep": Bson::Int64(5) } ] } }),
     ]
 }
 
@@ -71,7 +71,7 @@ fn every_bson_type_survives_round_trip() {
 
 #[test]
 fn documents_keep_key_order() {
-    let original = doc! { "b": 1.0, "a": 2.0, "c": { "y": 1.0, "x": 2.0 } };
+    let original = doc! { "b": 1.5, "a": 2.5, "c": { "y": 1.5, "x": 2.5 } };
     engine().with_context(|ctx| {
         let js = bson_to_js(&ctx, &Bson::Document(original.clone())).unwrap();
         let Bson::Document(back) = js_to_bson(&ctx, &js).unwrap() else {
@@ -82,13 +82,33 @@ fn documents_keep_key_order() {
     });
 }
 
+/// Como en mongosh, un Double entero leído es un número JS y al volver a guardarlo pasa a Int32.
 #[test]
-fn js_numbers_become_doubles_like_the_shell() {
+fn whole_double_read_comes_back_as_int32() {
+    engine().with_context(|ctx| {
+        let js = bson_to_js(&ctx, &Bson::Double(3.0)).unwrap();
+        assert_eq!(js_to_bson(&ctx, &js).unwrap(), Bson::Int32(3));
+    });
+}
+
+#[test]
+fn js_numbers_become_int32_or_double_like_mongosh() {
     assert_eq!(
-        eval_to_bson("({ n: 5, f: 2.5 })"),
-        Bson::Document(doc! { "n": 5.0, "f": 2.5 })
+        eval_to_bson("({ n: 5, neg: -3, f: 2.5, big: 3000000000, max: 2147483647, z: -0 })"),
+        Bson::Document(doc! {
+            "n": 5,
+            "neg": -3,
+            "f": 2.5,
+            "big": 3_000_000_000.0,
+            "max": i32::MAX,
+            "z": -0.0,
+        })
     );
+    assert!(matches!(eval_to_bson("-0"), Bson::Double(z) if z == 0.0 && z.is_sign_negative()));
+    assert_eq!(eval_to_bson("10 / 2"), Bson::Int32(5));
     assert_eq!(eval_to_bson("NumberInt(5)"), Bson::Int32(5));
+    assert_eq!(eval_to_bson("Double(5)"), Bson::Double(5.0));
+    assert_eq!(eval_to_bson("new Double('2.5')"), Bson::Double(2.5));
     assert_eq!(
         eval_to_bson("NumberLong('9223372036854775807')"),
         Bson::Int64(i64::MAX)

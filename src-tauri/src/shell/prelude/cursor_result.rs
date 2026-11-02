@@ -21,6 +21,7 @@ struct DescribedCursor<'js> {
     documents: Vec<Bson>,
     exhausted: bool,
     missing: usize,
+    editable: bool,
     cursor: Object<'js>,
 }
 
@@ -36,6 +37,7 @@ impl<'js> DescribedCursor<'js> {
                 .collect::<rquickjs::Result<_>>()?,
             exhausted: described.get("exhausted")?,
             missing: described.get("missing")?,
+            editable: described.get("editable")?,
             cursor: described.get("cursor")?,
         })
     }
@@ -71,5 +73,6 @@ pub fn cursor_result<'js>(
         cursor_id: cursor.id,
         documents: cursor.documents,
         exhausted: cursor.exhausted,
+        editable: cursor.editable,
     })
 }

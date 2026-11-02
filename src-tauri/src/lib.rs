@@ -1,4 +1,5 @@
 mod backup;
+mod documents;
 mod files;
 mod jobs;
 mod mongo;
@@ -46,6 +47,7 @@ pub fn run() {
             mongo::open_detached,
             mongo::close_detached,
             mongo::run_command,
+            documents::replace_unchanged,
             mongo::set_safe_mode,
             shell::commands::execute_script,
             shell::commands::next_batch,

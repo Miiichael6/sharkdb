@@ -13,7 +13,7 @@ import { tauriConnectionStore } from "../features/connections/infrastructure/tau
 import { tauriFilePicker } from "../features/connections/infrastructure/tauriFilePicker";
 import { tauriSessionGateway } from "../features/connections/infrastructure/tauriSessionGateway";
 import { createDocumentService, type DocumentService } from "../features/documents/application/documentService";
-import { createCommandDocumentStore } from "../features/documents/infrastructure/commandDocumentStore";
+import { createCommandDocumentStore, tauriUnchangedReplacer } from "../features/documents/infrastructure/commandDocumentStore";
 import { tauriDocumentParser } from "../features/documents/infrastructure/tauriDocumentParser";
 import { createExplorerService, type ExplorerService } from "../features/explorer/application/explorerService";
 import { createCommandMongoAdmin } from "../features/explorer/infrastructure/commandMongoAdmin";
@@ -68,7 +68,7 @@ export function createServices(): Services {
     history: createHistoryService(tauriHistoryStore),
     schema: createSchemaService(createCommandSchemaSource(tauriCommandRunner)),
     scriptFiles: createScriptFileService(tauriScriptFiles),
-    documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner)),
+    documents: createDocumentService(tauriDocumentParser, createCommandDocumentStore(tauriCommandRunner, tauriUnchangedReplacer)),
     terminal: createTerminalService(tauriTerminalGateway),
     windowTitle: createWindowTitleService(tauriWindowGateway),
     backup: createBackupService(tauriBackupGateway, tauriFolderPicker, startJob),

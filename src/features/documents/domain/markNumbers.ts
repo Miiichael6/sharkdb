@@ -7,6 +7,21 @@ const BEFORE_REGEX = new Set(["", ":", "[", ",", "(", "{", "=", "!", "&", "|", "
 const isDigit = (c: string | undefined) => c !== undefined && c >= "0" && c <= "9";
 const isWordChar = (c: string | undefined) => c !== undefined && /[\w$.]/.test(c);
 
+/** Index just past the digits starting at `start`. */
+function skipDigits(text: string, start: number): number {
+  let i = start;
+  while (isDigit(text[i])) i++;
+  return i;
+}
+
+/** Constructor keeping the BSON type of a number literal, or null if evaluating it already does. */
+function wrapperOf(literal: string, isDecimal: boolean): string | null {
+  if (/^-?0\d/.test(literal)) return null;
+  const value = Number(literal);
+  if (isDecimal) return Number.isInteger(value) ? "Double" : null;
+  return value >= INT32_MIN && value <= INT32_MAX ? "NumberInt" : null;
+}
+
 /** Index just past the string or template literal opening at `start`. */
 function skipString(text: string, start: number): number {
   const quote = text[start];
@@ -33,12 +48,14 @@ function skipRegex(text: string, start: number): number {
 }
 
 /**
- * Wraps the plain integer values of a document's text in `NumberInt(…)`, so that evaluating it keeps
- * them Int32 as Robo 3T does (in JavaScript `1` is a double). Only literals standing as a value of an
- * object or an array element are touched, never inside calls, strings, regexes or comments; numbers
- * with a decimal point or an exponent, and integers outside the Int32 range, stay doubles.
+ * Keeps the BSON type of a document's numbers when its text is evaluated, as Robo 3T does: in
+ * JavaScript `1` and `1.0` are the same number, which the engine stores as Int32. Plain integers
+ * become `NumberInt(…)` and integral decimals (`1.0`, `1e3`, as doubles are shown) become `Double(…)`.
+ * Only literals standing as a value of an object or an array element are touched, never inside
+ * calls, strings, regexes or comments; other decimals and integers outside the Int32 range already
+ * evaluate to doubles.
  */
-export function markIntegers(text: string): string {
+export function markNumbers(text: string): string {
   let out = "";
   let copied = 0;
   // Open brackets, to tell a value from an object key or a call argument.
@@ -65,12 +82,18 @@ export function markIntegers(text: string): string {
     } else if ((isDigit(c) || (c === "-" && isDigit(text[i + 1]))) && !isWordChar(text[i - 1])) {
       let end = c === "-" ? i + 1 : i;
       while (isDigit(text[end])) end++;
+      const digitsEnd = end;
+      if (text[end] === "." && isDigit(text[end + 1])) end = skipDigits(text, end + 1);
+      if (/[eE]/.test(text[end] ?? "")) {
+        const exponent = /[+-]/.test(text[end + 1] ?? "") ? end + 2 : end + 1;
+        if (isDigit(text[exponent])) end = skipDigits(text, exponent);
+      }
       const top = stack[stack.length - 1];
       const isValue = (top === "{" && prev === ":") || (top === "[" && (prev === "[" || prev === ","));
       const literal = text.slice(i, end);
-      const value = Number(literal);
-      if (isValue && !isWordChar(text[end]) && !/^-?0\d/.test(literal) && value >= INT32_MIN && value <= INT32_MAX) {
-        out += `${text.slice(copied, i)}NumberInt(${literal})`;
+      const marked = isValue && !isWordChar(text[end]) ? wrapperOf(literal, end > digitsEnd) : null;
+      if (marked) {
+        out += `${text.slice(copied, i)}${marked}(${literal})`;
         copied = end;
       }
       while (isWordChar(text[end])) end++;

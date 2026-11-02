@@ -17,6 +17,8 @@ export interface CursorResult {
   cursorId: number | null;
   documents: Doc[];
   exhausted: boolean;
+  /** Whole documents of the collection (no projection, not from an aggregate): they can be edited or deleted. */
+  editable: boolean;
 }
 
 export type ScriptOutput =

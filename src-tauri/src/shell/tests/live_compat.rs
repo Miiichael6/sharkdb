@@ -61,8 +61,8 @@ async fn live_writes_larger_than_one_command() {
     assert_eq!(
         value(&counts),
         Some(Bson::Array(vec![
-            Bson::Double(MANY_DOCS.into()),
-            Bson::Double(LARGE_DOCS.into()),
+            Bson::Int32(MANY_DOCS),
+            Bson::Int32(LARGE_DOCS),
             Bson::Boolean(true)
         ]))
     );
@@ -70,8 +70,8 @@ async fn live_writes_larger_than_one_command() {
     // `insert` y `remove` masivos también van por lotes.
     let removed = run_ok_in(&shell, LARGE_DB, "db.x.remove({})").await;
     assert_eq!(
-        last_write(&removed).get_f64("deletedCount"),
-        Ok(MANY_DOCS.into())
+        last_write(&removed).get_i32("deletedCount"),
+        Ok(MANY_DOCS)
     );
 
     drop(shell);
@@ -105,9 +105,9 @@ async fn live_bulk_counters_match_the_classic_shell() {
             "nModified",
             "nRemoved",
         ]
-        .map(|field| result.get_f64(field).unwrap_or(-1.0))
+        .map(|field| result.get_i32(field).unwrap_or(-1))
         .into();
-        assert_eq!(counters, [1.0, 1.0, 2.0, 1.0, 1.0], "{kind}");
+        assert_eq!(counters, [1, 1, 2, 1, 1], "{kind}");
     }
 
     run_ok_in(&shell, BULK_DB, reset).await;
@@ -139,7 +139,7 @@ async fn live_bulk_counters_match_the_classic_shell() {
     assert!(unordered.error.unwrap().message.contains("operación 1"));
     assert_eq!(
         value(&run_ok_in(&shell, BULK_DB, "db.x.count()").await),
-        Some(Bson::Double(5.0))
+        Some(Bson::Int32(5))
     );
 
     let result = last_write(
@@ -156,11 +156,11 @@ async fn live_bulk_counters_match_the_classic_shell() {
     );
     assert_eq!(
         (
-            result.get_f64("insertedCount"),
-            result.get_f64("matchedCount"),
-            result.get_f64("deletedCount")
+            result.get_i32("insertedCount"),
+            result.get_i32("matchedCount"),
+            result.get_i32("deletedCount")
         ),
-        (Ok(1.0), Ok(6.0), Ok(1.0))
+        (Ok(1), Ok(6), Ok(1))
     );
 
     drop(shell);
@@ -208,9 +208,9 @@ async fn live_classic_shortcuts() {
     )
     .await;
     let expected = doc! {
-        "keys": 2.0, "sizes": true, "sorted": "Abc", "plan": 1, "planned": "robo3b_test_atajos.x",
-        "size": 1.0, "count": 3.0, "minMax": 1.0, "flags": 3.0, "onDisk": 3.0, "capped": false, "remaining": 1.0,
-        "valid": true, "server": [SHORTCUTS_DB, 1.0, true, 1.0, true, true],
+        "keys": 2, "sizes": true, "sorted": "Abc", "plan": 1, "planned": "robo3b_test_atajos.x",
+        "size": 1, "count": 3, "minMax": 1, "flags": 3, "onDisk": 3, "capped": false, "remaining": 1,
+        "valid": true, "server": [SHORTCUTS_DB, 1, true, 1, true, true],
         "md5": "900150983cd24fb0d6963f7d28e17f72",
     };
     let [.., ScriptOutput::Value { value: summary }] = &outputs(&summary)[..] else {
@@ -272,4 +272,46 @@ async fn live_classic_shortcuts() {
 
     drop(shell);
     client.database(SHORTCUTS_DB).drop(None).await.unwrap();
+}
+
+const SAFE_WRITES_DB: &str = "robo3b_test_escrituras";
+
+/// Errores 03, 04 y 05 de la auditoría: los enteros se guardan como Int32 (un validador
+/// `bsonType: 'int'` los acepta), y un update sin `$` o un remove sin filtro no tocan los datos.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_writes_keep_types_and_reject_dangerous_shapes() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        SAFE_WRITES_DB,
+        "db.dropDatabase();
+         db.createCollection('x', { validator: { $jsonSchema: { properties: { qty: { bsonType: 'int' } } } } });
+         db.x.insertOne({ _id: 1, qty: 5, price: 2.5, big: 3000000000 });
+         db.x.updateOne({ _id: 1 }, { $set: { qty: 6 } });
+         db.x.updateOne({ _id: 1 }, { $inc: { qty: 1 } })",
+    )
+    .await;
+    let types = run_ok_in(
+        &shell,
+        SAFE_WRITES_DB,
+        "db.x.aggregate([{ $project: { _id: 0, qty: { $type: '$qty' }, price: { $type: '$price' }, big: { $type: '$big' } } }]).toArray()[0]",
+    )
+    .await;
+    assert_eq!(
+        value(&types),
+        Some(Bson::Document(doc! { "qty": "int", "price": "double", "big": "double" }))
+    );
+
+    for dangerous in ["db.x.updateOne({ _id: 1 }, { qty: 1 })", "db.x.remove()"] {
+        let outcome = shell
+            .run(SAFE_WRITES_DB.into(), dangerous.into(), None, RunOptions::default())
+            .await
+            .unwrap();
+        assert!(outcome.error.is_some(), "{dangerous}");
+    }
+    let kept = run_ok_in(&shell, SAFE_WRITES_DB, "db.x.findOne({ _id: 1 }, { _id: 0, qty: 1, price: 1 })").await;
+    assert_eq!(value(&kept), Some(Bson::Document(doc! { "qty": 7, "price": 2.5 })));
+    run_ok_in(&shell, SAFE_WRITES_DB, "db.dropDatabase()").await;
 }

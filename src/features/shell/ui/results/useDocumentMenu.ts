@@ -14,7 +14,8 @@ const DELETE_DOCUMENT_HINT = "Supr";
 /**
  * "Ver / Editar / Insertar / Eliminar documento" entries for a document of a cursor result, plus the
  * deletion of the picked documents the Delete key runs. Saved and deleted documents change in place on the page; the script is
- * not run again, since it may write. While the session is in safe mode only "Ver" stays enabled.
+ * not run again, since it may write. While the session is in safe mode only "Ver" stays enabled; on a
+ * result that isn't whole documents of the collection (projection, aggregate) only "Ver" is offered.
  */
 export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPager, reload: () => void, zone: DateZone) {
   const actions = useDocumentActions();
@@ -25,9 +26,9 @@ export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPage
     reload();
   };
 
-  /** Asks once in the red window and deletes `docs`; does nothing in safe mode or outside a collection. */
+  /** Asks once in the red window and deletes `docs`; does nothing in safe mode, outside a collection or on a result that can't be edited. */
   const removeDocuments = (docs: unknown[]) => {
-    if (!target || isReadOnly(target.sid) || !docs.length) return;
+    if (!target || !pager.editable || isReadOnly(target.sid) || !docs.length) return;
     const originals = docs as StoredDocument[];
     actions.remove(target, originals, () => {
       for (const original of originals) pager.replace(original, null);
@@ -39,10 +40,12 @@ export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPage
     if (!target) return NO_ENTRIES;
     const write = { disabled: isReadOnly(target.sid) };
     const original = doc as StoredDocument;
+    const view = resultItem("view", "Ver documento…", () => actions.view(target, original, zone));
+    if (!pager.editable) return { manage: [view], remove: [], compact: true };
     const update = (next: StoredDocument | null) => replace(original, next);
     return {
       manage: [
-        resultItem("view", "Ver documento…", () => actions.view(target, original, zone)),
+        view,
         resultItem("edit", "Editar documento…", () => actions.edit(target, original, update), write),
         resultItem("insert", "Insertar documento…", () => actions.insert(target, reload), write),
       ],

@@ -1,4 +1,6 @@
 // MongoDB entities the explorer works with, as the server returns them.
+import { SYSTEM_DATABASES, isSystemDatabase } from "../../../shared/domain/systemNamespaces";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Doc = Record<string, any>;
 
@@ -40,10 +42,8 @@ export interface FunctionEntry {
   value: { $code?: string } | string;
 }
 
-export const SYSTEM_DATABASES = ["admin", "config", "local"];
-
-/** MongoDB's own databases (admin, config, local): always in the System folder, never chosen as the user's. */
-export const isSystemDatabase = (name: string) => SYSTEM_DATABASES.includes(name);
+// MongoDB's own databases (admin, config, local): always in the System folder, never chosen as the user's.
+export { SYSTEM_DATABASES, isSystemDatabase };
 
 /** The databases of `names` that are the user's own, without the system ones. */
 export const userDatabases = (names: string[]) => names.filter((name) => !isSystemDatabase(name));

@@ -118,7 +118,7 @@ async fn live_shell_against_local_mongo() {
 
     let other = run_ok(&shell, &format!("use {OTHER_DB}; db.y.count()")).await;
     assert_eq!(prints(&other), [format!("switched to db {OTHER_DB}")]);
-    assert_eq!(value(&other), Some(Bson::Double(0.0)));
+    assert_eq!(value(&other), Some(Bson::Int32(0)));
 
     // Un find grande llega por lotes: 50 con el script y el resto al pedirlos.
     let (cursor, first, exhausted) = single_cursor(&run_ok(&shell, "db.x.find()").await);
@@ -151,7 +151,7 @@ async fn live_shell_against_local_mongo() {
     );
     assert_eq!(
         value(&run_ok(&shell, "db.x.count()").await),
-        Some(Bson::Double(121.0))
+        Some(Bson::Int32(121))
     );
 
     // Soltar el shell (lo que hace desconectar) cierra su cursor abierto; si no, `shutdown`
@@ -210,7 +210,7 @@ async fn live_safe_mode_rejects_writes() {
     }
     assert_eq!(
         value(&run_ok_in(&shell, SAFE_DB, "db.x.count()").await),
-        Some(Bson::Double(1.0))
+        Some(Bson::Int32(1))
     );
     run_ok_in(
         &shell,
@@ -270,7 +270,7 @@ async fn live_collection_menu_scripts() {
     run_ok_in(&shell, MENU_DB, remove).await;
     assert_eq!(
         value(&run_ok_in(&shell, MENU_DB, "db.x.count()").await),
-        Some(Bson::Double(1.0))
+        Some(Bson::Int32(1))
     );
 
     run_ok_in(
@@ -281,7 +281,7 @@ async fn live_collection_menu_scripts() {
     .await;
     assert_eq!(
         value(&run_ok_in(&shell, MENU_DB, "db.x_copy.count()").await),
-        Some(Bson::Double(1.0))
+        Some(Bson::Int32(1))
     );
 
     // Ver índices y Ver log.
@@ -387,10 +387,111 @@ async fn live_parallel_queries_keep_script_order() {
     assert!(failed.results.is_empty());
     assert_eq!(
         value(&run_ok_in(&shell, PARALLEL_DB, "db.x.count()").await),
-        Some(Bson::Double(4.0)),
+        Some(Bson::Int32(4)),
         "la escritura de después no se hizo"
     );
 
     drop(shell);
     client.database(PARALLEL_DB).drop(None).await.unwrap();
+}
+
+const CUT_DB: &str = "robo3b_test_cut";
+
+/// Cancelar una escritura lenta la detiene también en el servidor: no sigue modificando
+/// documentos después de que el shell diga que se canceló.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_cancelled_write_stops_on_the_server() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        CUT_DB,
+        "db.dropDatabase(); db.x.insertMany(Array.from({ length: 100 }, (_, i) => ({ _id: i })))",
+    )
+    .await;
+
+    let (cut, _) = tokio::join!(
+        shell.run(
+            CUT_DB.into(),
+            "db.x.updateMany({ $where: 'sleep(50) || true' }, { $set: { touched: true } })".into(),
+            None,
+            RunOptions::default()
+        ),
+        async {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            shell.cancel();
+        }
+    );
+    let error = cut.unwrap().error.expect("cancelado");
+    assert_eq!(error.kind, ScriptErrorKind::Cancelled);
+    assert!(
+        error.message.contains("se detuvo en el servidor"),
+        "{}",
+        error.message
+    );
+
+    let touched = || async {
+        let outcome = run_ok_in(&shell, CUT_DB, "db.x.count({ touched: true })").await;
+        value(&outcome)
+    };
+    let after_cut = touched().await;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    assert_eq!(touched().await, after_cut, "la escritura siguió en el servidor");
+    assert_ne!(after_cut, Some(Bson::Int32(100)));
+
+    drop(shell);
+    client.database(CUT_DB).drop(None).await.unwrap();
+}
+
+const CUT_AGGREGATE_DB: &str = "robo3b_test_cut_aggregate";
+
+/// Cancelar una agregación con `$merge` (no muere con su sesión) la mata en el servidor por su
+/// `comment`: ya no aparece en `currentOp` después de que el shell diga que se canceló.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_cancelled_write_aggregate_stops_on_the_server() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        CUT_AGGREGATE_DB,
+        "db.dropDatabase(); db.x.insertMany(Array.from({ length: 100 }, (_, i) => ({ _id: i })))",
+    )
+    .await;
+
+    // Trabajo pesado por documento, para que la agregación tarde varios segundos.
+    let slow = "{ $gt: [{ $size: { $range: [0, { $add: [2000000, '$_id'] }] } }, 0] }";
+    let (cut, _) = tokio::join!(
+        shell.run(
+            CUT_AGGREGATE_DB.into(),
+            format!("db.x.aggregate([{{ $match: {{ $expr: {slow} }} }}, {{ $merge: 'y' }}])"),
+            None,
+            RunOptions::default()
+        ),
+        async {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            shell.cancel();
+        }
+    );
+    let error = cut.unwrap().error.expect("cancelado");
+    assert_eq!(error.kind, ScriptErrorKind::Cancelled, "{}", error.message);
+    assert!(
+        error.message.contains("se detuvo en el servidor"),
+        "{}",
+        error.message
+    );
+
+    // `killOp` solo la marca: se le da un momento para que lo note y salga de `currentOp`.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let running = run_ok_in(
+        &shell,
+        CUT_AGGREGATE_DB,
+        "db.currentOp({ 'command.aggregate': 'x' }).inprog.length",
+    )
+    .await;
+    assert_eq!(value(&running), Some(Bson::Int32(0)), "la agregación siguió en el servidor");
+
+    drop(shell);
+    client.database(CUT_AGGREGATE_DB).drop(None).await.unwrap();
 }

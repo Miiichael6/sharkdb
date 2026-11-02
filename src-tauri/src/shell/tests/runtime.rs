@@ -43,7 +43,7 @@ async fn cancel_stops_a_running_script_from_another_thread() {
         None,
         RunOptions::default(),
     );
-    assert_eq!(value(&next.await.unwrap()), Some(Bson::Double(3.0)));
+    assert_eq!(value(&next.await.unwrap()), Some(Bson::Int32(3)));
 }
 
 #[tokio::test]

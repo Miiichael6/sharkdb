@@ -17,5 +17,13 @@ export interface DocumentParser {
 export interface DocumentStore {
   insert(target: DocumentTarget, doc: Doc): Promise<number>;
   replace(target: DocumentTarget, filter: Doc, doc: Doc): Promise<number>;
+  /**
+   * Replaces `original` (as it was read) with `doc` only while the server still stores it unchanged;
+   * 0 when someone changed it or it is gone. Integer-like keys, which a JS object lists first, may be
+   * in another order in `original`: they don't count as a change.
+   */
+  replaceUnchanged(target: DocumentTarget, original: Doc, doc: Doc): Promise<number>;
   delete(target: DocumentTarget, filter: Doc): Promise<number>;
+  /** How many documents match `filter` (a read). */
+  count(target: DocumentTarget, filter: Doc): Promise<number>;
 }

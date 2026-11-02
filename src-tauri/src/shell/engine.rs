@@ -131,6 +131,14 @@ impl Engine {
     /// Sustituye la excepción genérica de QuickJS por el motivo real: tiempo, cancelación o
     /// memoria. Se hace fuera de `context.with` porque consultar la memoria bloquea el runtime.
     fn classify(&self, error: ScriptError) -> ScriptError {
+        let mut error = self.classify_interruption(error);
+        if let Some(note) = self.watchdog.cut_write() {
+            error.message = format!("{}. {note}", error.message);
+        }
+        error
+    }
+
+    fn classify_interruption(&self, error: ScriptError) -> ScriptError {
         match self.watchdog.fired() {
             Some(Interruption::Timeout) => ScriptError::new(
                 ScriptErrorKind::Timeout,

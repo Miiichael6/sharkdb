@@ -139,8 +139,8 @@ fn bulk_counters(result: &Document) -> Vec<(&str, Option<&Bson>)> {
 }
 
 fn expected_counters() -> Vec<(&'static str, Option<&'static Bson>)> {
-    const ONE: &Bson = &Bson::Double(1.0);
-    const THREE: &Bson = &Bson::Double(3.0);
+    const ONE: &Bson = &Bson::Int32(1);
+    const THREE: &Bson = &Bson::Int32(3);
     vec![
         ("nInserted", Some(THREE)),
         ("nUpserted", Some(ONE)),
@@ -160,7 +160,7 @@ fn ordered_bulk_runs_each_run_of_operations_in_order() {
     assert_eq!(bulk_counters(&result), expected_counters());
     assert_eq!(
         result.get_array("upserted"),
-        Ok(&vec![Bson::Document(doc! { "index": 3.0, "_id": 1.0 })])
+        Ok(&vec![Bson::Document(doc! { "index": 3, "_id": 1 })])
     );
     assert_eq!(
         write_batches(&mut session),
@@ -204,12 +204,12 @@ fn bulk_write_returns_counts_and_ids_by_operation_index() {
             { deleteOne: { filter: { _id: 'a' } } },
         ])",
     );
-    assert_eq!(result.get_f64("insertedCount"), Ok(1.0));
-    assert_eq!(result.get_f64("matchedCount"), Ok(1.0));
-    assert_eq!(result.get_f64("upsertedCount"), Ok(1.0));
-    assert_eq!(result.get_f64("deletedCount"), Ok(1.0));
+    assert_eq!(result.get_i32("insertedCount"), Ok(1));
+    assert_eq!(result.get_i32("matchedCount"), Ok(1));
+    assert_eq!(result.get_i32("upsertedCount"), Ok(1));
+    assert_eq!(result.get_i32("deletedCount"), Ok(1));
     assert_eq!(result.get_document("insertedIds"), Ok(&doc! { "0": "a" }));
-    assert_eq!(result.get_document("upsertedIds"), Ok(&doc! { "2": 1.0 }));
+    assert_eq!(result.get_document("upsertedIds"), Ok(&doc! { "2": 1 }));
 }
 
 #[test]
@@ -220,4 +220,179 @@ fn bulk_write_rejects_unknown_operations() {
         "db.x.bulkWrite([{ insertOne: { document: {} } }, { upsert: {} }])",
     );
     assert!(error.message.contains("operación 1 no válida"), "{error:?}");
+}
+
+/// Como mongosh: un update sin operadores `$` o un reemplazo con ellos se rechazan antes de
+/// llegar al servidor, en vez de reemplazar el documento entero.
+#[test]
+fn update_without_operators_or_replacement_with_them_is_rejected() {
+    for (code, expected) in [
+        ("db.x.updateOne({ _id: 1 }, { status: 'x' })", "updateOne: el update debe usar operadores $"),
+        ("db.x.updateMany({}, {})", "updateMany: el update debe usar operadores $"),
+        ("db.x.updateOne({ _id: 1 }, { $set: { a: 1 }, b: 2 })", "updateOne: el update debe usar operadores $"),
+        ("db.x.findOneAndUpdate({ _id: 1 }, { a: 1 })", "findOneAndUpdate: el update debe usar operadores $"),
+        ("db.x.replaceOne({ _id: 1 }, { $set: { a: 1 } })", "replaceOne: el documento de reemplazo no puede usar operadores $"),
+        ("db.x.findOneAndReplace({ _id: 1 }, { $set: { a: 1 } })", "findOneAndReplace: el documento de reemplazo"),
+        ("db.x.initializeOrderedBulkOp().find({ _id: 1 }).updateOne({ a: 1 })", "updateOne: el update debe usar operadores $"),
+        ("db.x.initializeOrderedBulkOp().find({ _id: 1 }).replaceOne({ $set: { a: 1 } })", "replaceOne: el documento de reemplazo"),
+        (
+            "db.x.bulkWrite([{ updateOne: { filter: { _id: 1 }, update: { a: 1 } } }])",
+            "bulkWrite updateOne: el update debe usar operadores $",
+        ),
+        (
+            "db.x.bulkWrite([{ replaceOne: { filter: { _id: 1 }, replacement: { $set: { a: 1 } } } }])",
+            "bulkWrite replaceOne: el documento de reemplazo",
+        ),
+    ] {
+        let (mut session, _) = session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains(expected), "{code}: {}", error.message);
+        assert_eq!(write_batches(&mut session), batches(&[]), "{code}");
+    }
+}
+
+#[test]
+fn update_with_operators_or_pipeline_and_plain_replacement_are_sent() {
+    let (mut session, _) = session();
+    run_ok(
+        &mut session,
+        "db.x.updateOne({ _id: 1 }, { $set: { a: 1 }, $inc: { n: 1 } });
+         db.x.updateMany({}, [{ $set: { a: 1 } }]);
+         db.x.replaceOne({ _id: 1 }, { a: 1 });
+         db.x.update({ _id: 1 }, { a: 1 })",
+    );
+    assert_eq!(
+        write_batches(&mut session),
+        batches(&["update:1", "update:1", "update:1", "update:1"])
+    );
+}
+
+/// Como mongosh: borrar sin filtro es un error; vaciar la colección se pide con `{}`.
+#[test]
+fn delete_without_filter_is_rejected() {
+    for code in [
+        "db.x.remove()",
+        "db.x.deleteOne()",
+        "db.x.deleteMany()",
+        "db.x.deleteMany(null)",
+        "db.x.bulkWrite([{ deleteMany: {} }])",
+    ] {
+        let (mut session, _) = session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains("falta el filtro"), "{code}: {}", error.message);
+        assert_eq!(write_batches(&mut session), batches(&[]), "{code}");
+    }
+    let (mut session, _) = session();
+    run_ok(&mut session, "db.x.remove({}); db.x.deleteMany({})");
+    assert_eq!(write_batches(&mut session), batches(&["delete:1", "delete:1"]));
+}
+
+/// Comando que recibió el servidor en la primera llamada.
+fn first_command(session: &mut ShellSession) -> Document {
+    super::prelude::first_call(session)
+        .get_document("command")
+        .expect("comando")
+        .clone()
+}
+
+fn first_statement(command: &Document, field: &str) -> Document {
+    command.get_array(field).expect("operaciones")[0]
+        .as_document()
+        .expect("operación")
+        .clone()
+}
+
+/// Firma del shell clásico: `update(q, u, upsert, multi)`.
+#[test]
+fn legacy_update_maps_upsert_and_multi_booleans() {
+    for (code, upsert, multi) in [
+        ("db.x.update({ a: 1 }, { $set: { b: 1 } }, false, true)", false, true),
+        ("db.x.update({ a: 1 }, { $set: { b: 1 } }, true)", true, false),
+        ("db.x.update({ a: 1 }, { $set: { b: 1 } }, true, true)", true, true),
+        ("db.x.update({ a: 1 }, { $set: { b: 1 } }, { upsert: true, multi: true })", true, true),
+        ("db.x.update({ a: 1 }, { $set: { b: 1 } })", false, false),
+    ] {
+        let (mut session, _) = super::prelude::session();
+        run_ok(&mut session, code);
+        let statement = first_statement(&first_command(&mut session), "updates");
+        assert_eq!(statement.get_bool("upsert"), Ok(upsert), "{code}");
+        assert_eq!(statement.get_bool("multi"), Ok(multi), "{code}");
+    }
+}
+
+#[test]
+fn delete_options_reach_the_statement() {
+    let (mut session, _) = super::prelude::session();
+    run_ok(
+        &mut session,
+        "db.x.deleteMany({ a: 'x' }, { collation: { locale: 'es', strength: 2 }, hint: 'a_1' })",
+    );
+    let statement = first_statement(&first_command(&mut session), "deletes");
+    assert_eq!(statement.get_document("collation").ok(), Some(&doc! { "locale": "es", "strength": 2 }));
+    assert_eq!(statement.get_str("hint"), Ok("a_1"));
+    assert_eq!(statement.get_i32("limit"), Ok(0));
+
+    let (mut session, _) = super::prelude::session();
+    run_ok(&mut session, "db.x.remove({ a: 1 }, { justOne: true, collation: { locale: 'es' } })");
+    let statement = first_statement(&first_command(&mut session), "deletes");
+    assert_eq!(statement.get_i32("limit"), Ok(1));
+    assert!(statement.contains_key("collation"));
+    assert!(!statement.contains_key("justOne"));
+}
+
+#[test]
+fn find_one_and_update_passes_every_option() {
+    let (mut session, _) = super::prelude::session();
+    run_ok(
+        &mut session,
+        "db.x.findOneAndUpdate({ _id: 1 }, { $set: { 'a.$[e].v': 1 } }, {
+            arrayFilters: [{ 'e.k': 1 }], collation: { locale: 'es' }, hint: '_id_',
+            projection: { a: 1 }, sort: { _id: 1 }, upsert: true, returnDocument: 'after',
+        })",
+    );
+    let command = first_command(&mut session);
+    for field in ["arrayFilters", "collation", "hint", "fields", "sort", "upsert"] {
+        assert!(command.contains_key(field), "{field}: {command}");
+    }
+    assert_eq!(command.get_bool("new"), Ok(true));
+    assert!(!command.contains_key("projection") && !command.contains_key("returnDocument"));
+
+    let (mut session, _) = super::prelude::session();
+    run_ok(&mut session, "db.x.findOneAndReplace({ _id: 1 }, { a: 1 }, { returnDocument: 'before' })");
+    assert_eq!(first_command(&mut session).get_bool("new"), Ok(false));
+
+    let (mut session, _) = super::prelude::session();
+    let error = run_err(&mut session, "db.x.findOneAndUpdate({ _id: 1 }, { $set: { a: 1 } }, { returnDocument: 'new' })");
+    assert!(error.message.contains("returnDocument debe ser"), "{error:?}");
+}
+
+/// `{ f: undefined }` llegaría como `{ f: null }`, que también coincide con los documentos sin `f`.
+#[test]
+fn undefined_in_a_write_filter_is_rejected() {
+    for code in [
+        "var t; db.x.deleteMany({ tenant: t })",
+        "db.x.deleteOne({ a: { $in: [1, undefined] } })",
+        "db.x.remove({ $or: [{ a: undefined }] })",
+        "db.x.updateMany({ tenant: undefined }, { $set: { a: 1 } })",
+        "db.x.replaceOne({ tenant: undefined }, { a: 1 })",
+        "db.x.update({ tenant: undefined }, { a: 1 })",
+        "db.x.findOneAndDelete({ tenant: undefined })",
+        "db.x.findOneAndUpdate({ tenant: undefined }, { $set: { a: 1 } })",
+        "db.x.findAndModify({ query: { tenant: undefined }, remove: true })",
+        "db.x.initializeOrderedBulkOp().find({ tenant: undefined }).remove()",
+        "db.x.initializeOrderedBulkOp().find({ tenant: undefined }).updateOne({ $set: { a: 1 } })",
+        "db.x.bulkWrite([{ deleteMany: { filter: { tenant: undefined } } }])",
+        "db.x.bulkWrite([{ updateOne: { filter: { tenant: undefined }, update: { $set: { a: 1 } } } }])",
+    ] {
+        let (mut session, _) = super::prelude::session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains("valor undefined"), "{code}: {}", error.message);
+        assert_eq!(write_batches(&mut session), batches(&[]), "{code}");
+    }
+    let (mut session, _) = super::prelude::session();
+    run_ok(
+        &mut session,
+        "db.x.deleteMany({ tenant: null, at: new Date(0), id: ObjectId(), re: /a/ })",
+    );
+    assert_eq!(write_batches(&mut session), batches(&["delete:1"]));
 }

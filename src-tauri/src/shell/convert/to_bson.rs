@@ -31,7 +31,7 @@ fn to_bson<'js>(ctx: &Ctx<'js>, value: &Value<'js>, depth: usize) -> rquickjs::R
     match value.type_of() {
         Type::Uninitialized | Type::Undefined | Type::Null => Ok(Bson::Null),
         Type::Bool => Ok(Bson::Boolean(value.as_bool().unwrap_or_default())),
-        Type::Int | Type::Float => Ok(Bson::Double(value.as_number().unwrap_or_default())),
+        Type::Int | Type::Float => Ok(number(value.as_number().unwrap_or_default())),
         Type::String => Ok(Bson::String(String::from_js(ctx, value.clone())?)),
         Type::BigInt => big_int(ctx, value),
         Type::Array => array(ctx, value, depth),
@@ -51,6 +51,17 @@ fn to_bson<'js>(ctx: &Ctx<'js>, value: &Value<'js>, depth: usize) -> rquickjs::R
             &format!("no se puede convertir a BSON un valor {other}"),
         )),
     }
+}
+
+/// Como mongosh: los enteros que caben en 32 bits van como Int32 y el resto como Double. Así un
+/// `$set: {qty: 5}` no cambia el tipo de un campo Int32 ni falla un validador `bsonType: 'int'`.
+/// Un Double entero se escribe `Double(5)`.
+fn number(n: f64) -> Bson {
+    let is_int32 = n.fract() == 0.0
+        && n >= f64::from(i32::MIN)
+        && n <= f64::from(i32::MAX)
+        && !(n == 0.0 && n.is_sign_negative());
+    if is_int32 { Bson::Int32(n as i32) } else { Bson::Double(n) }
 }
 
 fn big_int<'js>(ctx: &Ctx<'js>, value: &Value<'js>) -> rquickjs::Result<Bson> {
@@ -109,6 +120,7 @@ fn tagged<'js>(
             Bson::Int64(text.parse().map_err(|_| invalid("entero no válido"))?)
         }
         BsonTag::NumberInt => Bson::Int32(obj.get(field::VALUE)?),
+        BsonTag::Double => Bson::Double(obj.get(field::VALUE)?),
         BsonTag::NumberDecimal => {
             let text: String = obj.get(field::VALUE)?;
             Bson::Decimal128(

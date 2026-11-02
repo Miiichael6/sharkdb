@@ -2,6 +2,7 @@ import { useCallback, useState, type MouseEvent } from "react";
 import type { ContextMenuItem } from "../../../../shared/ui/ContextMenu";
 import { useLog } from "../../../../shared/ui/useLog";
 import { formatValue, type DateZone } from "../../domain/bsonFormat";
+import { bsonValue, isContainer } from "../../domain/bsonValue";
 import { dottedPath, valueText, type KeyPath } from "../../domain/resultView";
 import { ResultMenuIcon, type ResultMenuAction } from "./ResultMenuIcon";
 
@@ -20,6 +21,8 @@ export interface ResultTarget {
 export interface DocumentEntries {
   manage: ContextMenuItem[];
   remove: ContextMenuItem[];
+  /** Menu of a result that can't be edited (projection, aggregate): only the entries that apply where it was clicked. */
+  compact?: boolean;
 }
 
 interface MenuState {
@@ -64,17 +67,23 @@ export function useResultMenu(zone: DateZone, documentEntries?: (target: ResultT
           resultItem("collapse", "Colapsar recursivamente", tree.collapse, { disabled: !tree.expandable }),
         ]
       : [];
-    const copyItems = [
+    const documentItems = documentEntries?.(target);
+    const copyFieldItems = [
       resultItem("copyValue", "Copiar valor", () => copy(valueText(target.value, zone))),
       resultItem("copyName", "Copiar nombre", () => copy(path[path.length - 1]), { disabled: isRoot }),
       resultItem("copyPath", "Copiar ruta", () => copy(dottedPath(path)), { disabled: isRoot }),
-      resultItem("copyJson", "Copiar JSON", () => copy(formatValue(target.value, zone))),
     ];
-    const documentItems = documentEntries?.(target);
+    const copyJson = resultItem("copyJson", "Copiar JSON", () => copy(formatValue(target.value, zone)));
+    // Compact: value / name / path on a field, "Copiar JSON" on a document, object or array.
+    const compact = documentItems?.compact;
+    const copyItems = compact
+      ? [...(isRoot ? [] : copyFieldItems), ...(isRoot || isContainer(bsonValue(target.value)) ? [copyJson] : [])]
+      : [...copyFieldItems, copyJson];
+    const sections = [treeItems, documentItems?.manage ?? [], copyItems, documentItems?.remove ?? []];
     setMenu({
       x: e.clientX,
       y: e.clientY,
-      items: withSeparators([treeItems, documentItems?.manage ?? [], copyItems, documentItems?.remove ?? []]),
+      items: withSeparators(compact ? sections.map((s) => s.filter((item) => !item.disabled)) : sections),
     });
   };
 

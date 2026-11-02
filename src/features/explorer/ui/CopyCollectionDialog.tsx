@@ -56,7 +56,7 @@ export function CopyCollectionDialog({ source, databases, onCopy, onClose }: Pro
           Copiar también los índices
         </label>
 
-        <p className="muted small">Si la colección de destino existe, se sustituye por la copia.</p>
+        <p className="muted small">Si la colección de destino ya existe, se pedirá confirmación antes de sustituirla por la copia.</p>
         {busy && <p className="muted small">Copiando en el servidor…</p>}
         {error && <p className="test error">{error}</p>}
         <div className="modal-footer">

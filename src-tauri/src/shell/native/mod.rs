@@ -6,6 +6,11 @@
 //! `find` y `aggregate` no esperan: lanzan la consulta en una tarea y devuelven el id al
 //! momento; se espera al leer el cursor. Así varias sentencias seguidas consultan en paralelo.
 //! Las escrituras esperan antes a las consultas en curso, para no adelantarse a ellas.
+//!
+//! Cortar una espera no para al servidor: un comando que escribe va en una sesión propia y, si se
+//! corta, se le pide al servidor que la mate (`killSessions`), para que un `updateMany` cancelado
+//! no siga escribiendo. Una agregación con `$out`/`$merge` no muere con su sesión: lleva un
+//! `comment` con el que se la busca en `currentOp` y se mata con `killOp`.
 
 mod cursors;
 mod options;
@@ -16,8 +21,9 @@ use std::future::Future;
 use std::rc::Rc;
 use std::time::Duration;
 
-use mongodb::bson::{Bson, Document};
-use mongodb::{Client, Cursor};
+use mongodb::bson::oid::ObjectId;
+use mongodb::bson::{Bson, Document, doc};
+use mongodb::{Client, ClientSession, Cursor};
 use rquickjs::{Array, Ctx, Exception, Function, Object, Value};
 use tokio::runtime::Handle;
 
@@ -36,6 +42,8 @@ use crate::safe_mode::{
 const CANCELLED: &str = "Operación cancelada";
 const TIMED_OUT: &str = "La operación superó el tiempo máximo";
 const CURSOR_CLOSED: &str = "El cursor ya no está abierto";
+/// Lo que se espera a que el servidor confirme que mató la escritura cortada.
+const KILL_TIMEOUT: Duration = Duration::from_secs(5);
 /// `name` de los errores que vienen del servidor o del driver.
 const MONGO_ERROR: &str = "MongoError";
 
@@ -81,18 +89,22 @@ impl MongoNatives {
         &self,
         future: impl Future<Output = Result<T, String>>,
     ) -> Result<T, String> {
+        self.wait_or_interrupted(future)
+            .unwrap_or_else(|reason| Err(interruption_message(reason).into()))
+    }
+
+    /// Como `wait_described`, pero distingue el corte (Err exterior) del fallo del servidor.
+    fn wait_or_interrupted<T>(
+        &self,
+        future: impl Future<Output = Result<T, String>>,
+    ) -> Result<Result<T, String>, Interruption> {
         let watchdog = self.watchdog.clone();
-        let outcome = self.handle.block_on(async move {
+        self.handle.block_on(async move {
             tokio::select! {
                 output = future => Ok(output),
                 reason = watchdog.interrupted() => Err(reason),
             }
-        });
-        match outcome {
-            Ok(result) => result,
-            Err(Interruption::Cancelled) => Err(CANCELLED.into()),
-            Err(Interruption::Timeout) => Err(TIMED_OUT.into()),
-        }
+        })
     }
 
     /// Lanza la apertura de un cursor sin esperarla.
@@ -161,22 +173,82 @@ impl MongoNatives {
         options: &Document,
     ) -> Result<CursorId, String> {
         self.safe_mode.check_pipeline(&pipeline)?;
-        let options = aggregate_options(options)?;
+        let mut options = aggregate_options(options)?;
         let collection = self.client.database(db).collection::<Document>(coll);
         if !is_write_pipeline(&pipeline) {
             return Ok(self.open(async move { collection.aggregate(pipeline, options).await }));
         }
         self.settle()?;
-        let cursor = self.query(collection.aggregate(pipeline, options))?;
+        // La marca con la que encontrarla en `currentOp` si se corta (o el `comment` del usuario).
+        let tag = options
+            .comment_bson
+            .get_or_insert_with(|| Bson::String(format!("sharkdb:{}", ObjectId::new())))
+            .clone();
+        let write = async { collection.aggregate(pipeline, options).await.map_err(describe) };
+        let outcome = self.query_clock.measure(|| self.wait_or_interrupted(write));
+        let cursor = outcome.unwrap_or_else(|reason| {
+            self.stop_aggregate_on_server(db, coll, tag);
+            Err(interruption_message(reason).into())
+        })?;
         Ok(self.cursors.borrow_mut().insert(Slot::Open(Box::new(cursor))))
     }
 
     fn run_command(&self, db: &str, command: Document) -> Result<Document, String> {
         self.safe_mode.check_command(&command)?;
-        if is_write_command(&command) {
-            self.settle()?;
+        if !is_write_command(&command) {
+            return self.query(self.client.database(db).run_command(command, None));
         }
-        self.query(self.client.database(db).run_command(command, None))
+        self.settle()?;
+        let database = self.client.database(db);
+        // Elegir servidor para la sesión también espera: se corta igual que una consulta.
+        let started = self
+            .wait_or_interrupted(async { Ok(self.client.start_session(None).await) })
+            .map_err(|reason| interruption_message(reason).to_string())?;
+        let Ok(Ok(mut session)) = started else {
+            return self.query(database.run_command(command, None));
+        };
+        let write = async { database.run_command_with_session(command, None, &mut session).await.map_err(describe) };
+        let outcome = self.query_clock.measure(|| self.wait_or_interrupted(write));
+        outcome.unwrap_or_else(|reason| {
+            self.stop_on_server(&session);
+            Err(interruption_message(reason).into())
+        })
+    }
+
+    /// Mata en el servidor lo que hace `session` (una escritura cortada) y anota el resultado para
+    /// el mensaje del script. El watchdog ya saltó, así que se espera con un plazo propio.
+    fn stop_on_server(&self, session: &ClientSession) {
+        let admin = self.client.database("admin");
+        let command = doc! { "killSessions": [session.id().clone()] };
+        let killed = self.handle.block_on(async {
+            tokio::time::timeout(KILL_TIMEOUT, async { admin.run_command(command, None).await.map(|_| true) }).await
+        });
+        self.note_stopped(killed);
+    }
+
+    /// Como `stop_on_server`, para una agregación con `$out`/`$merge` cortada: no va atada a una
+    /// sesión que se pueda matar, así que se busca en `currentOp` por su `comment` y se mata con
+    /// `killOp`.
+    fn stop_aggregate_on_server(&self, db: &str, coll: &str, tag: Bson) {
+        let filter = doc! { "command.aggregate": coll, "command.$db": db, "command.comment": tag };
+        let killed = self.handle.block_on(async {
+            tokio::time::timeout(KILL_TIMEOUT, kill_ops(&self.client, filter)).await
+        });
+        self.note_stopped(killed);
+    }
+
+    /// Anota para el mensaje del script si la escritura cortada se detuvo en el servidor.
+    fn note_stopped(&self, killed: Result<mongodb::error::Result<bool>, tokio::time::error::Elapsed>) {
+        let note = match killed {
+            Ok(Ok(true)) => "La escritura en curso se detuvo en el servidor; lo que ya hubiera aplicado no se deshace".into(),
+            Ok(Ok(false)) => "No se encontró la escritura en curso en el servidor: puede que ya hubiera terminado".into(),
+            Ok(Err(e)) => format!(
+                "La escritura en curso puede seguir ejecutándose en el servidor (no se pudo detener: {})",
+                describe(e)
+            ),
+            Err(_) => "La escritura en curso puede seguir ejecutándose en el servidor (no respondió al pedir que se detuviera)".into(),
+        };
+        self.watchdog.note_cut_write(note);
     }
 
     /// Lee hasta `size` documentos. Un cursor agotado, o que falla, se suelta (y se cierra).
@@ -192,6 +264,30 @@ impl MongoNatives {
             exhausted,
         })
     }
+}
+
+/// Mata con `killOp` las operaciones de `currentOp` que cumplen `filter`; `false` si no había
+/// ninguna. Sin permiso para ver las de todos (`inprog`), se buscan solo entre las propias
+/// (`$ownOps`), que cualquier usuario puede matar.
+async fn kill_ops(client: &Client, filter: Document) -> mongodb::error::Result<bool> {
+    let admin = client.database("admin");
+    let mut current = doc! { "currentOp": 1 };
+    current.extend(filter);
+    let reply = match admin.run_command(current.clone(), None).await {
+        Ok(reply) => reply,
+        Err(_) => {
+            current.insert("$ownOps", true);
+            admin.run_command(current, None).await?
+        }
+    };
+    let ops: Vec<Bson> = reply
+        .get_array("inprog")
+        .map(|ops| ops.iter().filter_map(|op| op.as_document()?.get("opid").cloned()).collect())
+        .unwrap_or_default();
+    for op in &ops {
+        admin.run_command(doc! { "killOp": 1, "op": op.clone() }, None).await?;
+    }
+    Ok(!ops.is_empty())
 }
 
 async fn read_batch(
@@ -284,6 +380,13 @@ impl MongoBridge for MongoNatives {
 
     fn take_query_time(&self) -> Option<Duration> {
         self.query_clock.take()
+    }
+}
+
+fn interruption_message(reason: Interruption) -> &'static str {
+    match reason {
+        Interruption::Cancelled => CANCELLED,
+        Interruption::Timeout => TIMED_OUT,
     }
 }
 

@@ -60,6 +60,7 @@ export function DeleteConfirmWindow({ request, where, onDone }: Props) {
           <p className="delete-loses">
             Se pierde: {request.loses} {IRREVERSIBLE}
           </p>
+          {request.warning && <p className="delete-warning">{request.warning}</p>}
         </div>
         {request.level === "typed" && <ConfirmWordField typed={typed} onChange={setTyped} />}
       </div>

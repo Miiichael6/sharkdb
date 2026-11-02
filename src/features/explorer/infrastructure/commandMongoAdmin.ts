@@ -47,8 +47,8 @@ export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {
     createCollection: (sid, db, name, opts = {}) => exec(sid, db, { create: name, ...opts }),
     dropCollection: (sid, db, name) => exec(sid, db, { drop: name }),
     dropDatabase: (sid, db) => exec(sid, db, { dropDatabase: 1 }),
-    renameCollection: (sid, db, from, to) =>
-      exec(sid, "admin", { renameCollection: `${db}.${from}`, to: `${db}.${to}` }),
+    renameCollection: (sid, db, from, to, dropTarget = false) =>
+      exec(sid, "admin", { renameCollection: `${db}.${from}`, to: `${db}.${to}`, ...(dropTarget && { dropTarget }) }),
     async collectionOptions(sid, db, coll) {
       const [entry] = firstBatch<CollectionEntry>(await run(sid, db, { listCollections: 1, filter: { name: coll } }));
       return entry?.options ?? {};
@@ -59,7 +59,8 @@ export function createCommandMongoAdmin(run: CommandRunner): MongoAdmin {
     dropIndex: (sid, db, coll, name) => exec(sid, db, { dropIndexes: coll, index: name }),
     rebuildIndexes: (sid, db, coll) => exec(sid, db, { reIndex: coll }),
 
-    runPipeline: (sid, db, coll, pipeline) => exec(sid, db, { aggregate: coll, pipeline, cursor: {} }),
+    runPipeline: (sid, db, coll, pipeline, opts = {}) => exec(sid, db, { aggregate: coll, pipeline, cursor: {}, ...opts }),
+    convertToCapped: (sid, db, coll, size) => exec(sid, db, { convertToCapped: coll, size }),
 
     createUser: (sid, db, spec) => exec(sid, db, createUserCommand(spec)),
     updateUser: (sid, db, spec) => exec(sid, db, updateUserCommand(spec)),

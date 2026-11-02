@@ -1,10 +1,11 @@
 import { setDiagnostics } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
 import { errorMessage } from "../../../shared/errors";
 import { CodeEditor } from "../../../shared/ui/CodeEditor";
 import { Spinner } from "../../../shared/ui/common";
+import { useEscapeDiscard } from "../../../shared/ui/useEscapeDiscard";
 import type { Doc } from "../../explorer/domain/mongo";
 import type { ScriptError } from "../../shell/domain/outcome";
 import { lineDiagnostic } from "../../shell/ui/errorMark";
@@ -25,7 +26,7 @@ const describe = (error: ScriptError) => (error.line ? `Línea ${error.line}: ${
 
 /**
  * Robo 3T's document editor, the content of its own window: shell syntax (`ObjectId(…)`, `ISODate(…)`…),
- * validated before it is saved. Escape closes it.
+ * validated before it is saved. Escape closes it, asking first if the text was changed.
  */
 export function DocumentEditorDialog({
   mode,
@@ -51,11 +52,7 @@ export function DocumentEditorDialog({
   const [busy, setBusy] = useState(false);
   const view = useRef<EditorView | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscapeDiscard(mode !== "view" && text !== initial, "El documento", onClose);
 
   /** The document the text describes, or null after marking why it isn't one. */
   async function validate(): Promise<Doc | null> {

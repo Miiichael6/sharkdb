@@ -90,7 +90,7 @@ describe("texts", () => {
   it("asks before cancelling, saying what is kept, with buttons that can't be mistaken", () => {
     const [op] = run([started("a")]);
     expect(cancelConfirmation(op)).toMatchObject({
-      message: "¿Cancelar la sincronización QA → local? Las colecciones ya copiadas se conservan; la que está a medias no se toca.",
+      message: "¿Cancelar la sincronización QA → local? El destino queda como estaba: no se reemplaza ninguna colección hasta que estén todas copiadas.",
       confirmLabel: "Detener la sincronización",
       dismissLabel: "Seguir",
     });

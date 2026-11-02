@@ -62,7 +62,7 @@ fn load_runs_a_file_relative_to_the_script_folder() {
     assert_eq!(value(&outcome), Some(Bson::Boolean(true)), "{outcome:?}");
     assert_eq!(
         value(&run_ok(&mut session, "loaded")),
-        Some(Bson::Double(42.0))
+        Some(Bson::Int32(42))
     );
 
     let error = session
@@ -84,6 +84,6 @@ fn hex_md5_and_bsonsize_match_the_classic_shell() {
     );
     assert_eq!(
         value(&run_ok(&mut session, "Object.bsonsize({})")),
-        Some(Bson::Double(5.0))
+        Some(Bson::Int32(5))
     );
 }

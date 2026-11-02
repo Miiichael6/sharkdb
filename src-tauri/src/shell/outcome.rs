@@ -76,6 +76,9 @@ pub enum ScriptOutput {
         #[serde(serialize_with = "canonical_all")]
         documents: Vec<Bson>,
         exhausted: bool,
+        /// Son documentos enteros de la colección (sin proyección, no de un aggregate) y se pueden
+        /// editar o eliminar desde el resultado.
+        editable: bool,
     },
 }
 

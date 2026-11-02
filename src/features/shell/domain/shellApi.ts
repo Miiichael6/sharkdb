@@ -12,6 +12,7 @@ export const GLOBALS = [
   "Date",
   "NumberLong",
   "NumberInt",
+  "Double",
   "NumberDecimal",
   "UUID",
   "BinData",

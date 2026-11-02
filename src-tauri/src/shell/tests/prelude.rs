@@ -42,10 +42,10 @@ fn cursor_modifiers_reach_find_as_options() {
     let find = first_call(&mut session);
     assert_eq!(find.get_str("db"), Ok(DB));
     assert_eq!(find.get_str("coll"), Ok("x"));
-    assert_eq!(find.get_document("filter"), Ok(&doc! { "a": 1.0 }));
+    assert_eq!(find.get_document("filter"), Ok(&doc! { "a": 1 }));
     assert_eq!(
         find.get_document("options"),
-        Ok(&doc! { "sort": { "_id": -1.0 }, "skip": 2.0, "limit": 5.0 })
+        Ok(&doc! { "sort": { "_id": -1 }, "skip": 2, "limit": 5 })
     );
 }
 
@@ -59,6 +59,7 @@ fn final_cursor_returns_first_batch_and_stays_open() {
             cursor_id,
             documents,
             exhausted,
+            editable,
         },
     ] = &outputs(&outcome)[..]
     else {
@@ -67,6 +68,7 @@ fn final_cursor_returns_first_batch_and_stays_open() {
     assert_eq!(ns, "test.x");
     assert_eq!(documents.len(), FIRST_BATCH_SIZE);
     assert!(!exhausted);
+    assert!(editable);
     assert_eq!(*bridge.retained.borrow(), vec![cursor_id.expect("id")]);
 
     let outcome = run_ok(&mut session, "db.x.find({}).limit(3)");
@@ -85,6 +87,19 @@ fn final_cursor_returns_first_batch_and_stays_open() {
     assert!(bridge.retained.borrow().is_empty());
 }
 
+#[test]
+fn projected_or_aggregate_cursor_is_not_editable() {
+    let (mut session, _) = session();
+    let editable = |session: &mut _, script| match &outputs(&run_ok(session, script))[..] {
+        [ScriptOutput::Cursor { editable, .. }] => *editable,
+        other => panic!("se esperaba un cursor: {other:?}"),
+    };
+    assert!(!editable(&mut session, "db.x.find({}, { a: 1 })"));
+    assert!(!editable(&mut session, "db.x.find({}).projection({ a: 0 })"));
+    assert!(editable(&mut session, "db.x.find({}, {})"));
+    assert!(!editable(&mut session, "db.x.aggregate([])"));
+}
+
 /// Ids `_id` del cursor que deja la última sentencia.
 fn cursor_ids(outcome: &ScriptOutcome) -> Vec<i32> {
     let [.., ScriptOutput::Cursor { documents, .. }] = &outputs(outcome)[..] else {
@@ -92,7 +107,7 @@ fn cursor_ids(outcome: &ScriptOutcome) -> Vec<i32> {
     };
     documents
         .iter()
-        .map(|d| d.as_document().unwrap().get_f64("_id").unwrap() as i32)
+        .map(|d| d.as_document().unwrap().get_i32("_id").unwrap())
         .collect()
 }
 
@@ -103,7 +118,7 @@ fn final_cursor_opens_asking_only_for_the_page() {
     let find = first_call(&mut page);
     assert_eq!(
         find.get_document("options"),
-        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as f64 })
+        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as i32 })
     );
 
     // Un lote menor que la página se sube a la página: la respuesta la trae entera.
@@ -112,7 +127,7 @@ fn final_cursor_opens_asking_only_for_the_page() {
     let find = first_call(&mut small);
     assert_eq!(
         find.get_document("options"),
-        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as f64 })
+        Ok(&doc! { "batchSize": FIRST_BATCH_SIZE as i32 })
     );
 
     let (mut large, _) = session();
@@ -120,7 +135,7 @@ fn final_cursor_opens_asking_only_for_the_page() {
     let find = first_call(&mut large);
     assert_eq!(
         find.get_document("options"),
-        Ok(&doc! { "batchSize": 500.0 })
+        Ok(&doc! { "batchSize": 500 })
     );
 }
 
@@ -131,7 +146,7 @@ fn final_cursor_keeps_what_the_script_already_read() {
     assert_eq!(cursor_ids(&outcome), (1..100).collect::<Vec<_>>());
 
     let outcome = run_ok(&mut session, "c.next()._id");
-    assert_eq!(value(&outcome), Some(Bson::Double(100.0)));
+    assert_eq!(value(&outcome), Some(Bson::Int32(100)));
 }
 
 #[test]
@@ -184,7 +199,7 @@ fn use_switches_db_for_the_rest_of_the_script() {
     let (mut session, _) = session();
     let outcome = run_ok(&mut session, "use otra; db.y.count()");
     assert_eq!(prints(&outcome), ["switched to db otra"]);
-    assert_eq!(value(&outcome), Some(Bson::Double(1.0)));
+    assert_eq!(value(&outcome), Some(Bson::Int32(1)));
     let count = first_call(&mut session);
     assert_eq!(count.get_str("db"), Ok("otra"));
     assert_eq!(
@@ -208,11 +223,11 @@ fn insert_one_sends_insert_command_and_returns_write_result() {
     };
     assert_eq!(
         value,
-        &Bson::Document(doc! { "acknowledged": true, "insertedId": 7.0 })
+        &Bson::Document(doc! { "acknowledged": true, "insertedId": 7 })
     );
     assert_eq!(
         first_call(&mut session).get_document("command"),
-        Ok(&doc! { "insert": "x", "documents": [{ "_id": 7.0, "a": "b" }], "ordered": true })
+        Ok(&doc! { "insert": "x", "documents": [{ "_id": 7, "a": "b" }], "ordered": true })
     );
 }
 

@@ -5,7 +5,9 @@ import {
   TARGET_COLL_REQUIRED,
   TARGET_DB_REQUIRED,
   TARGET_IS_SOURCE,
+  copyOptions,
   copyPipeline,
+  indexesAfterDocuments,
   indexesToCopy,
   validateCopy,
   type CopyRequest,
@@ -50,5 +52,27 @@ describe("copySpec", () => {
       { v: 2, name: "email_1", key: { email: 1 }, unique: true, ns: "shop.orders" },
     ];
     expect(indexesToCopy(indexes)).toEqual([{ name: "email_1", key: { email: 1 }, unique: true }]);
+  });
+
+  it("keeps the options $out preserves for the create, and the rest for afterwards", () => {
+    const plain = copyOptions({ validator: { a: 1 }, clusteredIndex: { key: { _id: 1 }, unique: true } });
+    expect(plain).toEqual({ create: { validator: { a: 1 }, clusteredIndex: { key: { _id: 1 }, unique: true } } });
+    expect(indexesAfterDocuments(plain)).toBe(false);
+
+    const capped = copyOptions({ capped: true, size: 1024, max: 0 });
+    expect(capped).toEqual({ create: {}, capped: { size: 1024 } });
+    expect(indexesAfterDocuments(capped)).toBe(true);
+
+    const ts = copyOptions({ timeseries: { timeField: "t" }, expireAfterSeconds: 5 });
+    expect(ts).toEqual({ timeseries: { timeField: "t" }, expireAfterSeconds: 5 });
+    expect(indexesAfterDocuments(ts)).toBe(true);
+
+    expect(copyOptions({ viewOn: "orders", pipeline: [] })).toEqual({ create: {} });
+  });
+
+  it("gives a time series target to $out in its full form", () => {
+    expect(copyPipeline(request({ coll: "m" }), { timeField: "t" })[1]).toEqual({
+      $out: { db: "shop", coll: "m", timeseries: { timeField: "t" } },
+    });
   });
 });

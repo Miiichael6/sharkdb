@@ -15,6 +15,57 @@
   const deleteStatement = (filter, justOne, rest = {}) =>
     compact({ q: filter, limit: justOne ? 1 : 0, ...rest });
 
+  const keysOf = (value) => (value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : null);
+
+  // Como mongosh: un update usa operadores `$` o es un pipeline, y un reemplazo no los usa. Sin
+  // esto, `updateOne(q, { status: 'x' })` reemplazaría el documento entero por `{ status: 'x' }`.
+  function checkUpdate(name, update) {
+    const keys = keysOf(update);
+    if (!Array.isArray(update) && !(keys?.length && keys.every((k) => k.startsWith('$')))) {
+      failWith('Error', `${name}: el update debe usar operadores $ (p. ej. { $set: {...} }) o ser un pipeline; para reemplazar el documento entero usa replaceOne`);
+    }
+    return update;
+  }
+
+  function checkReplacement(name, doc) {
+    const keys = keysOf(doc);
+    if (!keys || keys.some((k) => k.startsWith('$'))) {
+      failWith('Error', `${name}: el documento de reemplazo no puede usar operadores $; para modificar campos usa updateOne`);
+    }
+    return doc;
+  }
+
+  // Ruta del primer `undefined` dentro de `value`, o null. Los valores BSON (`_bsontype`), las
+  // fechas y las regex no se recorren.
+  function undefinedPath(value, path = '', depth = 0) {
+    if (value === undefined) return path;
+    if (value === null || typeof value !== 'object' || depth > 100) return null;
+    if (value._bsontype || value instanceof Date || value instanceof RegExp) return null;
+    for (const [key, child] of Object.entries(value)) {
+      const found = undefinedPath(child, path ? `${path}.${key}` : key, depth + 1);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+
+  // Un `undefined` en el filtro de una escritura llegaría como null, y `{ f: null }` también
+  // coincide con los documentos sin `f`: `deleteMany({ tenant: varMalEscrita })` los borraría.
+  function checkDefined(name, filter) {
+    const path = filter === undefined ? null : undefinedPath(filter);
+    if (path !== null) {
+      failWith('Error', `${name}: el filtro tiene un valor undefined en «${path}»; en MongoDB equivale a null y coincide también con los documentos sin ese campo (si es lo que quieres, usa null)`);
+    }
+    return filter;
+  }
+
+  // Como mongosh: borrar sin filtro es un error; para vaciar la colección hay que pedirlo con `{}`.
+  function checkFilter(name, filter) {
+    if (filter === undefined || filter === null) {
+      failWith('Error', `${name}: falta el filtro; para borrar todos los documentos pásalo vacío: ${name}({})`);
+    }
+    return checkDefined(name, filter);
+  }
+
   // Grupos { type, items, origin } que se mandan juntos. Ordenado: cada racha de operaciones
   // del mismo tipo, en su orden. No ordenado: un grupo por tipo.
   function groupsOf(operations, ordered) {
@@ -88,22 +139,22 @@
       return this;
     }
 
-    _update(update, multi) {
+    _update(name, update, multi) {
       const options = { upsert: this._upsert, multi, ...this._extra };
-      return this._bulk._add('update', updateStatement(this._filter, update, options));
+      return this._bulk._add('update', updateStatement(checkDefined(name, this._filter), update, options));
     }
 
-    update(update) { return this._update(update, true); }
-    updateOne(update) { return this._update(update, false); }
-    replaceOne(doc) { return this._update(doc, false); }
+    update(update) { return this._update('update', checkUpdate('update', update), true); }
+    updateOne(update) { return this._update('updateOne', checkUpdate('updateOne', update), false); }
+    replaceOne(doc) { return this._update('replaceOne', checkReplacement('replaceOne', doc), false); }
 
-    _delete(justOne) {
+    _delete(name, justOne) {
       const { collation, hint } = this._extra;
-      return this._bulk._add('delete', deleteStatement(this._filter, justOne, { collation, hint }));
+      return this._bulk._add('delete', deleteStatement(checkFilter(name, this._filter), justOne, { collation, hint }));
     }
 
-    remove() { return this._delete(false); }
-    removeOne() { return this._delete(true); }
+    remove() { return this._delete('remove', false); }
+    removeOne() { return this._delete('removeOne', true); }
     delete() { return this.remove(); }
     deleteOne() { return this.removeOne(); }
   }
@@ -139,11 +190,11 @@
   // Una operación de `bulkWrite` ({ insertOne: {...} }, { updateMany: {...} }...) → { type, item }.
   const BULK_WRITE_OPERATIONS = {
     insertOne: ({ document }) => ({ type: 'insert', item: withId(document) }),
-    updateOne: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(filter, update, { ...options, multi: false }) }),
-    updateMany: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(filter, update, { ...options, multi: true }) }),
-    replaceOne: ({ filter, replacement, ...options }) => ({ type: 'update', item: updateStatement(filter, replacement, { ...options, multi: false }) }),
-    deleteOne: ({ filter, ...options }) => ({ type: 'delete', item: deleteStatement(filter, true, options) }),
-    deleteMany: ({ filter, ...options }) => ({ type: 'delete', item: deleteStatement(filter, false, options) }),
+    updateOne: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite updateOne', filter), checkUpdate('bulkWrite updateOne', update), { ...options, multi: false }) }),
+    updateMany: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite updateMany', filter), checkUpdate('bulkWrite updateMany', update), { ...options, multi: true }) }),
+    replaceOne: ({ filter, replacement, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite replaceOne', filter), checkReplacement('bulkWrite replaceOne', replacement), { ...options, multi: false }) }),
+    deleteOne: ({ filter, ...options }) => ({ type: 'delete', item: deleteStatement(checkFilter('bulkWrite deleteOne', filter), true, options) }),
+    deleteMany: ({ filter, ...options }) => ({ type: 'delete', item: deleteStatement(checkFilter('bulkWrite deleteMany', filter), false, options) }),
   };
 
   function bulkOperation(operation, index) {
@@ -175,5 +226,5 @@
     });
   }
 
-  Object.assign(lib, { Bulk, bulkWrite, updateStatement, deleteStatement });
+  Object.assign(lib, { Bulk, bulkWrite, updateStatement, deleteStatement, checkUpdate, checkReplacement, checkFilter, checkDefined });
 });

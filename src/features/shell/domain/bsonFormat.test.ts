@@ -19,6 +19,14 @@ describe("formatValue", () => {
     expect(formatValue("a\"b", "utc")).toBe('"a\\"b"');
   });
 
+  it("writes regexes JS can't read back as BSONRegExp", () => {
+    const regex = (pattern: string, options: string) => formatValue({ $regularExpression: { pattern, options } }, "utc");
+    expect(regex("a/b", "im")).toBe('BSONRegExp("a/b", "im")');
+    expect(regex("a b", "x")).toBe('BSONRegExp("a b", "x")');
+    expect(regex("", "")).toBe('BSONRegExp("", "")');
+    expect(regex("^a", "ms")).toBe("/^a/ms");
+  });
+
   it("writes UUIDs and other binaries", () => {
     const uuid = { $binary: { base64: "ASNFZ4mrze8BI0VniavN7w==", subType: "04" } };
     expect(formatValue(uuid, "utc")).toBe('UUID("01234567-89ab-cdef-0123-456789abcdef")');

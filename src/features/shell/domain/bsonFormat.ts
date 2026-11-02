@@ -39,6 +39,15 @@ function binaryText(base64: string, subType: string): string {
   return uuid ? `UUID("${uuid}")` : `BinData(${parseInt(subType, 16)},"${base64}")`;
 }
 
+/**
+ * `/pattern/options` when JS can read it back; otherwise `BSONRegExp(…)`, for patterns with `/` or a
+ * line break (or empty, `//` being a comment) and for MongoDB-only options (x, l).
+ */
+function regexText(pattern: string, options: string): string {
+  const literal = pattern !== "" && !/[/\n\r]/.test(pattern) && /^[imsu]*$/.test(options);
+  return literal ? `/${pattern}/${options}` : `BSONRegExp(${JSON.stringify(pattern)}, ${JSON.stringify(options)})`;
+}
+
 const numberLong = (value: string) =>
   Math.abs(Number(value)) <= MAX_SAFE_LONG ? `NumberLong(${value})` : `NumberLong("${value}")`;
 
@@ -73,7 +82,7 @@ function scalarLiteral(v: Scalar, zone: DateZone): string {
     case "binary":
       return binaryText(v.base64, v.subType);
     case "regex":
-      return `/${v.pattern}/${v.options}`;
+      return regexText(v.pattern, v.options);
     case "timestamp":
       return `Timestamp(${v.t}, ${v.i})`;
     case "code":
@@ -108,8 +117,8 @@ function writeValue(raw: unknown, zone: DateZone, indent = ""): string {
 export const formatValue = (raw: unknown, zone: DateZone) => writeValue(raw, zone);
 
 /**
- * A document as text to edit, as Robo 3T shows it (dates in UTC). Int32 values are plain integers:
- * `markIntegers` turns them back into Int32 before the text is evaluated.
+ * A document as text to edit, as Robo 3T shows it (dates in UTC). Int32 values are plain integers and
+ * doubles carry a decimal part: `markNumbers` keeps both types when the text is evaluated.
  */
 export const formatEditable = (raw: unknown) => writeValue(raw, "utc");
 

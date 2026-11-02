@@ -32,7 +32,7 @@ export async function confirmDeleteInWindow(request: DeleteConfirmRequest): Prom
   const answer = await openModalWindow<boolean>(DELETE_CONFIRM_VIEW, request, {
     title: request.title,
     width: DELETE_WINDOW_WIDTH,
-    height: deleteWindowHeight(request.level),
+    height: deleteWindowHeight(request),
     resizable: false,
   });
   return answer === true;

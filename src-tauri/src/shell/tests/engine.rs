@@ -17,7 +17,7 @@ fn runs_loops_and_functions_and_collects_print() {
     );
     assert_eq!(outcome.error, None);
     assert_eq!(prints(&outcome), ["i = 1", "i = 2", "i = 3"]);
-    assert_eq!(value(&outcome), Some(Bson::Double(14.0)));
+    assert_eq!(value(&outcome), Some(Bson::Int32(14)));
 }
 
 #[test]
@@ -73,8 +73,8 @@ fn print_sends_its_values_only_when_something_is_not_text() {
             vec![],
             vec![
                 Bson::String("doc:".into()),
-                Bson::Document(mongodb::bson::doc! { "a": 1.0 }),
-                Bson::Array(vec![Bson::Double(2.0)]),
+                Bson::Document(mongodb::bson::doc! { "a": 1 }),
+                Bson::Array(vec![Bson::Int32(2)]),
                 Bson::Null,
             ],
             vec![],
@@ -102,7 +102,7 @@ fn globals_survive_between_runs() {
     assert_eq!(run(&mut engine, "var counter = 41;").error, None);
     assert_eq!(
         value(&run(&mut engine, "counter + 1")),
-        Some(Bson::Double(42.0))
+        Some(Bson::Int32(42))
     );
 }
 
@@ -149,7 +149,7 @@ fn infinite_loop_is_cut_by_timeout_and_engine_stays_usable() {
         Some(ScriptErrorKind::Timeout)
     );
     assert_eq!(prints(&outcome), ["antes"]);
-    assert_eq!(value(&run(&mut engine, "1 + 1")), Some(Bson::Double(2.0)));
+    assert_eq!(value(&run(&mut engine, "1 + 1")), Some(Bson::Int32(2)));
 }
 
 #[test]
@@ -195,9 +195,9 @@ fn each_expression_leaves_its_own_result_with_line_and_source() {
     assert_eq!(
         located_values(&outcome),
         [
-            (1, Bson::Double(2.0)),
+            (1, Bson::Int32(2)),
             (3, Bson::String("B".into())),
-            (4, Bson::Double(5.0)),
+            (4, Bson::Int32(5)),
         ]
     );
     let sources: Vec<_> = outcome.results.iter().map(|r| r.source.as_str()).collect();
@@ -211,7 +211,7 @@ fn a_leading_string_leaves_its_value() {
     assert_eq!(outcome.error, None);
     assert_eq!(
         located_values(&outcome),
-        [(1, Bson::String("hola".into())), (2, Bson::Double(2.0))]
+        [(1, Bson::String("hola".into())), (2, Bson::Int32(2))]
     );
 }
 
@@ -219,7 +219,7 @@ fn a_leading_string_leaves_its_value() {
 fn let_and_const_reach_the_next_statements() {
     let outcome = run(&mut engine(), "const x = 1;\nlet y = x + 1;\nx + y");
     assert_eq!(outcome.error, None);
-    assert_eq!(located_values(&outcome), [(3, Bson::Double(3.0))]);
+    assert_eq!(located_values(&outcome), [(3, Bson::Int32(3))]);
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn error_keeps_previous_results_and_reports_its_line() {
     let outcome = run(&mut engine(), "1;\n2;\n  noExiste();\n4;");
     assert_eq!(
         located_values(&outcome),
-        [(1, Bson::Double(1.0)), (2, Bson::Double(2.0))]
+        [(1, Bson::Int32(1)), (2, Bson::Int32(2))]
     );
     let error = outcome.error.expect("error");
     assert!(error.message.starts_with("ReferenceError"), "{}", error.message);
@@ -245,7 +245,7 @@ fn prints_belong_to_the_statement_that_printed_them() {
 fn function_declarations_are_hoisted() {
     let outcome = run(&mut engine(), "square(3)\nfunction square(n) { return n * n; }");
     assert_eq!(outcome.error, None);
-    assert_eq!(located_values(&outcome), [(1, Bson::Double(9.0))]);
+    assert_eq!(located_values(&outcome), [(1, Bson::Int32(9))]);
 }
 
 #[test]

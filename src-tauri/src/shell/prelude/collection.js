@@ -7,7 +7,7 @@
     num, compact, withChildren, failWith, withId, scaleOption,
     Cursor, ExplainQuery, verbosityOf,
     WriteResult, runWrites, failOnWriteErrors, updateResult,
-    Bulk, bulkWrite, updateStatement, deleteStatement,
+    Bulk, bulkWrite, updateStatement, deleteStatement, checkUpdate, checkReplacement, checkFilter, checkDefined,
   } = lib;
 
   const WATCH_UNSUPPORTED =
@@ -18,6 +18,34 @@
 
   const withIndexNames = (keyPatterns, options) =>
     keyPatterns.map((key) => ({ key, ...options, name: indexName(key) }));
+
+  // Firma del shell clásico `update(q, u, upsert, multi)`, además de la de opciones.
+  function updateOptions(options, multi) {
+    if (typeof options === 'boolean' || typeof multi === 'boolean') {
+      return { upsert: Boolean(options), multi: Boolean(multi) };
+    }
+    return options ?? {};
+  }
+
+  // `remove(q, true)` o `remove(q, { justOne: true, collation })`, como en el shell clásico.
+  function removeOptions(options) {
+    if (options !== null && typeof options === 'object') {
+      const { justOne = false, ...rest } = options;
+      return { justOne: Boolean(justOne), rest };
+    }
+    return { justOne: Boolean(options), rest: {} };
+  }
+
+  // Opciones de findOneAndUpdate/Replace (las de mongosh) → campos del comando findAndModify. El
+  // resto (`arrayFilters`, `collation`, `hint`...) se llaman igual en el comando y pasan tal cual;
+  // si el servidor no conoce alguna, falla en vez de ignorarla.
+  function findAndModifyOptions(name, { projection, returnDocument, returnNewDocument, ...rest }) {
+    if (returnDocument !== undefined && returnDocument !== 'before' && returnDocument !== 'after') {
+      failWith('Error', `${name}: returnDocument debe ser 'before' o 'after'`);
+    }
+    const returnNew = returnDocument === undefined ? returnNewDocument : returnDocument === 'after';
+    return { ...rest, fields: projection, new: returnNew };
+  }
 
   // Comando find con las opciones del cursor; es lo que se explica en `cursor.explain()`.
   const findCommand = (name, filter) => (options) => ({ find: name, filter, ...options });
@@ -71,6 +99,7 @@
         count: null,
         command: (cursorOptions) => aggregateCommand(this._name, stages)({ ...extra, ...cursorOptions }),
         run: (command) => this._run(command),
+        editable: false,
       });
     }
 
@@ -101,39 +130,58 @@
       return updateResult(this._write('update', [updateStatement(filter, update, options)]));
     }
 
-    updateOne(filter, update, options = {}) { return this._update(filter, update, { ...options, multi: false }); }
-    updateMany(filter, update, options = {}) { return this._update(filter, update, { ...options, multi: true }); }
-    replaceOne(filter, doc, options = {}) { return this._update(filter, doc, { ...options, multi: false }); }
-    update(filter, update, options = {}) { return this._update(filter, update, options); }
+    updateOne(filter, update, options = {}) {
+      return this._update(checkDefined('updateOne', filter), checkUpdate('updateOne', update), { ...options, multi: false });
+    }
 
-    _delete(filter, justOne) {
-      const summary = this._write('delete', [deleteStatement(filter, justOne)]);
+    updateMany(filter, update, options = {}) {
+      return this._update(checkDefined('updateMany', filter), checkUpdate('updateMany', update), { ...options, multi: true });
+    }
+
+    replaceOne(filter, doc, options = {}) {
+      return this._update(checkDefined('replaceOne', filter), checkReplacement('replaceOne', doc), { ...options, multi: false });
+    }
+
+    update(filter, update, options = {}, multi = undefined) {
+      return this._update(checkDefined('update', filter), update, updateOptions(options, multi));
+    }
+
+    _delete(filter, justOne, options = {}) {
+      const summary = this._write('delete', [deleteStatement(filter, justOne, options)]);
       return new WriteResult({ acknowledged: true, deletedCount: summary.counts.delete });
     }
 
-    deleteOne(filter) { return this._delete(filter, true); }
-    deleteMany(filter) { return this._delete(filter, false); }
-    remove(filter = {}, justOne = false) { return this._delete(filter, justOne); }
+    deleteOne(filter, options = {}) { return this._delete(checkFilter('deleteOne', filter), true, options); }
+    deleteMany(filter, options = {}) { return this._delete(checkFilter('deleteMany', filter), false, options); }
+
+    remove(filter, options = false) {
+      const { justOne, rest } = removeOptions(options);
+      return this._delete(checkFilter('remove', filter), justOne, rest);
+    }
 
     initializeOrderedBulkOp() { return new Bulk(this, true); }
     initializeUnorderedBulkOp() { return new Bulk(this, false); }
     bulkWrite(operations, options = {}) { return bulkWrite(this, operations, options); }
 
     findAndModify(spec) {
+      checkDefined('findAndModify', spec?.query);
       return this._run({ findAndModify: this._name, ...compact(spec) }).value ?? null;
     }
 
-    findOneAndUpdate(filter, update, options = {}) {
-      return this.findAndModify({
-        query: filter, update, sort: options.sort, fields: options.projection,
-        upsert: options.upsert, new: options.returnNewDocument,
-      });
+    _findAndUpdate(name, filter, update, options) {
+      return this.findAndModify({ query: checkDefined(name, filter), update, ...findAndModifyOptions(name, options) });
     }
 
-    findOneAndReplace(filter, doc, options = {}) { return this.findOneAndUpdate(filter, doc, options); }
+    findOneAndUpdate(filter, update, options = {}) {
+      return this._findAndUpdate('findOneAndUpdate', filter, checkUpdate('findOneAndUpdate', update), options);
+    }
 
-    findOneAndDelete(filter, options = {}) {
-      return this.findAndModify({ query: filter, sort: options.sort, fields: options.projection, remove: true });
+    findOneAndReplace(filter, doc, options = {}) {
+      return this._findAndUpdate('findOneAndReplace', filter, checkReplacement('findOneAndReplace', doc), options);
+    }
+
+    findOneAndDelete(filter, { projection, ...rest } = {}) {
+      return this.findAndModify({ query: checkDefined('findOneAndDelete', filter), ...rest, fields: projection, remove: true });
     }
 
     count(filter = {}, options = {}) {
@@ -255,12 +303,14 @@
       return this._explain({ distinct: this._collection.getName(), key, query: filter });
     }
 
-    update(filter, update, options = {}) {
-      return this._explain({ update: this._collection.getName(), updates: [updateStatement(filter, update, options)] });
+    update(filter, update, options = {}, multi = undefined) {
+      const statement = updateStatement(filter, update, updateOptions(options, multi));
+      return this._explain({ update: this._collection.getName(), updates: [statement] });
     }
 
-    remove(filter = {}, justOne = false) {
-      return this._explain({ delete: this._collection.getName(), deletes: [deleteStatement(filter, justOne)] });
+    remove(filter, options = false) {
+      const { justOne, rest } = removeOptions(options);
+      return this._explain({ delete: this._collection.getName(), deletes: [deleteStatement(checkFilter('remove', filter), justOne, rest)] });
     }
 
     findAndModify(spec) {

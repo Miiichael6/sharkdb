@@ -138,9 +138,9 @@ export const operationRoute = (op: Pick<Operation, "source" | "target">) => `${o
 
 /** What happens to the work already done when an operation is cancelled. */
 const CANCEL_EFFECTS: Record<OperationKind, string> = {
-  sync: "Las colecciones ya copiadas se conservan; la que está a medias no se toca.",
+  sync: "El destino queda como estaba: no se reemplaza ninguna colección hasta que estén todas copiadas.",
   backup: "Los archivos ya guardados se conservan; el de la colección a medias se descarta.",
-  restore: "Las colecciones ya restauradas se conservan; la que está a medias puede quedar incompleta.",
+  restore: "El destino queda como estaba: no se reemplaza ninguna colección hasta que estén todas restauradas.",
 };
 
 const CANCEL_NAMES: Record<OperationKind, string> = { sync: "la sincronización", backup: "el backup", restore: "el restore" };

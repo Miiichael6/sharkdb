@@ -2,7 +2,7 @@
 //! (cancelación desde otro hilo o tiempo agotado), recuerda el motivo para el mensaje de error.
 //! Las esperas nativas al servidor no pasan por QuickJS: se cortan con `interrupted()`.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,6 +24,8 @@ pub struct Watchdog {
     cancel: Arc<AtomicBool>,
     deadline: Rc<Cell<Option<Instant>>>,
     fired: Rc<Cell<Option<Interruption>>>,
+    /// Qué pasó con la escritura que estaba en el servidor cuando se cortó, para el mensaje.
+    cut_write: Rc<RefCell<Option<String>>>,
 }
 
 impl Watchdog {
@@ -33,6 +35,7 @@ impl Watchdog {
             cancel,
             deadline: Rc::default(),
             fired: Rc::default(),
+            cut_write: Rc::default(),
         }
     }
 
@@ -40,6 +43,7 @@ impl Watchdog {
     pub fn arm(&self, timeout: Duration) {
         self.cancel.store(false, Ordering::SeqCst);
         self.fired.set(None);
+        self.cut_write.replace(None);
         self.deadline.set(Some(Instant::now() + timeout));
     }
 
@@ -50,6 +54,16 @@ impl Watchdog {
     /// Motivo por el que se cortó el último script, si se cortó.
     pub fn fired(&self) -> Option<Interruption> {
         self.fired.get()
+    }
+
+    /// Anota qué pasó en el servidor con una escritura cortada a medias.
+    pub fn note_cut_write(&self, note: String) {
+        self.cut_write.replace(Some(note));
+    }
+
+    /// La nota de `note_cut_write` del último script, si se cortó una escritura.
+    pub fn cut_write(&self) -> Option<String> {
+        self.cut_write.borrow().clone()
     }
 
     pub fn interrupt_handler(&self) -> InterruptHandler {

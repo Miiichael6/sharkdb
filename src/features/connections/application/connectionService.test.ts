@@ -44,6 +44,24 @@ describe("connectionService", () => {
     expect(gateway.open).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null, true);
   });
 
+  it("opens in safe mode a connection on the server of a protected one", async () => {
+    const { service, gateway } = setup();
+    const prod = { ...newConnection(), protected: true };
+    const copy = newConnection();
+    const session = await service.open(copy, [prod, copy]);
+    expect(session.safeMode).toBe(true);
+    expect(gateway.open).toHaveBeenCalledWith(copy.id, "mongodb://localhost:27017/", null, true);
+    const { session: borrowed } = await service.borrow(copy, [prod, copy]);
+    expect(borrowed.safeMode).toBe(true);
+  });
+
+  it("opens a connection on another server than the protected one normally", async () => {
+    const { service } = setup();
+    const prod = { ...newConnection(), protected: true, host: "prod.example.com" };
+    const local = newConnection();
+    expect((await service.open(local, [prod, local])).safeMode).toBe(false);
+  });
+
   it("switches safe mode in the backend before reporting it", async () => {
     const { service, gateway } = setup();
     const session = await service.open(newConnection());

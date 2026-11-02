@@ -1,19 +1,24 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
 import type { TargetWhere } from "../../../shared/domain/documentTarget";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { WhereBar } from "../../connections/ui/WhereBar";
 import { CodeEditor } from "../../../shared/ui/CodeEditor";
 import { Spinner } from "../../../shared/ui/common";
-import { CycleButton, type CycleOption } from "../../../shared/ui/CycleButton";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { useEscapeDiscard } from "../../../shared/ui/useEscapeDiscard";
+import { CycleButton, type CycleOption, type CycleTone } from "../../../shared/ui/CycleButton";
 import type { CollectionRef } from "../domain/copySpec";
 import type { Doc } from "../domain/mongo";
-import type {
-  CollectionValidation,
-  ExtraFields,
-  ValidationAction,
-  ValidationLevel,
-  ValidationSettings,
+import {
+  removeValidationRequest,
+  VALIDATION_LEVELS,
+  validationActions,
+  type CollectionValidation,
+  type ExtraFields,
+  type ValidationAction,
+  type ValidationLevel,
+  type ValidationSettings,
 } from "../domain/validation";
 import { useSubmit } from "./useSubmit";
 
@@ -34,30 +39,30 @@ export interface ValidationWindowResult {
   removed: boolean;
 }
 
-const LEVELS: CycleOption<ValidationLevel>[] = [
-  { value: "moderate", tone: "amber" },
-  { value: "strict", tone: "red" },
-];
-const ACTIONS: CycleOption<ValidationAction>[] = [
-  { value: "error", tone: "red" },
-  { value: "warn", tone: "amber" },
-];
+const LEVEL_TONES: Record<ValidationLevel, CycleTone> = { off: "green", moderate: "amber", strict: "red" };
+const ACTION_TONES: Record<ValidationAction, CycleTone> = { error: "red", warn: "amber", errorAndLog: "red" };
+const withTones = <T extends string>(values: T[], tones: Record<T, CycleTone>): CycleOption<T>[] =>
+  values.map((value) => ({ value, tone: tones[value] }));
+
+const LEVELS = withTones(VALIDATION_LEVELS, LEVEL_TONES);
 const EXTRA_FIELDS: CycleOption<ExtraFields>[] = [
   { value: "rechazar", tone: "red" },
   { value: "permitir", tone: "green" },
 ];
 
 const LEVEL_HINTS: Record<ValidationLevel, string> = {
+  off: "off: no valida nada; el esquema queda guardado",
   strict: "strict: valida todo insert y update",
   moderate: "moderate: los documentos viejos que ya no cumplen se pueden seguir editando",
 };
 const ACTION_HINTS: Record<ValidationAction, string> = {
   error: "error: rechaza el documento que no cumple",
   warn: "warn: lo guarda igual y lo anota en el log del servidor",
+  errorAndLog: "errorAndLog: lo rechaza y además lo anota en el log del servidor",
 };
 const EXTRA_FIELD_HINTS: Record<ExtraFields, string> = {
-  rechazar: "rechazar: solo se admiten los campos del esquema (y _id)",
-  permitir: "permitir: se admiten campos que el esquema no lista",
+  rechazar: "rechazar: en la raíz solo se admiten los campos del esquema (y _id)",
+  permitir: "permitir: en la raíz se admiten campos que el esquema no lista",
 };
 
 const pretty = (rule: Doc | null) => (rule ? JSON.stringify(rule, null, 2) : "");
@@ -77,14 +82,16 @@ export function ValidationWindow({
   const { collection, where, initial, readOnly } = data;
   const [text, setText] = useState(() => pretty(initial.rule));
   const [settings, setSettings] = useState<ValidationSettings>(initial);
+  const actions = withTones(validationActions(initial.action), ACTION_TONES);
   const change = (patch: Partial<ValidationSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const close = () => onDone(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDone(null);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
+  const dirty =
+    text !== pretty(initial.rule) ||
+    settings.level !== initial.level ||
+    settings.action !== initial.action ||
+    settings.extraFields !== initial.extraFields;
+  useEscapeDiscard(!readOnly && dirty, "La validación", close);
 
   /** The editor's text as a document; shell syntax (unquoted keys, trailing commas…) is accepted. */
   const parsedRule = async (): Promise<Doc> => {
@@ -99,6 +106,7 @@ export function ValidationWindow({
     onDone({ removed: false });
   });
   const remove = useSubmit(async () => {
+    if (!(await confirmInWindow(removeValidationRequest(where)))) return;
     await explorer.removeValidation(collection);
     onDone({ removed: true });
   });
@@ -120,7 +128,7 @@ export function ValidationWindow({
           <CycleButton label="Nivel" options={LEVELS} value={settings.level} onChange={(level) => change({ level })} />
         </ValidationOption>
         <ValidationOption title="Acción" hint={ACTION_HINTS[settings.action]}>
-          <CycleButton label="Acción" options={ACTIONS} value={settings.action} onChange={(action) => change({ action })} />
+          <CycleButton label="Acción" options={actions} value={settings.action} onChange={(action) => change({ action })} />
         </ValidationOption>
         <ValidationOption title="Campos extra" hint={EXTRA_FIELD_HINTS[settings.extraFields]}>
           <CycleButton

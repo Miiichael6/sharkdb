@@ -10,7 +10,7 @@ use mongodb::options::FindOptions;
 
 use super::target::ensure_distinct_collections;
 use crate::backup::source::{collection_uuid, read_metadata};
-use crate::backup::staging::{Destination, new_run, replace_through_staging, staging_name};
+use crate::backup::staging::{Destination, Replacements, new_run, staging_name};
 use crate::backup::writer::{self, BatchWriter};
 use crate::jobs::CancelFlag;
 use crate::jobs::report::{CollectionResult, Progress};
@@ -26,8 +26,21 @@ pub struct DatabaseCopy {
     pub collections: Vec<String>,
 }
 
-/// Reemplaza las colecciones de cada `copies` en el destino, en un solo trabajo.
+/// Reemplaza las colecciones de cada `copies` en el destino, en un solo trabajo: no se reemplaza
+/// ninguna hasta que todas se copiaron.
 pub async fn sync(
+    destination: &Destination<'_>,
+    copies: &[DatabaseCopy],
+    cancel: &CancelFlag,
+    report: impl Fn(Progress),
+) -> Result<Vec<CollectionResult>, String> {
+    let mut replacements = Replacements::new(destination);
+    let copied = copy_all(&mut replacements, destination, copies, cancel, report).await;
+    replacements.finish(copied).await
+}
+
+async fn copy_all(
+    replacements: &mut Replacements<'_>,
     destination: &Destination<'_>,
     copies: &[DatabaseCopy],
     cancel: &CancelFlag,
@@ -43,13 +56,15 @@ pub async fn sync(
         destination.safe_mode.ensure_writable()?;
         let label = collection_label(copy.target.name(), collection);
         let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
-        let result = sync_collection(destination, copy, collection, &run, cancel, progress).await?;
+        let result = sync_collection(replacements, destination, copy, collection, &run, cancel, progress).await?;
         results.push(CollectionResult { collection: label, ..result });
     }
+    cancel.check()?;
     Ok(results)
 }
 
 async fn sync_collection(
+    replacements: &mut Replacements<'_>,
     destination: &Destination<'_>,
     copy: &DatabaseCopy,
     collection: &str,
@@ -64,7 +79,7 @@ async fn sync_collection(
     )?;
     let staging = staging_name(collection, run);
     let fill = copy_into(destination, &copy.source, target, collection, &staging, cancel, progress);
-    replace_through_staging(destination, target, collection, &staging, fill).await
+    replacements.stage(target, collection, &staging, fill).await
 }
 
 /// Copia documentos e índices de `collection` del origen a `staging` en el destino.

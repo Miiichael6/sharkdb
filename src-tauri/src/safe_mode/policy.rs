@@ -42,8 +42,66 @@ const WRITE_COMMANDS: &[&str] = &[
     "revokeprivilegesfromrole",
     "grantrolestorole",
     "revokerolesfromrole",
-    // operaciones del servidor: matar una operación ajena interrumpe su escritura
+    // índices de Atlas Search
+    "createsearchindexes",
+    "updatesearchindex",
+    "dropsearchindex",
+    // operaciones, sesiones y transacciones ajenas: matarlas interrumpe sus escrituras
     "killop",
+    "killcursors",
+    "killsessions",
+    "killallsessions",
+    "killallsessionsbypattern",
+    "aborttransaction",
+    "committransaction",
+    "dropconnections",
+    // configuración y estado del servidor
+    "shutdown",
+    "fsync",
+    "fsyncunlock",
+    "setparameter",
+    "setclusterparameter",
+    "setfeaturecompatibilityversion",
+    "setdefaultrwconcern",
+    "setuserwriteblockmode",
+    "setindexcommitquorum",
+    "logrotate",
+    "rotatecertificates",
+    "plancacheclear",
+    "plancacheclearfilters",
+    "plancachesetfilter",
+    // replica set
+    "replsetinitiate",
+    "replsetreconfig",
+    "replsetstepdown",
+    "replsetfreeze",
+    "replsetmaintenance",
+    "replsetsyncfrom",
+    "replsetresizeoplog",
+    "replsetabortprimarycatchup",
+    // sharding
+    "addshard",
+    "removeshard",
+    "enablesharding",
+    "shardcollection",
+    "unshardcollection",
+    "reshardcollection",
+    "commitreshardcollection",
+    "abortreshardcollection",
+    "refinecollectionshardkey",
+    "movechunk",
+    "moverange",
+    "moveprimary",
+    "movecollection",
+    "split",
+    "mergechunks",
+    "mergeallchunksonshard",
+    "clearjumboflag",
+    "cleanuporphaned",
+    "balancerstart",
+    "balancerstop",
+    "configurecollectionbalancing",
+    "setallowmigrations",
     // ejecución de código arbitrario en el servidor
     "eval",
     "$eval",
@@ -54,6 +112,7 @@ const WRITE_STAGES: &[&str] = &["$out", "$merge"];
 
 const AGGREGATE: &str = "aggregate";
 const MAP_REDUCE: &str = "mapreduce";
+const EXPLAIN: &str = "explain";
 
 /// El nombre del comando es su primera clave.
 fn command_name(command: &Document) -> Option<String> {
@@ -71,6 +130,8 @@ pub fn is_write_command(command: &Document) -> bool {
             .map(|stages| stages.iter().any(is_write_stage))
             .unwrap_or(false),
         MAP_REDUCE => !is_inline_output(command.get("out")),
+        // Se juzga por lo que explica: así no hay que fiarse de qué verbosidades ejecutan.
+        EXPLAIN => command.get_document(EXPLAIN).is_ok_and(is_write_command),
         _ => WRITE_COMMANDS.contains(&name.as_str()),
     }
 }
@@ -109,6 +170,9 @@ mod tests {
             doc! { "dbStats": 1 },
             doc! { "aggregate": "x", "pipeline": [{ "$match": {} }], "cursor": {} },
             doc! { "mapReduce": "x", "out": { "inline": 1 } },
+            doc! { "explain": { "find": "x", "filter": {} }, "verbosity": "executionStats" },
+            doc! { "serverStatus": 1 },
+            doc! { "getParameter": 1, "notablescan": 1 },
             doc! {},
         ] {
             assert!(!is_write_command(&command), "{command}");
@@ -133,9 +197,43 @@ mod tests {
             doc! { "grantRolesToUser": "u", "roles": [] },
             doc! { "killOp": 1, "op": 12 },
             doc! { "mapReduce": "x", "out": "y" },
+            doc! { "shutdown": 1 },
+            doc! { "fsync": 1, "lock": true },
+            doc! { "replSetStepDown": 60 },
+            doc! { "setFeatureCompatibilityVersion": "7.0" },
+            doc! { "setParameter": 1, "notablescan": true },
+            doc! { "killAllSessions": [] },
+            doc! { "abortTransaction": 1 },
+            doc! { "shardCollection": "a.x", "key": { "_id": 1 } },
+            doc! { "dropSearchIndex": "x", "name": "s" },
+            doc! { "planCacheClear": "x" },
+            doc! { "dropConnections": 1, "hostAndPort": [] },
+            doc! { "setDefaultRWConcern": 1 },
+            doc! { "cleanupOrphaned": "a.x" },
         ] {
             assert!(is_write_command(&command), "{command}");
         }
+    }
+
+    #[test]
+    fn the_list_is_in_lowercase() {
+        for name in WRITE_COMMANDS {
+            assert_eq!(*name, name.to_lowercase());
+        }
+    }
+
+    #[test]
+    fn explain_is_judged_by_the_command_it_explains() {
+        for inner in [
+            doc! { "update": "x", "updates": [{ "q": {}, "u": { "$set": { "a": 1 } } }] },
+            doc! { "delete": "x", "deletes": [{ "q": {}, "limit": 0 }] },
+            doc! { "findAndModify": "x", "remove": true },
+            doc! { "aggregate": "x", "pipeline": [{ "$out": "y" }], "cursor": {} },
+        ] {
+            let command = doc! { "explain": inner, "verbosity": "executionStats" };
+            assert!(is_write_command(&command), "{command}");
+        }
+        assert!(!is_write_command(&doc! { "explain": "x" }));
     }
 
     #[test]

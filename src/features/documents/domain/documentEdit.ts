@@ -7,6 +7,7 @@ const ID_FIELD = "_id";
 export const NO_ID = "El documento no tiene _id";
 export const ID_CHANGED = "No se puede cambiar el _id de un documento";
 export const DOCUMENT_GONE = "El documento ya no existe: otro proceso lo eliminó o cambió su _id";
+export const DOCUMENT_CHANGED = "Otro proceso modificó el documento desde que lo abriste";
 
 /** Server code of a write the collection's validator (`$jsonSchema`) refused. */
 const DOCUMENT_VALIDATION_FAILURE = 121;

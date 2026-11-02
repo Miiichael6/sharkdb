@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIRM_WORD, confirmWindowHeight, confirmationMatches } from "./confirmation";
+import { CONFIRM_WORD, confirmWindowHeight, confirmationMatches, discardChangesRequest } from "./confirmation";
 
 describe("confirmWindowHeight", () => {
   it("fits one line", () => {
@@ -33,5 +33,13 @@ describe("confirmationMatches", () => {
     expect(confirmationMatches("confirmar")).toBe(false);
     expect(confirmationMatches("con firmo")).toBe(false);
     expect(confirmationMatches("")).toBe(false);
+  });
+});
+
+describe("discardChangesRequest", () => {
+  it("names what would be lost and offers to discard it", () => {
+    const request = discardChangesRequest("El documento");
+    expect(request).toMatchObject({ title: "Cambios sin guardar", confirmLabel: "Descartar" });
+    expect(request.message).toMatch(/^El documento tiene cambios sin guardar/);
   });
 });

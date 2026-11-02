@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildUri, favoritesOf, fieldsFromUri, maskUri, newConnection, parseUri, type MongoConnection } from "./connection";
+import { buildUri, favoritesOf, fieldsFromUri, maskUri, newConnection, parseUri, protectedAmong, protectedTwin, serverAddresses, type MongoConnection } from "./connection";
 
 const conn = (patch: Partial<MongoConnection> = {}): MongoConnection => ({ ...newConnection(), ...patch });
 
@@ -90,5 +90,48 @@ describe("favoritesOf", () => {
     const shop = { ...newConnection(), favoriteDatabases: ["shop"] };
     expect(favoritesOf([shop], shop.id)).toEqual(["shop"]);
     expect(favoritesOf([shop], "other")).toEqual([]);
+  });
+});
+
+describe("serverAddresses", () => {
+  it("normalizes hosts, ports and loopbacks", () => {
+    expect(serverAddresses(conn({ host: "127.0.0.1", port: 27017 }))).toEqual(["localhost:27017"]);
+    expect(serverAddresses(conn({ mode: "uri", uri: "mongodb://u:p@DB1.corp,[::1]:27018/app?replicaSet=rs" }))).toEqual([
+      "db1.corp:27017",
+      "localhost:27018",
+    ]);
+    expect(serverAddresses(conn({ host: "cluster0.abc.net", srv: true }))).toEqual(["srv:cluster0.abc.net"]);
+    expect(serverAddresses(conn({ mode: "uri", uri: "mongodb+srv://cluster0.abc.net/" }))).toEqual(["srv:cluster0.abc.net"]);
+  });
+
+  it("puts tunnelled hosts behind their SSH server", () => {
+    const tunnelled = conn({ ssh: { ...newConnection().ssh, enabled: true, host: "Bastion", port: 2222 } });
+    expect(serverAddresses(tunnelled)).toEqual(["ssh:bastion:2222>localhost:27017"]);
+  });
+});
+
+describe("protectedAmong", () => {
+  const prod = { ...newConnection(), name: "Prod", protected: true, host: "db.example.com" };
+
+  it("is true for a protected connection", () => {
+    expect(protectedAmong(prod, [prod])).toBe(true);
+  });
+
+  it("is true for an unmarked copy on the same server, which names its twin", () => {
+    const copy = { ...newConnection(), mode: "uri" as const, uri: "mongodb://DB.example.com:27017/app" };
+    expect(protectedAmong(copy, [prod, copy])).toBe(true);
+    expect(protectedTwin(copy, [prod, copy])).toBe(prod);
+  });
+
+  it("is false on another server, or when the twin is only tagged production", () => {
+    const other = { ...newConnection(), host: "dev.example.com" };
+    expect(protectedAmong(other, [prod, other])).toBe(false);
+    const tagged = { ...prod, id: "tagged", protected: false, tag: "production" as const };
+    const copy = { ...newConnection(), host: "db.example.com" };
+    expect(protectedAmong(copy, [tagged, copy])).toBe(false);
+  });
+
+  it("is not its own twin", () => {
+    expect(protectedTwin(prod, [prod])).toBeUndefined();
   });
 });

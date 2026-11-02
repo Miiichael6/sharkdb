@@ -1,5 +1,5 @@
 // Registered connections offered as one end of sync, backup or restore: a closed one is connected when chosen.
-import { displayName, neverModified, type MongoConnection, type Tag } from "./connection";
+import { displayName, neverModified, neverModifiedAmong, type MongoConnection, type Tag } from "./connection";
 import type { Session } from "./session";
 
 export interface ConnectionOption {
@@ -45,12 +45,13 @@ export const sourceOptions = (connections: MongoConnection[], sessions: Session[
   connectionOptions(connections, sessions, "").map(({ blocked: _, ...source }) => source);
 
 /**
- * Connections offered to write to: every registered one but `exceptId`; protected or production ones
- * never appear (D7), open or closed, so nothing is ever written into production.
+ * Connections offered to write to: every registered one but `exceptId`; protected or production ones,
+ * and those pointing at the same server, never appear (D7), open or closed, so nothing is ever
+ * written into production.
  */
 export const targetOptions = (connections: MongoConnection[], sessions: Session[], exceptId = "") =>
   connectionOptions(
-    connections.filter((conn) => !neverModified(conn)),
+    connections.filter((conn) => !neverModifiedAmong(conn, connections)),
     sessions,
     exceptId,
   );

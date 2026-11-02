@@ -64,7 +64,7 @@ function App() {
    * to show asks for its databases first, and isn't added (it closes) when that is cancelled.
    */
   const openSession = async (conn: MongoConnection) => {
-    const session = await service.open(conn);
+    const session = await service.open(conn, connections);
     explorer.setFavorites(conn.id, conn.favoriteDatabases);
     if (!explorer.hasPinned(conn.id)) {
       const chosen = await chooseDatabases(session, true).catch(async (e) => {
@@ -108,7 +108,7 @@ function App() {
     const conn = connections.find((c) => c.id === id);
     if (!conn) throw "La conexión ya no existe";
     try {
-      return await service.borrow(conn);
+      return await service.borrow(conn, connections);
     } catch (e) {
       log.error(`No se pudo conectar a ${displayName(conn)}`, e);
       throw e;

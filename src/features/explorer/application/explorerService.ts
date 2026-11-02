@@ -1,13 +1,19 @@
 import {
+  COPY_PIPELINE_OPTIONS,
+  copyOptions,
   copyPipeline,
+  copyStagingName,
   duplicateRequest,
+  indexesAfterDocuments,
   indexesToCopy,
   TARGET_EXISTS,
+  TIMESERIES_TARGET_EXISTS,
   validateCopy,
   type CollectionRef,
+  type CopyOptions,
   type CopyRequest,
 } from "../domain/copySpec";
-import { creatableSpec } from "../domain/indexSpec";
+import { creatableSpec, inPlaceIndexChange } from "../domain/indexSpec";
 import { SYSTEM_DATABASES, type CollectionEntry, type Doc, type IndexSpec } from "../domain/mongo";
 import { hasUserDatabases, visibleDatabases, type VisibleDatabase } from "../domain/pinnedDatabases";
 import { childNode, withSystemFolder, type TreeNode } from "../domain/tree";
@@ -19,11 +25,15 @@ import {
   type CollectionValidation,
   type ValidationSettings,
 } from "../domain/validation";
+import { errorMessage } from "../../../shared/errors";
 import type { MongoAdmin } from "./ports";
+
+/** Index keys are ordered: `{ a: 1, b: 1 }` and `{ b: 1, a: 1 }` are different indexes. */
+const sameKey = (a: Doc, b: Doc) => JSON.stringify(a) === JSON.stringify(b);
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
 
-export function createExplorerService(admin: MongoAdmin) {
+export function createExplorerService(admin: MongoAdmin, newId: () => string = () => crypto.randomUUID()) {
   // What the explorer shows of each connection (by session id): its saved favorites, and the
   // temporary databases opened during this run, which are never saved.
   const favorites = new Map<string, string[]>();
@@ -88,47 +98,107 @@ export function createExplorerService(admin: MongoAdmin) {
   }
 
   /**
-   * MongoDB can't modify an index in place, so (like Robo 3T) edit = drop + create. If the new
-   * index fails to build, the original one is restored.
+   * A change of only the TTL or `hidden` is made in place (`collMod`), keeping the index. Anything
+   * else MongoDB can't modify in place. With a different key and name the new index is built
+   * before the old one is dropped, so the collection is never left without one of them: losing a
+   * `unique` index lets duplicates in. Otherwise the server doesn't allow both (same key: "already
+   * exists with a different name"; same name: "already exists with different options"), so it's
+   * drop + create, restoring the original if the build fails.
    */
   async function replaceIndex(sid: string, db: string, coll: string, old: IndexSpec, next: IndexSpec) {
+    const inPlace = inPlaceIndexChange(coll, old, next);
+    if (inPlace) {
+      if (Object.keys(inPlace.index as Doc).length > 1) await admin.modifyCollection(sid, db, inPlace);
+      return;
+    }
+    const spec = creatableSpec(next);
+    if (!sameKey(old.key, next.key) && next.name !== old.name) {
+      await admin.createIndex(sid, db, coll, spec);
+      await admin.dropIndex(sid, db, coll, old.name);
+      return;
+    }
     await admin.dropIndex(sid, db, coll, old.name);
     try {
-      await admin.createIndex(sid, db, coll, next);
+      await admin.createIndex(sid, db, coll, spec);
     } catch (e) {
-      await admin.createIndex(sid, db, coll, creatableSpec(old)).catch(() => {});
+      try {
+        await admin.createIndex(sid, db, coll, creatableSpec(old));
+      } catch (restore) {
+        throw `${errorMessage(e)}. Tampoco se pudo restaurar el índice original “${old.name}” (${errorMessage(restore)}): la colección se quedó sin él`;
+      }
       throw e;
     }
   }
 
+  /** Whether the copy's destination already exists, so copying would replace it. */
+  async function copyTargetExists(request: CopyRequest): Promise<boolean> {
+    const { source, target } = validateCopy(request);
+    const existing = await admin.listCollections(source.sid, target.db);
+    return existing.some((c) => c.name === target.coll);
+  }
+
   /**
-   * Copies a collection to another database of the same server, replacing the target: the server
-   * does it (`$out`). Indexes are recreated afterwards if asked. Resolves with the documents in the target.
+   * Copies a collection to another database of the same server: the server does it (`$out`).
+   * The copy is built in a new collection, created with the source's options (`copyOptions`) and,
+   * when it can, given the indexes before the documents; a failure leaves nothing half done: that
+   * collection is dropped. An existing target is only replaced with `replace` (after the user
+   * confirmed it): the copy is built in a provisional collection of its database that takes its
+   * place at the end (`dropTarget`), so the target ends up like the source or stays as it was.
+   * Resolves with the documents in the target.
    */
-  async function copyCollection(request: CopyRequest): Promise<number> {
+  async function copyCollection(request: CopyRequest, replace = false): Promise<number> {
     const valid = validateCopy(request);
-    const { source, target, copyIndexes } = valid;
+    const { source, target } = valid;
     const { sid } = source;
-    await admin.runPipeline(sid, source.db, source.coll, copyPipeline(valid));
-    const copied = (await admin.collStats(sid, target.db, target.coll)).count ?? 0;
-    if (copyIndexes) {
-      for (const ix of indexesToCopy(await admin.listIndexes(sid, source.db, source.coll))) {
-        await admin.createIndex(sid, target.db, target.coll, ix);
+    const exists = await copyTargetExists(valid);
+    if (exists && !replace) throw TARGET_EXISTS;
+    const options = copyOptions(await admin.collectionOptions(sid, source.db, source.coll));
+    if (!exists) {
+      await buildCopy(valid, options);
+    } else {
+      if (options.timeseries) throw TIMESERIES_TARGET_EXISTS;
+      const staging = copyStagingName(newId());
+      await buildCopy({ ...valid, target: { db: target.db, coll: staging } }, options);
+      try {
+        await admin.renameCollection(sid, target.db, staging, target.coll, true);
+      } catch (e) {
+        await admin.dropCollection(sid, target.db, staging).catch(() => {});
+        throw `${errorMessage(e)}. La colección de destino sigue como estaba`;
       }
     }
-    return copied;
+    return (await admin.collStats(sid, target.db, target.coll)).count ?? 0;
+  }
+
+  /** Fills `request.target`, which doesn't exist yet, with the copy; drops it if anything fails. */
+  async function buildCopy(request: CopyRequest, options: CopyOptions) {
+    const { source, target, copyIndexes } = request;
+    const { sid } = source;
+    const indexes = copyIndexes ? indexesToCopy(await admin.listIndexes(sid, source.db, source.coll)) : [];
+    const late = indexesAfterDocuments(options);
+    try {
+      if (options.create) await admin.createCollection(sid, target.db, target.coll, options.create);
+      if (!late) for (const ix of indexes) await admin.createIndex(sid, target.db, target.coll, ix);
+      await admin.runPipeline(sid, source.db, source.coll, copyPipeline(request, options.timeseries), COPY_PIPELINE_OPTIONS);
+      if (options.capped) {
+        await admin.convertToCapped(sid, target.db, target.coll, options.capped.size);
+        if (options.capped.max) await admin.modifyCollection(sid, target.db, { collMod: target.coll, cappedMax: options.capped.max });
+      }
+      if (options.expireAfterSeconds != null)
+        await admin.modifyCollection(sid, target.db, { collMod: target.coll, expireAfterSeconds: options.expireAfterSeconds });
+      if (late) for (const ix of indexes) await admin.createIndex(sid, target.db, target.coll, ix);
+    } catch (e) {
+      // Only this copy created it; if dropping fails too, an empty or partial collection is left.
+      await admin.dropCollection(sid, target.db, target.coll).catch(() => {});
+      throw e;
+    }
   }
 
   /**
    * Copy of a collection, with its indexes, under a new name in the same database. Unlike a copy it
    * never replaces anything: an existing target is an error.
    */
-  async function duplicateCollection(source: CollectionRef, name: string): Promise<number> {
-    const request = validateCopy(duplicateRequest(source, name));
-    const existing = await admin.listCollections(source.sid, source.db);
-    if (existing.some((c) => c.name === request.target.coll)) throw TARGET_EXISTS;
-    return copyCollection(request);
-  }
+  const duplicateCollection = (source: CollectionRef, name: string): Promise<number> =>
+    copyCollection(duplicateRequest(source, name));
 
   /** The validation the collection has on the server, however it was set (SharkDB, a script, another app). */
   const validationOf = async (ref: CollectionRef): Promise<CollectionValidation> =>
@@ -151,6 +221,7 @@ export function createExplorerService(admin: MongoAdmin) {
     removeValidation,
     loadChildren,
     replaceIndex,
+    copyTargetExists,
     copyCollection,
     duplicateCollection,
     setFavorites,

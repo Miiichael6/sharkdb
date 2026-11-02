@@ -12,7 +12,7 @@ const server = { name: "QA", host: "qa.example:27017", tag: "QA" };
 
 describe("confirmLevel", () => {
   it("asks for the word on everything that deletes data in the server (D12)", () => {
-    const typed: DestructiveAction[] = ["dropDatabase", "dropCollection", "removeAllDocuments", "dropUser", "dropIndex"];
+    const typed: DestructiveAction[] = ["dropDatabase", "dropCollection", "replaceCollection", "removeAllDocuments", "dropUser", "dropIndex"];
     for (const action of typed) expect(confirmLevel(action)).toBe("typed");
   });
 
@@ -68,6 +68,42 @@ describe("destructiveRequest", () => {
   });
 });
 
+describe("destructiveRequest on MongoDB's own namespaces", () => {
+  it("warns before dropping a system database, saying what it holds", () => {
+    expect(destructiveRequest("dropDatabase", { server, db: "admin" }).warning).toBe(
+      "“admin” es una base de datos del sistema: guarda los usuarios, los roles y la configuración del servidor.",
+    );
+    expect(destructiveRequest("dropDatabase", { server, db: "local" }).warning).toContain("oplog");
+    expect(destructiveRequest("dropDatabase", { server, db: "config" }).warning).toContain("sharding");
+  });
+
+  it("warns before emptying or dropping a system.* collection, in any database", () => {
+    const empty = destructiveRequest("removeAllDocuments", { server, db: "admin", coll: "system.users" });
+    expect(empty.warning).toBe("“system.users” es una colección interna de MongoDB: el servidor depende de ella.");
+    expect(empty.level).toBe("typed");
+    expect(destructiveRequest("dropCollection", { server, db: "shop", coll: "system.views" }).warning).toContain(
+      "system.views",
+    );
+    expect(destructiveRequest("removeDocuments", { server, db: "shop", coll: "system.js", count: 1 }).warning).toBeDefined();
+  });
+
+  it("warns for a user collection inside a system database", () => {
+    expect(destructiveRequest("dropCollection", { server, db: "local", coll: "notes" }).warning).toContain("“local”");
+  });
+
+  it("says nothing for the user's own databases and collections", () => {
+    expect(destructiveRequest("dropDatabase", { server, db: "shop" }).warning).toBeUndefined();
+    expect(destructiveRequest("dropCollection", { server, db: "shop", coll: "systems" }).warning).toBeUndefined();
+    expect(destructiveRequest("dropCollection", { server, db: "administration", coll: "orders" }).warning).toBeUndefined();
+    expect(destructiveRequest("deleteConnection", { server }).warning).toBeUndefined();
+  });
+
+  it("doesn't warn where deleting is the usual thing: users in admin, functions in system.js", () => {
+    expect(destructiveRequest("dropUser", { server, db: "admin", name: "ana" }).warning).toBeUndefined();
+    expect(destructiveRequest("removeFunction", { server, db: "shop", coll: "system.js", name: "f" }).warning).toBeUndefined();
+  });
+});
+
 describe("canConfirmDeletion", () => {
   it("waits for the confirmation word at typed, ignoring case and spaces at the ends", () => {
     expect(canConfirmDeletion("typed", "")).toBe(false);
@@ -82,7 +118,13 @@ describe("canConfirmDeletion", () => {
 
 describe("delete window size", () => {
   it("is taller when it has the confirmation field", () => {
-    expect(deleteWindowHeight("typed")).toBeGreaterThan(deleteWindowHeight("simple"));
+    expect(deleteWindowHeight({ level: "typed" })).toBeGreaterThan(deleteWindowHeight({ level: "simple" }));
     expect(DELETE_WINDOW_WIDTH).toBeGreaterThan(0);
+  });
+
+  it("makes room for the system warning", () => {
+    const warning = "“admin” es una base de datos del sistema.";
+    expect(deleteWindowHeight({ level: "typed", warning })).toBeGreaterThan(deleteWindowHeight({ level: "typed" }));
+    expect(deleteWindowHeight({ level: "simple", warning })).toBeGreaterThan(deleteWindowHeight({ level: "simple" }));
   });
 });

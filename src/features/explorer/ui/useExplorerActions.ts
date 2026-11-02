@@ -11,7 +11,7 @@ import { useDocumentActions } from "../../../shared/ui/documentActions";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import { useServerOf } from "../../connections/ui/useTargetServer";
-import { duplicateName, type CopyRequest } from "../domain/copySpec";
+import { COPY_NOT_CONFIRMED, duplicateName, validateCopy, type CopyRequest } from "../domain/copySpec";
 import type { IndexSpec, UserEntry } from "../domain/mongo";
 import type { UserSpec } from "../domain/userSpec";
 import { childKey, parentKey, serverKey, type TreeNode } from "../domain/tree";
@@ -150,13 +150,19 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     notify(`Usuario “${spec.user}” ${initial ? "actualizado" : "creado"}`);
   };
 
+  /** An existing target is only replaced after the red window, typing the confirmation word. */
   const submitCopy = async (request: CopyRequest) => {
-    const copied = await explorer.copyCollection(request);
+    const { source, target } = validateCopy(request);
+    const replace = await explorer.copyTargetExists(request);
+    if (replace) {
+      const confirm = destructiveRequest("replaceCollection", { server: serverOf(source.sid), ...target });
+      if (!(await confirmDeleteInWindow(confirm))) throw COPY_NOT_CONFIRMED;
+    }
+    const copied = await explorer.copyCollection(request, replace);
     setDialog(null);
     // The target may be a new database: reload what is open.
     refreshAll();
-    const { db, coll } = request.target;
-    notify(`“${request.source.coll}” copiada a ${db.trim()}.${coll.trim()} (${copied.toLocaleString()} documentos)`);
+    notify(`“${source.coll}” copiada a ${target.db}.${target.coll} (${copied.toLocaleString()} documentos)`);
   };
 
   /** Opens the validation of collection `n` in its own window; it saves itself and says what it did. */

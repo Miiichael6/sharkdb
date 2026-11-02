@@ -3750,6 +3750,12 @@ button.link:hover:not(:disabled) {
   color: var(--text);
   overflow-wrap: anywhere;
 }
+.delete-warning {
+  margin: 0;
+  font-weight: 600;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
 .delete-window .danger-confirm input:focus:not(.confirmed) {
   border-color: var(--danger);
 }

@@ -7,6 +7,8 @@ const connection = (id: string, over: { protected?: boolean; tag?: Tag } = {}): 
   ...newConnection(),
   id,
   name: id,
+  // Each on its own server: two entries for the same one share its protection.
+  host: `${id}.corp`,
   protected: !!over.protected,
   tag: over.tag ?? "development",
 });
@@ -87,5 +89,11 @@ describe("endpoints", () => {
   it("names a connection by its id when it's no longer registered", () => {
     expect(connectionEndpoint(CONNECTIONS, "local")).toEqual({ name: "local", tag: "local" });
     expect(connectionEndpoint(CONNECTIONS, "gone")).toEqual({ name: "gone" });
+  });
+
+  it("never offers a connection to the same server as a protected one", () => {
+    const alias = { ...connection("alias"), mode: "uri" as const, uri: "mongodb://user@PROD.corp:27017/app" };
+    const tunnel = { ...connection("tunnel"), host: "prod.corp", ssh: { ...QA.ssh, enabled: true, host: "bastion" } };
+    expect(ids(targetOptions([...CONNECTIONS, alias, tunnel], []))).toEqual(["qa", "local", "ro", "tunnel"]);
   });
 });

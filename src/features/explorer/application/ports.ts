@@ -18,7 +18,8 @@ export interface MongoAdmin {
   createCollection(sid: string, db: string, name: string, opts?: Doc): Promise<void>;
   dropCollection(sid: string, db: string, name: string): Promise<void>;
   dropDatabase(sid: string, db: string): Promise<void>;
-  renameCollection(sid: string, db: string, from: string, to: string): Promise<void>;
+  /** With `dropTarget`, an existing `to` is replaced in the same operation. */
+  renameCollection(sid: string, db: string, from: string, to: string, dropTarget?: boolean): Promise<void>;
   /** The collection's `listCollections` options (validator, validation level and action…); empty if it doesn't exist. */
   collectionOptions(sid: string, db: string, coll: string): Promise<Doc>;
   /** Runs a `collMod` command (built in the domain, with `collMod` first). */
@@ -29,8 +30,10 @@ export interface MongoAdmin {
   /** Drops and rebuilds every index of the collection (`reIndex`; standalone servers only on recent versions). */
   rebuildIndexes(sid: string, db: string, coll: string): Promise<void>;
 
-  /** Runs a pipeline that writes its output (`$out`, `$merge`); its reply is discarded. */
-  runPipeline(sid: string, db: string, coll: string, pipeline: Doc[]): Promise<void>;
+  /** Runs a pipeline that writes its output (`$out`, `$merge`); its reply is discarded. `opts` go in the `aggregate` command. */
+  runPipeline(sid: string, db: string, coll: string, pipeline: Doc[], opts?: Doc): Promise<void>;
+  /** Turns a collection into a capped one of `size` bytes, keeping its options but only its `_id` index. */
+  convertToCapped(sid: string, db: string, coll: string, size: number): Promise<void>;
 
   createUser(sid: string, db: string, spec: UserSpec): Promise<void>;
   updateUser(sid: string, db: string, spec: UserSpec): Promise<void>;

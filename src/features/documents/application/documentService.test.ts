@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Doc } from "../../explorer/domain/mongo";
-import { DOCUMENT_GONE, ID_CHANGED } from "../domain/documentEdit";
+import { DOCUMENT_CHANGED, DOCUMENT_GONE, ID_CHANGED } from "../domain/documentEdit";
 import { createDocumentService } from "./documentService";
 import type { DocumentParser, DocumentStore } from "./ports";
 
@@ -12,29 +12,46 @@ const parser: DocumentParser = {
   evaluate: async (text) => ({ document: { text }, error: null }),
 };
 
-/** Store recording each write; every write matches `matched` documents. */
-function fakeStore(matched = 1) {
+/** Store recording each call; every write matches `matched` documents and `existing` are counted. */
+function fakeStore(matched = 1, existing = 0) {
   const calls: [string, ...Doc[]][] = [];
   const store: DocumentStore = {
     insert: async (_, doc) => (calls.push(["insert", doc]), matched),
     replace: async (_, filter, doc) => (calls.push(["replace", filter, doc]), matched),
+    replaceUnchanged: async (_, original, doc) => (calls.push(["replaceUnchanged", original, doc]), matched),
     delete: async (_, filter) => (calls.push(["delete", filter]), matched),
+    count: async (_, filter) => (calls.push(["count", filter]), existing),
   };
   return { store, calls };
 }
 
 describe("documentService", () => {
-  it("replaces a document by its _id, keeping the _id when the edit drops it", async () => {
+  it("replaces a document only while it is as it was read, keeping the _id when the edit drops it", async () => {
     const { store, calls } = fakeStore();
-    const stored = await createDocumentService(parser, store).replaceDocument(TARGET, { _id: A, n: 1 }, { n: 2 });
+    const original = { _id: A, n: 1 };
+    const stored = await createDocumentService(parser, store).replaceDocument(TARGET, original, { n: 2 });
     expect(stored).toEqual({ _id: A, n: 2 });
-    expect(calls).toEqual([["replace", { _id: A }, { _id: A, n: 2 }]]);
+    expect(calls).toEqual([["replaceUnchanged", original, { _id: A, n: 2 }]]);
   });
 
   it("refuses to change the _id and reports a document that no longer exists", async () => {
     const service = createDocumentService(parser, fakeStore(0).store);
     await expect(service.replaceDocument(TARGET, { _id: A }, { _id: B })).rejects.toThrow(ID_CHANGED);
     await expect(service.replaceDocument(TARGET, { _id: A }, { n: 2 })).rejects.toThrow(DOCUMENT_GONE);
+  });
+
+  it("reports a document someone else changed, and overwrites it by _id only when asked", async () => {
+    const { store, calls } = fakeStore(0, 1);
+    const service = createDocumentService(parser, store);
+    await expect(service.replaceDocument(TARGET, { _id: A, n: 1 }, { n: 2 })).rejects.toThrow(DOCUMENT_CHANGED);
+    expect(calls).toEqual([
+      ["replaceUnchanged", { _id: A, n: 1 }, { _id: A, n: 2 }],
+      ["count", { _id: A }],
+    ]);
+
+    calls.length = 0;
+    await expect(service.replaceDocument(TARGET, { _id: A, n: 1 }, { n: 2 }, true)).rejects.toThrow(DOCUMENT_GONE);
+    expect(calls).toEqual([["replace", { _id: A }, { _id: A, n: 2 }]]);
   });
 
   it("deletes one document, several by _id, or all of them", async () => {

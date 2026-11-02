@@ -62,8 +62,13 @@ impl<'a> BatchWriter<'a> {
         }
         self.cancel.check()?;
         self.safe_mode.ensure_writable()?;
-        // Sin orden: un `_id` repetido no corta el resto del lote, como en `mongorestore`.
-        let options = InsertManyOptions::builder().ordered(false).build();
+        // Sin orden: un `_id` repetido no corta el resto del lote, como en `mongorestore`. Sin
+        // validación: los documentos ya estaban en el origen, aunque sean anteriores al validador
+        // (validationLevel `moderate`) y no lo cumplan.
+        let options = InsertManyOptions::builder()
+            .ordered(false)
+            .bypass_document_validation(true)
+            .build();
         let sent = self.batch.len() as u64;
         let duplicates = duplicates_of(self.coll.insert_many(self.batch.drain(..), options).await)?;
         self.sent_bytes += self.batch_bytes as u64;

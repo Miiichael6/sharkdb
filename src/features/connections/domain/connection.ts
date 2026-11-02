@@ -45,6 +45,62 @@ export const PRODUCTION_TAG: Tag = "production";
 /** Whether restore and sync must never write to `conn`: marked protected or tagged production. */
 export const neverModified = (conn: Pick<MongoConnection, "protected" | "tag">) => conn.protected || conn.tag === PRODUCTION_TAG;
 
+/**
+ * Like `neverModified`, and also when `conn` points at the same server as a connection of `all`
+ * that is never modified: a second, unmarked entry for production must not get around it. The
+ * backend checks the same (`store::connection_is_protected`).
+ */
+export function neverModifiedAmong(conn: MongoConnection, all: MongoConnection[]): boolean {
+  return neverModified(conn) || all.some((other) => neverModified(other) && sameServer(conn, other));
+}
+
+/** The protected connection of `all` other than `conn` that points at its server, if any. */
+export const protectedTwin = (conn: MongoConnection, all: MongoConnection[]) =>
+  all.find((other) => other.id !== conn.id && other.protected && sameServer(conn, other));
+
+/** Whether `conn` opens in safe mode: protected, or on the same server as a protected connection. */
+export const protectedAmong = (conn: MongoConnection, all: MongoConnection[]) =>
+  conn.protected || !!protectedTwin(conn, all);
+
+function sameServer(a: MongoConnection, b: MongoConnection): boolean {
+  const addresses = serverAddresses(a);
+  return serverAddresses(b).some((x) => addresses.includes(x));
+}
+
+const LOOPBACK = ["localhost", "127.0.0.1", "::1", "[::1]"];
+
+/** `host[:port]` with the default port and every loopback spelled `localhost`. */
+function normalizedAddress(address: string): string {
+  const m = /^(.*):(\d+)$/.exec(address);
+  // `::1` without brackets has colons but no port.
+  const [host, port] = m && (m[1].startsWith("[") || !m[1].includes(":")) ? [m[1], m[2]] : [address, String(DEFAULT_PORT)];
+  return `${LOOPBACK.includes(host) ? "localhost" : host}:${port}`;
+}
+
+/**
+ * The `host:port` addresses `conn` reaches (`srv:host` for an SRV seed): lowercase, default port,
+ * `localhost` for any loopback, and behind the SSH server when tunnelled (there `localhost` is that
+ * server, not this machine). Same rules as the backend's `server_addresses`.
+ */
+export function serverAddresses(conn: MongoConnection): string[] {
+  let hosts: string[];
+  if (conn.mode === "uri") {
+    const parsed = parseUri(conn.uri.toLowerCase());
+    hosts = parsed
+      ? parsed.hosts
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean)
+          .map((h) => (parsed.srv ? `srv:${h}` : normalizedAddress(h)))
+      : [];
+  } else {
+    const host = conn.host.trim().toLowerCase();
+    hosts = !host ? [] : conn.srv ? [`srv:${host}`] : [normalizedAddress(`${host}:${conn.port || DEFAULT_PORT}`)];
+  }
+  const { ssh } = conn;
+  return ssh?.enabled ? hosts.map((h) => `ssh:${ssh.host.trim().toLowerCase()}:${ssh.port || 22}>${h}`) : hosts;
+}
+
 export const COLORS = [
   "#0f7a3d",
   "#7c3aed",

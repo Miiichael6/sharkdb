@@ -15,7 +15,7 @@ use crate::jobs::selection::{DatabaseCatalog, DatabaseSelection, non_empty};
 use crate::mongo::{self, Sessions};
 use crate::store;
 
-const PROTECTED: &str = "La conexión de destino está protegida o es de producción: nunca se sincroniza sobre ella";
+const PROTECTED: &str = "La conexión de destino está protegida, es de producción o apunta al mismo servidor que una que lo es: nunca se sincroniza sobre ella";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

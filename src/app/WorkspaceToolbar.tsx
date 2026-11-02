@@ -1,7 +1,7 @@
 // Wires the workspace toolbar to the explorer, the shell tabs and the open sessions.
 import { useState } from "react";
 import type { ContextMenuItem } from "../shared/ui/ContextMenu";
-import { displayName, type MongoConnection } from "../features/connections/domain/connection";
+import { displayName, protectedAmong, protectedTwin, type MongoConnection } from "../features/connections/domain/connection";
 import type { Session } from "../features/connections/domain/session";
 import {
   OPEN_CONNECTION_VIEW,
@@ -115,14 +115,18 @@ export function WorkspaceToolbar(props: Props) {
 
   const toggleSafeMode = () => {
     if (!session) return;
-    if (session.safeMode && session.conn.protected) void confirmUnprotect(session);
+    if (session.safeMode && protectedAmong(session.conn, connections)) void confirmUnprotect(session);
     else onSetSafeMode(session.conn.id, !session.safeMode);
   };
 
   const confirmUnprotect = async (protectedSession: Session) => {
+    const { conn } = protectedSession;
+    const twin = !conn.protected && protectedTwin(conn, connections);
     const allowed = await confirmInWindow({
       title: "Desactivar safe mode",
-      message: `“${displayName(protectedSession.conn)}” es una conexión protegida. ¿Permitir escrituras en esta sesión?`,
+      message: twin
+        ? `“${displayName(conn)}” apunta al mismo servidor que “${displayName(twin)}”, que es una conexión protegida. ¿Permitir escrituras en esta sesión?`
+        : `“${displayName(conn)}” es una conexión protegida. ¿Permitir escrituras en esta sesión?`,
       confirmLabel: "Permitir escrituras",
     });
     if (allowed) onSetSafeMode(protectedSession.conn.id, false);

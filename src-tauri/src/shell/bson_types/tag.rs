@@ -10,6 +10,7 @@ pub enum BsonTag {
     BsonRegExp,
     NumberLong,
     NumberInt,
+    Double,
     NumberDecimal,
     BinData,
     Timestamp,
@@ -18,13 +19,14 @@ pub enum BsonTag {
     MaxKey,
 }
 
-const ALL: [BsonTag; 12] = [
+const ALL: [BsonTag; 13] = [
     BsonTag::ObjectId,
     BsonTag::Date,
     BsonTag::RegExp,
     BsonTag::BsonRegExp,
     BsonTag::NumberLong,
     BsonTag::NumberInt,
+    BsonTag::Double,
     BsonTag::NumberDecimal,
     BsonTag::BinData,
     BsonTag::Timestamp,
@@ -47,6 +49,7 @@ impl BsonTag {
             Self::BsonRegExp => "BSONRegExp",
             Self::NumberLong => "NumberLong",
             Self::NumberInt => "NumberInt",
+            Self::Double => "Double",
             Self::NumberDecimal => "NumberDecimal",
             Self::BinData => "BinData",
             Self::Timestamp => "Timestamp",

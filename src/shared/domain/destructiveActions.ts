@@ -1,6 +1,7 @@
 // Manual actions that delete something, and how hard each one is to confirm (D12).
 import { confirmationMatches } from "./confirmation";
 import type { TargetServer } from "./documentTarget";
+import { systemNamespaceWarning } from "./systemNamespaces";
 
 /** `typed`: red window that needs `CONFIRM_WORD`; `simple`: red window, one click. */
 export type ConfirmLevel = "typed" | "simple";
@@ -8,6 +9,7 @@ export type ConfirmLevel = "typed" | "simple";
 export type DestructiveAction =
   | "dropDatabase"
   | "dropCollection"
+  | "replaceCollection"
   | "removeAllDocuments"
   | "dropUser"
   | "dropIndex"
@@ -39,6 +41,8 @@ export interface DeleteConfirmRequest {
   subject: string;
   /** What is lost, on its own line. */
   loses: string;
+  /** Extra line when it is MongoDB's own database or collection: the server lets it go, but depends on it. */
+  warning?: string;
   /** Label of the red button. */
   confirmLabel: string;
 }
@@ -75,6 +79,13 @@ const ACTIONS: Record<DestructiveAction, ActionText> = {
     loses: (t) =>
       t.view ? "La definición de la vista; la colección de origen se conserva." : "Todos sus documentos e índices.",
     confirmLabel: (t) => `Eliminar ${collectionWord(t)}`,
+  },
+  replaceCollection: {
+    level: "typed",
+    title: () => "Sustituir colección",
+    subject: (t) => `los documentos de “${t.coll}”, que se sustituyen por la copia`,
+    loses: () => "Todos sus documentos, índices y opciones actuales: queda como el origen.",
+    confirmLabel: () => "Sustituir colección",
   },
   removeAllDocuments: {
     level: "typed",
@@ -129,6 +140,9 @@ const ACTIONS: Record<DestructiveAction, ActionText> = {
 
 export const confirmLevel = (action: DestructiveAction) => ACTIONS[action].level;
 
+// Users live in `admin` and functions in `system.js`: deleting them there is the usual thing, not a warning.
+const NO_SYSTEM_WARNING: DestructiveAction[] = ["dropUser", "removeFunction"];
+
 /** The red window's content for deleting `target` with `action`. */
 export function destructiveRequest(action: DestructiveAction, target: DestructiveTarget): DeleteConfirmRequest {
   const text = ACTIONS[action];
@@ -139,6 +153,7 @@ export function destructiveRequest(action: DestructiveAction, target: Destructiv
     where: { server, db, coll },
     subject: text.subject(target),
     loses: text.loses(target),
+    warning: NO_SYSTEM_WARNING.includes(action) ? undefined : systemNamespaceWarning(db, coll),
     confirmLabel: text.confirmLabel(target),
   };
 }
@@ -147,8 +162,11 @@ export function destructiveRequest(action: DestructiveAction, target: Destructiv
 export const canConfirmDeletion = (level: ConfirmLevel, typed: string) =>
   level === "simple" || confirmationMatches(typed);
 
-// Fixed size of the red window: the connection line plus, at `typed`, the confirmation field.
+// Fixed size of the red window: the connection line plus, at `typed`, the confirmation field and, for MongoDB's
+// own namespaces, the warning.
 export const DELETE_WINDOW_WIDTH = 600;
 const DELETE_WINDOW_HEIGHT: Record<ConfirmLevel, number> = { typed: 330, simple: 250 };
+const WARNING_HEIGHT = 50;
 
-export const deleteWindowHeight = (level: ConfirmLevel) => DELETE_WINDOW_HEIGHT[level];
+export const deleteWindowHeight = (request: Pick<DeleteConfirmRequest, "level" | "warning">) =>
+  DELETE_WINDOW_HEIGHT[request.level] + (request.warning ? WARNING_HEIGHT : 0);

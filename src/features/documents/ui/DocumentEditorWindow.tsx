@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useServices } from "../../../app/services";
+import { errorMessage } from "../../../shared/errors";
+import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
+import { DOCUMENT_CHANGED } from "../domain/documentEdit";
 import type { DocumentTarget, TargetWhere } from "../../../shared/domain/documentTarget";
 import { WhereBar } from "../../connections/ui/WhereBar";
 import type { StoredDocument } from "../../../shared/ui/documentActions";
@@ -40,6 +43,25 @@ export function DocumentEditorWindow({
   const [zone, setZone] = useState<DateZone>(data.zone ?? "utc");
   // Viewing, the text follows the zone switch; it is read-only, so nothing typed is lost.
   const viewing = mode === "view" && original;
+
+  /** Saves the edit; if someone changed the document meanwhile, overwriting their change is asked first. */
+  async function saveEdit(doc: StoredDocument) {
+    try {
+      return await documents.replaceDocument(target, original!, doc);
+    } catch (e) {
+      if (errorMessage(e) !== DOCUMENT_CHANGED) throw e;
+      const overwrite = await confirmInWindow({
+        title: "El documento cambió",
+        message: `${DOCUMENT_CHANGED}. Si guardas, su cambio se pierde y queda tu versión. Para ver la actual, cierra el editor y vuelve a abrirlo.`,
+        confirmLabel: "Sobrescribir",
+        dismissLabel: "No guardar",
+        where,
+      });
+      if (!overwrite) throw e;
+      return documents.replaceDocument(target, original!, doc, true);
+    }
+  }
+
   return (
     <DocumentEditorDialog
       mode={mode}
@@ -48,7 +70,7 @@ export function DocumentEditorWindow({
       footer={viewing && <ZoneToggle zone={zone} onChange={setZone} />}
       onSave={async (doc) => {
         if (mode === "edit") {
-          onDone({ saved: await documents.replaceDocument(target, original!, doc) });
+          onDone({ saved: await saveEdit(doc) });
         } else if (mode === "insert") {
           await documents.insertDocument(target, doc);
           onDone({});

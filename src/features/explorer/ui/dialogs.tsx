@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../shared/errors";
 import { Modal, Spinner } from "../../../shared/ui/common";
-import { defaultIndexName, parseJsonObject } from "../domain/indexSpec";
+import { defaultIndexName, editedSpec, parseJsonObject } from "../domain/indexSpec";
 import type { IndexSpec } from "../domain/mongo";
 import { Field } from "../../../shared/ui/Field";
 import { useSubmit } from "./useSubmit";
@@ -108,7 +108,7 @@ export function IndexDialog({
     if (language.trim()) spec.default_language = language.trim();
     if (languageOverride.trim()) spec.language_override = languageOverride.trim();
     if (weights.trim()) spec.weights = parseJsonObject(weights, "Pesos de texto");
-    return spec;
+    return initial ? editedSpec(initial, spec) : spec;
   }
 
   const onSave = (e: FormEvent) => {
