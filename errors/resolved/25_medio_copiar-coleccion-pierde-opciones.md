@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src/features/explorer/domain/copySpec.ts (`$out`), src/features/explorer/application/explorerService.ts (`copyCollection` / `duplicateCollection`)
-- **Estado:** pendiente
+- **Estado:** resuelto — el destino se crea con las opciones del origen (`copyOptions` desde `listCollections`) antes del `$out`; capped se aplica después con `convertToCapped` y time series con `collMod`. Cubierto por `copySpec.test.ts`.
 
 ## Problema
 `$out` a un destino nuevo crea una colección normal: sin validador, sin collation por defecto, sin capped ni clustered. Restore y sync sí conservan esas opciones.

@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/backup/writer.rs (creación de la colección provisional), src-tauri/src/backup/staging.rs, src-tauri/src/sync/copy.rs
-- **Estado:** pendiente
+- **Estado:** resuelto — `BatchWriter::flush` inserta con `bypassDocumentValidation: true` (y `ordered: false`), usado por restore y sync; la colección conserva su validador. Cubierto por `live_sync_copies_documents_older_than_the_validator`.
 
 ## Problema
 La colección provisional se crea con el validador antes de insertar, y los inserts no usan `bypassDocumentValidation`. Solo se tolera el error 11000.
