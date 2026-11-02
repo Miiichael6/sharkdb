@@ -87,7 +87,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D15** Backups programados → **solo con la app abierta**; si al abrirla ya pasó la hora del día, se ejecuta entonces. Sin arranque automático de Windows (2026-10-31) → afecta 32
 - [x] **D16** Carpeta de cada ejecución → **fechada** `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>`, conservando las **últimas 7** (se borran las más viejas) (2026-10-31) → afecta 31, 32
 - [x] **D17** Confirmación de las programaciones → `confirmo` **una sola vez al guardar**; ni la ejecución diaria ni el ▶ manual vuelven a pedirlo (2026-10-31) → afecta 31
-- [ ] **D18** Actualizador: ¿dónde se publican las versiones? (p. ej. GitHub Releases de un repo, público o privado, o un servidor propio con `latest.json`). El repo no tiene remoto configurado → afecta 37 (solo el paso 4 y la prueba real)
+- [x] **D18** Actualizador → **GitHub Releases del repo público `Miiichael6/sharkdb`**; endpoint `releases/latest/download/latest.json` (2026-11-01) → afecta 37
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -132,7 +132,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 34.2 | ↳ [Vista Consola: dominio y UI](done/34.2_vista_consola_ui.md) | 19 Consola | 34.1 | ✅ Terminada |
 | 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
-| 37 | [Actualizador](in_progress/37_actualizador.md) | 22 Actualizador | 08 | 🔄 En progreso (pasos 1–3 hechos; paso 4 y prueba real esperan D18) |
+| 37 | [Actualizador](in_progress/37_actualizador.md) | 22 Actualizador | 08 | 🔄 En progreso (falta la prueba real) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

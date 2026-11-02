@@ -9,7 +9,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "start:dev": "node scripts/dev.mjs"
+    "start:dev": "node scripts/dev.mjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
