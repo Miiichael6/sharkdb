@@ -33,6 +33,8 @@ tauri-plugin-dialog = "2"
 russh = { version = "0.65.0", default-features = false, features = ["ring", "rsa", "flate2"] }
 keyring = { version = "3", features = ["windows-native", "apple-native", "linux-native"] }
 tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 oxc_parser = "0.156.0"
 oxc_allocator = "0.156.0"
 oxc_ast = "0.156.0"

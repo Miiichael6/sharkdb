@@ -40,6 +40,22 @@ npm run tauri build
 
 Genera el instalador NSIS de Windows en `src-tauri/target/release/bundle/nsis/SharkDB_<versión>_x64-setup.exe`.
 
+### Firma de las actualizaciones
+
+El build genera también la firma (`.sig`) que el actualizador comprueba antes de instalar, así que necesita la
+clave privada. La pública está en `plugins.updater.pubkey` de `tauri.conf.json`; la privada **nunca** va al
+repositorio (por defecto vive en `~/.tauri/sharkdb.key`). Sin ella, `tauri build` falla al firmar:
+
+```sh
+# PowerShell
+$env:TAURI_SIGNING_PRIVATE_KEY = "$HOME\.tauri\sharkdb.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""   # la clave actual no tiene contraseña
+npm run tauri build
+```
+
+Si se pierde la clave privada, las versiones ya instaladas no podrán actualizarse: hay que generar otra con
+`npm run tauri signer generate -- -w ~/.tauri/sharkdb.key`, cambiar `pubkey` y reinstalar a mano.
+
 ### Otras plataformas
 
 La configuración ya está preparada: Tauri mezcla `tauri.<plataforma>.conf.json` sobre `tauri.conf.json`

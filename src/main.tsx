@@ -18,6 +18,7 @@ const modal = currentModalView();
 // The main window follows the saved preferences from the start; a modal reads them if it needs them.
 const services = modal ? null : createServices();
 void services?.settings.start();
+void services?.updates.checkOnStartup();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

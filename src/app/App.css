@@ -362,6 +362,36 @@ input[type="checkbox"] {
   margin-top: 18px;
   font-size: 12px;
 }
+/* Under the version: the newer one, when there is one, and the button that looks for it. */
+.update-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  max-width: calc(100% - 32px);
+  font-size: 12px;
+}
+.update-available {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+.update-status {
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.update-status.error {
+  color: var(--error-text);
+}
 
 .welcome-main {
   flex: 1;
