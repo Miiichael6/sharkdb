@@ -50,7 +50,8 @@ export type OperationEvent =
   | { type: "finished"; id: string; results: CollectionResult[]; summary: string; at: number }
   | { type: "failed"; id: string; error: string; at: number }
   | { type: "cancelled"; id: string; at: number }
-  | { type: "cleared" };
+  | { type: "cleared" }
+  | { type: "dismissed"; id: string };
 
 export const OPERATION_KINDS: OperationKind[] = ["sync", "backup", "restore"];
 
@@ -106,6 +107,8 @@ export function operationsReducer(ops: Operation[], event: OperationEvent): Oper
       return whileRunning(ops, event.id, (op) => ({ ...op, status: "cancelled", endedAt: event.at }));
     case "cleared":
       return ops.filter((op) => op.status === "running");
+    case "dismissed":
+      return ops.filter((op) => op.id !== event.id || op.status === "running");
   }
 }
 

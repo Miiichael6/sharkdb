@@ -3607,20 +3607,6 @@ button.link:hover:not(:disabled) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.plan-steps {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  max-height: 150px;
-  overflow-y: auto;
-}
-.plan-steps li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-  min-width: 0;
-}
 .plan-action {
   flex: none;
   width: 72px;
@@ -3685,8 +3671,80 @@ button.link:hover:not(:disabled) {
 .danger-plan p {
   margin: 4px 0 0;
 }
-.danger-plan .plan-steps {
-  max-height: 200px;
+.danger-totals {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+/* Each database with its collections in columns; the list scrolls so the confirmation field stays in view. */
+.danger-dbs {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.danger-db + .danger-db {
+  border-top: 1px solid var(--border);
+}
+.danger-db-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--surface-2);
+}
+.danger-db-head {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.danger-db-head::-webkit-details-marker {
+  display: none;
+}
+.danger-db-head::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.12s;
+}
+.danger-db details[open] > .danger-db-head::before {
+  transform: rotate(90deg);
+}
+.danger-db-head:hover {
+  background: color-mix(in srgb, var(--text) 6%, var(--surface-2));
+}
+.danger-db-head b {
+  min-width: 0;
+}
+.danger-db-head .muted {
+  flex: none;
+  margin-left: auto;
+}
+.danger-collections {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2px 16px;
+  margin: 0;
+  padding: 6px 10px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.danger-collections li::before {
+  content: "• ";
+  color: var(--border);
 }
 .danger-plan-title {
   display: flex;
@@ -3865,6 +3923,29 @@ button.ops-section-head:hover:not(:disabled) {
 }
 .ops-row-head {
   justify-content: space-between;
+}
+.ops-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-tally + .ops-elapsed::before {
+  content: "·";
+  margin-right: 8px;
+  color: var(--muted);
+}
+.ops-elapsed {
+  font-variant-numeric: tabular-nums;
+}
+.ops-dismiss {
+  margin: -4px -6px -4px 0;
+  padding: 0 6px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--muted);
+}
+.ops-dismiss:hover {
+  color: var(--text);
 }
 .ops-status {
   display: inline-flex;

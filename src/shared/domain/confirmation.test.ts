@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { CONFIRM_WORD, confirmWindowHeight, confirmationMatches, discardChangesRequest } from "./confirmation";
+import {
+  CONFIRM_WORD,
+  confirmWindowHeight,
+  confirmationMatches,
+  dangerExpanded,
+  dangerWindowHeight,
+  discardChangesRequest,
+  type DangerItem,
+} from "./confirmation";
 
 describe("confirmWindowHeight", () => {
   it("fits one line", () => {
@@ -41,5 +49,29 @@ describe("discardChangesRequest", () => {
     const request = discardChangesRequest("El documento");
     expect(request).toMatchObject({ title: "Cambios sin guardar", confirmLabel: "Descartar" });
     expect(request.message).toMatch(/^El documento tiene cambios sin guardar/);
+  });
+});
+
+describe("dangerWindowHeight", () => {
+  const db = (name: string, collections: number): DangerItem => ({
+    badge: "nueva",
+    kind: "create",
+    name,
+    detail: "",
+    collections: Array.from({ length: collections }, (_, i) => `c${i}`),
+  });
+
+  it("opens the databases of a small operation and folds those of a big one", () => {
+    expect(dangerExpanded([db("a", 60)])).toBe(true);
+    expect(dangerExpanded([db("a", 10), db("b", 20)])).toBe(true);
+    expect(dangerExpanded([db("a", 30), db("b", 20)])).toBe(false);
+  });
+
+  it("grows with what it lists, up to where the list scrolls", () => {
+    const one = dangerWindowHeight({ items: [db("a", 3)] });
+    const sixteen = dangerWindowHeight({ items: [db("a", 16)] });
+    expect(sixteen).toBeGreaterThan(one);
+    expect(dangerWindowHeight({ items: [db("a", 500)] })).toBe(dangerWindowHeight({ items: [db("a", 900)] }));
+    expect(dangerWindowHeight({ items: [db("a", 3)], blocked: "x" })).toBeGreaterThan(one);
   });
 });

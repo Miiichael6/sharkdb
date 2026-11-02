@@ -3,7 +3,9 @@
 use serde::Serialize;
 
 /// Avance dentro de la colección en curso. `done`/`total` miden documentos en el backup y el sync,
-/// y bytes del `.bson` en el restore; el frontend solo calcula la proporción.
+/// y bytes del `.bson` en el restore; el frontend solo calcula la proporción. El sync copia varias
+/// colecciones a la vez y manda el avance agregado: `index` son las colecciones enteras que suman
+/// todas y `done/total`, la fracción que sobra (`sync::copy::OverallProgress`).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Progress {

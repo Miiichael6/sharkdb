@@ -5,7 +5,7 @@ import { catalogFavoritesFirst, initiallyExpanded } from "../../../shared/domain
 import { errorMessage } from "../../../shared/errors";
 import { DatabasePicker } from "../../../shared/ui/DatabasePicker";
 import { Endpoint } from "../../../shared/ui/Endpoint";
-import { PlanSummary } from "../../../shared/ui/PlanSummary";
+import { EmptySelectionHint } from "../../../shared/ui/EmptySelectionHint";
 import { SelectionWindow } from "../../../shared/ui/SelectionWindow";
 import { useCatalog } from "../../../shared/ui/useCatalog";
 import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
@@ -78,7 +78,7 @@ export function BackupWindow({ data, onDone, onClose }: Props) {
         emptyText="La conexión no tiene bases de datos que guardar"
         initiallyExpanded={fromStart ? initiallyExpanded(initial?.databases, origin) : []}
       />
-      <PlanSummary plan={plan} />
+      <EmptySelectionHint plan={plan} />
     </SelectionWindow>
   );
 }

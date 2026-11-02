@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { databaseDetail, databasePlan, planItems, planLabel, planSelections, replacePlan } from "./databasePlan";
+import { databasePlan, planItems, planLabel, planSelections, replacePlan } from "./databasePlan";
 import type { DatabaseCatalog } from "./selection";
 
 const SHOP: DatabaseCatalog = { name: "shop", sizeOnDisk: 0, collections: ["orders", "users", "carts"] };
@@ -23,13 +23,8 @@ describe("databasePlan", () => {
   it("describes each database for the confirmation window", () => {
     const plan = databasePlan(CATALOG, { shop: ["orders"], log: ["events"] }, () => "save");
     expect(planItems(plan)).toEqual([
-      { badge: "guarda", kind: "save", name: "log", detail: "completa · 1 colección" },
-      { badge: "guarda", kind: "save", name: "shop", detail: "orders" },
+      { badge: "guarda", kind: "save", name: "log", detail: "completa · 1 colección", collections: ["events"] },
+      { badge: "guarda", kind: "save", name: "shop", detail: "parcial · 1 colección", collections: ["orders"] },
     ]);
-  });
-
-  it("lists a few chosen collections by name and counts the rest", () => {
-    const collections = ["a", "b", "c", "d", "e", "f"];
-    expect(databaseDetail({ db: "x", collections, complete: false, action: "create" })).toBe("a, b, c, d y 2 más");
   });
 });

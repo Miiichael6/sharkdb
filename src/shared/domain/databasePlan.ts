@@ -16,8 +16,6 @@ export interface PlanDatabase {
 }
 
 const ACTION_LABELS: Record<PlanAction, string> = { replace: "reemplaza", create: "nueva", save: "guarda" };
-/** Collections listed by name for a partial database; beyond this, only the count. */
-const LISTED_COLLECTIONS = 4;
 
 /** The chosen databases, in the catalog's order, each with what happens to it. */
 export const databasePlan = (catalog: DatabaseCatalog[], selection: Selection, actionOf: (db: string) => PlanAction): PlanDatabase[] =>
@@ -45,14 +43,9 @@ export const planLabel = (plan: PlanDatabase[]) => `${databasesLabel(plan.length
 
 export const actionLabel = (d: PlanDatabase) => ACTION_LABELS[d.action];
 
-/** "completa · 12 colecciones", or the chosen collections of a partial database. */
-export function databaseDetail(d: PlanDatabase): string {
-  if (d.complete) return `completa · ${collectionsLabel(d.collections.length)}`;
-  const names = d.collections.slice(0, LISTED_COLLECTIONS).join(", ");
-  const more = d.collections.length - LISTED_COLLECTIONS;
-  return more > 0 ? `${names} y ${more} más` : names;
-}
+/** "completa · 16 colecciones" or "parcial · 3 colecciones": the window lists them by name underneath. */
+const itemDetail = (d: PlanDatabase) => `${d.complete ? "completa" : "parcial"} · ${collectionsLabel(d.collections.length)}`;
 
-/** The plan as lines of the confirmation window. */
+/** The plan as the databases of the confirmation window, each with all its collections. */
 export const planItems = (plan: PlanDatabase[]): DangerItem[] =>
-  plan.map((d) => ({ badge: actionLabel(d), kind: d.action, name: d.db, detail: databaseDetail(d) }));
+  plan.map((d) => ({ badge: actionLabel(d), kind: d.action, name: d.db, detail: itemDetail(d), collections: d.collections }));

@@ -47,13 +47,15 @@ export const CONFIRM_WORD = "confirmo";
 /** The typed word matches `CONFIRM_WORD`, ignoring case and spaces at the ends. */
 export const confirmationMatches = (typed: string) => typed.trim().toLowerCase() === CONFIRM_WORD;
 
-/** One line of what is going to change: "reemplaza shop · completa · 3 colecciones". */
+/** One database of what is going to change: "reemplaza shop · completa · 3 colecciones", with its collections. */
 export interface DangerItem {
   badge: string;
   /** Style of the badge (e.g. `replace`, `create`). */
   kind: string;
   name: string;
   detail: string;
+  /** Every collection it touches, listed under the line. */
+  collections: string[];
 }
 
 /** "Se va a MODIFICAR…": the second window of an operation that writes to a connection or a folder. */
@@ -80,3 +82,40 @@ export type DangerAnswer = "confirm" | "back";
 export const BACK_LABEL = "Volver";
 
 export const MODIFY_HEADING = "Se va a MODIFICAR";
+
+export const totalCollections = (items: DangerItem[]) => items.reduce((n, i) => n + i.collections.length, 0);
+
+/** Up to this many collections every database opens listing them; beyond, they start folded to their line. */
+const EXPANDED_COLLECTIONS = 40;
+
+/** The databases of the window start open, listing their collections. */
+export const dangerExpanded = (items: DangerItem[]) => items.length === 1 || totalCollections(items) <= EXPANDED_COLLECTIONS;
+
+export const DANGER_WINDOW_WIDTH = 680;
+
+// Rough metrics of the danger window, to fit its height to what it lists (`App.css`, `.danger-*`).
+/** Title bar, banner, intro, totals, note, confirmation field and footer. */
+const DANGER_CHROME_HEIGHT = 330;
+const DANGER_DB_HEIGHT = 31;
+const DANGER_COLLECTIONS_PADDING = 14;
+const DANGER_COLLECTION_ROW = 18;
+/** Columns of collections that fit in `DANGER_WINDOW_WIDTH`. */
+const DANGER_COLLECTION_COLUMNS = 3;
+/** The list scrolls beyond this (`.danger-dbs` max-height, plus its border and margin). */
+const DANGER_LIST_MAX_HEIGHT = 348;
+const DANGER_BLOCKED_HEIGHT = 50;
+const DANGER_MIN_HEIGHT = 360;
+
+/** Height of the danger window with its list unscrolled when it fits, so no empty space is left under the field. */
+export function dangerWindowHeight({ items, blocked }: Pick<DangerConfirmRequest, "items" | "blocked">): number {
+  const expanded = dangerExpanded(items);
+  const list = items.reduce(
+    (h, i) =>
+      h +
+      DANGER_DB_HEIGHT +
+      (expanded ? DANGER_COLLECTIONS_PADDING + Math.ceil(i.collections.length / DANGER_COLLECTION_COLUMNS) * DANGER_COLLECTION_ROW : 0),
+    8,
+  );
+  const height = DANGER_CHROME_HEIGHT + Math.min(list, DANGER_LIST_MAX_HEIGHT) + (blocked ? DANGER_BLOCKED_HEIGHT : 0);
+  return Math.max(height, DANGER_MIN_HEIGHT);
+}

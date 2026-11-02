@@ -18,6 +18,8 @@ interface OperationsContextValue {
   /** Cancels `op` once confirmed in its own window. */
   cancel: (op: Operation) => Promise<void>;
   clearFinished: () => void;
+  /** Removes one ended operation from the panel. */
+  dismiss: (id: string) => void;
 }
 
 const OperationsContext = createContext<OperationsContextValue | null>(null);
@@ -71,6 +73,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       start,
       cancel,
       clearFinished: service.clearFinished,
+      dismiss: service.dismiss,
     }),
     [operations, panelOpen, start, cancel, service],
   );

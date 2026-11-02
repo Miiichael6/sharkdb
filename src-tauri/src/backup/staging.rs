@@ -59,8 +59,14 @@ impl<'a> Replacements<'a> {
         staging: &str,
         fill: impl Future<Output = Result<CollectionResult, String>>,
     ) -> Result<CollectionResult, String> {
-        self.staged.push(Staged { db: db.clone(), collection: collection.into(), staging: staging.into() });
+        self.reserve(db, collection, staging);
         fill.await
+    }
+
+    /// Apunta una provisional que se llenará aparte: cuando se llenan varias a la vez, se apuntan
+    /// todas antes de empezar para que `finish` las borre aunque alguna falle a medio llenar.
+    pub fn reserve(&mut self, db: &Database, collection: &str, staging: &str) {
+        self.staged.push(Staged { db: db.clone(), collection: collection.into(), staging: staging.into() });
     }
 
     /// Si todo se llenó (`filled`), pone cada provisional en el lugar de su colección; si no, las

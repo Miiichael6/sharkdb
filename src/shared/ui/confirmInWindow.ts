@@ -2,6 +2,8 @@ import {
   CONFIRM_WHERE_WINDOW_WIDTH,
   CONFIRM_WINDOW_WIDTH,
   confirmWindowHeight,
+  DANGER_WINDOW_WIDTH,
+  dangerWindowHeight,
   type ConfirmRequest,
   type DangerAnswer,
   type DangerConfirmRequest,
@@ -39,14 +41,17 @@ export async function confirmDeleteInWindow(request: DeleteConfirmRequest): Prom
 }
 
 export const DANGER_CONFIRM_VIEW = "danger-confirm";
-const DANGER_WINDOW = { width: 560, height: 480 };
 
 /**
  * Asks `request` in its own window: "confirm" once the confirmation word is typed, "back" to return
  * to the previous window, or null when cancelled or closed.
  */
 export const confirmDangerInWindow = (request: DangerConfirmRequest) =>
-  openModalWindow<DangerAnswer>(DANGER_CONFIRM_VIEW, request, { title: request.title, ...DANGER_WINDOW });
+  openModalWindow<DangerAnswer>(DANGER_CONFIRM_VIEW, request, {
+    title: request.title,
+    width: DANGER_WINDOW_WIDTH,
+    height: dangerWindowHeight(request),
+  });
 
 /**
  * An operation in two windows: `select` (given what was chosen before "Volver"), then `confirmation`

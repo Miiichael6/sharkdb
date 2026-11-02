@@ -41,8 +41,8 @@ describe("syncPlan", () => {
     expect(confirm.target).toEqual({ name: "local", tag: "local" });
     expect(confirm.heading).toBeUndefined();
     expect(confirm.items).toEqual([
-      { badge: "nueva", kind: "create", name: "log", detail: "completa · 1 colección" },
-      { badge: "reemplaza", kind: "replace", name: "shop", detail: "orders" },
+      { badge: "nueva", kind: "create", name: "log", detail: "completa · 1 colección", collections: ["events"] },
+      { badge: "reemplaza", kind: "replace", name: "shop", detail: "parcial · 1 colección", collections: ["orders"] },
     ]);
     expect(confirm.blocked).toBeUndefined();
   });

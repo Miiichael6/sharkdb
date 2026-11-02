@@ -44,7 +44,9 @@ describe("backupSpec", () => {
     const confirm = backupConfirmation(plan, "QA", "C:\\b");
     expect(confirm.heading).toBe("Se va a GUARDAR en");
     expect(confirm.target).toEqual({ name: "C:\\b" });
-    expect(confirm.items).toEqual([{ badge: "guarda", kind: "save", name: "shop", detail: "orders" }]);
+    expect(confirm.items).toEqual([
+      { badge: "guarda", kind: "save", name: "shop", detail: "parcial · 1 colección", collections: ["orders"] },
+    ]);
   });
 
   it("asks to confirm modifying the destination, replacing the databases it has", () => {

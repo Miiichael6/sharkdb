@@ -4,10 +4,18 @@ import {
   DISMISS_LABEL,
   MODIFY_HEADING,
   confirmationMatches,
+  dangerExpanded,
+  totalCollections,
   type DangerAnswer,
   type DangerConfirmRequest,
+  type DangerItem,
 } from "../domain/confirmation";
+import { databasesLabel } from "../domain/databasePlan";
+import { collectionsLabel } from "../domain/jobs";
 import { ConfirmWordField } from "./ConfirmWordField";
+
+/** "2 bases de datos · 35 colecciones": the size of the whole operation at a glance. */
+const dangerTotals = (items: DangerItem[]) => `${databasesLabel(items.length)} · ${collectionsLabel(totalCollections(items))}`;
 
 interface Props {
   request: DangerConfirmRequest;
@@ -24,6 +32,7 @@ interface Props {
 export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
   const [typed, setTyped] = useState("");
   const canConfirm = confirmationMatches(typed) && !request.blocked;
+  const expanded = dangerExpanded(request.items);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDone(null);
@@ -46,12 +55,26 @@ export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
             <b>{request.target.name}</b>
           </div>
           <p className="muted small">{request.intro}</p>
-          <ul className="plan-steps">
+          <div className="danger-totals">{dangerTotals(request.items)}</div>
+          <ul className="danger-dbs">
             {request.items.map((item) => (
-              <li key={item.name}>
-                <span className={`plan-action ${item.kind}`}>{item.badge}</span>
-                <b>{item.name}</b>
-                <span className="muted small grow ellipsis">{item.detail}</span>
+              <li key={item.name} className="danger-db">
+                <details open={expanded}>
+                  <summary className="danger-db-head">
+                    <span className={`plan-action ${item.kind}`}>{item.badge}</span>
+                    <b className="ellipsis" title={item.name}>
+                      {item.name}
+                    </b>
+                    <span className="muted small">{item.detail}</span>
+                  </summary>
+                  <ul className="danger-collections">
+                    {item.collections.map((c) => (
+                      <li key={c} className="ellipsis" title={c}>
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               </li>
             ))}
           </ul>

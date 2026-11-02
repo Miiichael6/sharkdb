@@ -89,4 +89,16 @@ describe("operationsService", () => {
     service.clearFinished();
     expect(service.list().map((o) => o.kind)).toEqual(["backup"]);
   });
+
+  it("dismisses one ended operation", async () => {
+    const service = newService();
+    const ended = fakeJob();
+    const started = service.start(SYNC, ended.launch, summarize);
+    const running = service.start(BACKUP, fakeJob().launch, summarize);
+    service.dismiss(running.id);
+    ended.state.resolve(RESULTS);
+    await started.settled;
+    service.dismiss(started.id);
+    expect(service.list().map((o) => o.id)).toEqual([running.id]);
+  });
 });

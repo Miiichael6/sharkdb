@@ -5,7 +5,7 @@ import { catalogFavoritesFirst, initiallyExpanded } from "../../../shared/domain
 import { errorMessage } from "../../../shared/errors";
 import { DatabasePicker } from "../../../shared/ui/DatabasePicker";
 import { Endpoint } from "../../../shared/ui/Endpoint";
-import { PlanSummary } from "../../../shared/ui/PlanSummary";
+import { EmptySelectionHint } from "../../../shared/ui/EmptySelectionHint";
 import { SelectionWindow } from "../../../shared/ui/SelectionWindow";
 import { useCatalog } from "../../../shared/ui/useCatalog";
 import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
@@ -84,7 +84,7 @@ export function RestoreWindow({ data, onDone, onClose }: Props) {
         emptyText={form.folder ? "La carpeta no tiene bases de datos de un backup" : "Elige la carpeta del backup"}
         initiallyExpanded={initiallyExpanded(initial?.databases, origin)}
       />
-      {form.target && form.targetStatus.connected && <PlanSummary plan={plan} />}
+      {form.target && form.targetStatus.connected && <EmptySelectionHint plan={plan} />}
     </SelectionWindow>
   );
 }

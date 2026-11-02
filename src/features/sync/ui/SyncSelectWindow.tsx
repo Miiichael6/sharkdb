@@ -5,7 +5,7 @@ import { catalogFavoritesFirst, initiallyExpanded } from "../../../shared/domain
 import { errorMessage } from "../../../shared/errors";
 import { DatabasePicker } from "../../../shared/ui/DatabasePicker";
 import { Endpoint } from "../../../shared/ui/Endpoint";
-import { PlanSummary } from "../../../shared/ui/PlanSummary";
+import { EmptySelectionHint } from "../../../shared/ui/EmptySelectionHint";
 import { SelectionWindow } from "../../../shared/ui/SelectionWindow";
 import { useCatalog } from "../../../shared/ui/useCatalog";
 import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
@@ -73,7 +73,7 @@ export function SyncSelectWindow({ data, onDone, onClose }: Props) {
         emptyText="La conexión de origen no tiene bases de datos que copiar"
         initiallyExpanded={fromStart ? initiallyExpanded(initial?.databases, origin) : []}
       />
-      {form.target && form.targetStatus.connected && <PlanSummary plan={plan} />}
+      {form.target && form.targetStatus.connected && <EmptySelectionHint plan={plan} />}
     </SelectionWindow>
   );
 }

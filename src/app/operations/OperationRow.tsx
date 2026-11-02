@@ -13,10 +13,13 @@ import {
 import { JobProgressBar } from "../../shared/ui/JobProgressBar";
 import { useNotify } from "../../shared/ui/useNotifications";
 import { useServices } from "../services";
+import { useElapsed } from "./useElapsed";
 
 interface Props {
   operation: Operation;
   onCancel: (op: Operation) => void;
+  /** Removes the row once the operation ended. */
+  onDismiss: (op: Operation) => void;
 }
 
 /** A connection (server icon and environment) or a backup folder (folder icon, opened with a click). */
@@ -49,15 +52,31 @@ function Endpoint({ endpoint }: { endpoint: OperationEndpoint }) {
 }
 
 /** One operation of the panel: its route, its progress while it runs and its outcome once it ends. */
-export function OperationRow({ operation: op, onCancel }: Props) {
+export function OperationRow({ operation: op, onCancel, onDismiss }: Props) {
   const detail = operationDetail(op);
+  const running = isRunning(op);
+  const elapsed = useElapsed(op.startedAt, op.endedAt);
   return (
     <li className={`ops-row ${op.status}`}>
       <div className="ops-row-head">
         <span className={`ops-status ${op.status}`}>{STATUS_LABELS[op.status]}</span>
-        {isRunning(op)
-          ? op.progress && <span className="ops-tally">{progressCount(op.progress)}</span>
-          : <span className="muted small">{durationLabel((op.endedAt ?? op.startedAt) - op.startedAt)}</span>}
+        <span className="ops-row-meta">
+          {running && op.progress && <span className="ops-tally">{progressCount(op.progress)}</span>}
+          <span className="ops-elapsed muted small" title={running ? "Tiempo transcurrido" : "Duración"}>
+            {durationLabel(elapsed)}
+          </span>
+          {!running && (
+            <button
+              type="button"
+              className="ghost small ops-dismiss"
+              onClick={() => onDismiss(op)}
+              aria-label="Quitar esta operación del panel"
+              title="Quitar"
+            >
+              ×
+            </button>
+          )}
+        </span>
       </div>
       <div className="ops-route">
         <Endpoint endpoint={op.source} />

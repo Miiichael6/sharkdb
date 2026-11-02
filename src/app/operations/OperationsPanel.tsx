@@ -4,7 +4,7 @@ import { useOperations } from "./useOperations";
 
 /** Right-hand panel of the main window with the background operations; closing it stops nothing. */
 export function OperationsPanel({ width }: { width: number }) {
-  const { operations, closePanel, cancel, clearFinished } = useOperations();
+  const { operations, closePanel, cancel, clearFinished, dismiss } = useOperations();
   const anyEnded = operations.some((op) => !isRunning(op));
 
   return (
@@ -20,7 +20,13 @@ export function OperationsPanel({ width }: { width: number }) {
       </header>
       <div className="ops-sections">
         {OPERATION_KINDS.map((kind) => (
-          <OperationsSection key={kind} kind={kind} operations={operationsOfKind(operations, kind)} onCancel={(op) => void cancel(op)} />
+          <OperationsSection
+            key={kind}
+            kind={kind}
+            operations={operationsOfKind(operations, kind)}
+            onCancel={(op) => void cancel(op)}
+            onDismiss={(op) => dismiss(op.id)}
+          />
         ))}
       </div>
     </aside>

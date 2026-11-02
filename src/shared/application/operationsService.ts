@@ -77,5 +77,7 @@ export function createOperationsService(clock: () => number = Date.now, newId: (
     },
     /** Removes the ended operations from the list. */
     clearFinished: () => dispatch({ type: "cleared" }),
+    /** Removes one ended operation from the list; a running one stays. */
+    dismiss: (id: string) => dispatch({ type: "dismissed", id }),
   };
 }

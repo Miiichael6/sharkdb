@@ -61,6 +61,12 @@ describe("operationsReducer", () => {
     const ops = run([started("a"), started("b"), { type: "cancelled", id: "a", at: 2 }, { type: "cleared" }]);
     expect(ops.map((o) => o.id)).toEqual(["b"]);
   });
+
+  it("dismissing removes one ended operation, never a running one", () => {
+    const ended = [started("a"), started("b"), started("c"), { type: "failed", id: "a", error: "x", at: 2 } as const];
+    expect(run([...ended, { type: "dismissed", id: "a" }]).map((o) => o.id)).toEqual(["b", "c"]);
+    expect(run([...ended, { type: "dismissed", id: "b" }]).map((o) => o.id)).toEqual(["a", "b", "c"]);
+  });
 });
 
 describe("one writer per destination", () => {
