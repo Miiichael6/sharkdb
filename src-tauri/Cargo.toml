@@ -12,7 +12,8 @@ edition = "2024"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "sharkdb_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Desktop-only: staticlib/cdylib are only needed for Android/iOS builds and add ~300 MB to target/.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -53,3 +54,8 @@ strip = true
 # several times slower. Our own crate stays at the dev default, so it still rebuilds fast.
 [profile.dev.package."*"]
 opt-level = 2
+debug = false
+
+# Line tables are enough for readable panic backtraces; full debuginfo bloats target/ by tens of GB.
+[profile.dev]
+debug = "line-tables-only"

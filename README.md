@@ -44,6 +44,30 @@ del `PATH` (por ejemplo, una comilla suelta) hace que se ignoren todas las sigui
   reinicia la app.
 - Si sale `Port 1420 is already in use`, ya hay otra instancia de desarrollo abierta: ciérrala antes.
 
+### Espacio en disco
+
+`src-tauri/target/` es la caché de compilación de Cargo y ocupa entre 3 y 5 GB: Rust compila desde el código
+fuente unas 500 dependencias (solo los bindings de la API de Windows, `windows` y `windows-sys`, rondan los
+450 MB). Se reutiliza en cada `start:dev`, así que no crece por ejecutarlo; sí crece al cambiar dependencias
+o actualizar Rust, porque las versiones viejas se quedan compiladas.
+
+Ya está ajustado en `src-tauri/Cargo.toml`: `debug = "line-tables-only"` y sin debuginfo en las dependencias
+(con debuginfo completa serían decenas de GB), y `crate-type = ["rlib"]`, porque `staticlib` y `cdylib` solo
+hacen falta para Android/iOS y añaden unos 300 MB.
+
+Para mantenerlo a raya:
+
+```sh
+npm run clean:dev                          # borra la caché de dev (la siguiente compilación tarda minutos)
+npm run clean:release                      # borra target/release tras generar el instalador
+cargo install cargo-sweep                  # una vez
+cargo sweep --time 14 src-tauri            # borra solo lo que no se usa desde hace 14 días
+compact /c /s:src-tauri\target /i /q       # Windows: comprime con NTFS (~la mitad), apenas más lento
+```
+
+También se puede sacar la caché del disco del sistema con la variable de entorno `CARGO_TARGET_DIR` (por
+ejemplo, `D:\cargo-target`), que además comparten todos los proyectos Rust.
+
 ## Pruebas
 
 ```sh
@@ -169,3 +193,10 @@ datos de la app, y se aplican en el acto a las consultas siguientes. El tema est
 | `Ctrl+B`                      | Mostrar u ocultar el panel lateral         |
 | `Ctrl+R` / `F5`               | Refrescar el workspace                     |
 | `Ctrl+,`                      | Preferencias                               |
+
+
+## EJECUTAR
+```
+    $env:Path += ";$env:USERPROFILE\.cargo\bin"
+    npm run tauri dev
+```
