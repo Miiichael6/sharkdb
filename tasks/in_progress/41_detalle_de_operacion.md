@@ -39,7 +39,7 @@ En el panel derecho de Operaciones, un clic en una operación (sync, restore o b
 - [ ] Restore desde carpeta y backup a carpeta: se ve la ruta; el backup pasa directo a verde por colección
 - [ ] Cancelar a mitad y forzar un error: celdas descartadas y en rojo, con el motivo en el tooltip
 - [ ] Contraste de los puntos en temas claro y oscuro
-- [ ] Sub-ventana estrecha con 60+ colecciones: sin scroll horizontal, nombres largos con elipsis
+- [ ] Sub-ventana estrecha con 60+ colecciones: sin scroll horizontal, nombres completos (sin elipsis)
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test`, typecheck y `vite build` pasan
 - [ ] Commit: `feat(operations): detalle de la operación con el avance de cada colección por BD` (propuesto, pendiente del usuario)

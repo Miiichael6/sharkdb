@@ -57,6 +57,28 @@ describe("jobRunner", () => {
     expect(state.listeners).toBe(0);
   });
 
+  it("still hears the events that arrive just after the command returned", async () => {
+    const { events, state } = fakeEvents();
+    const collections: CollectionUpdate[] = [];
+    let returned = () => {};
+    const lateEvents = () =>
+      new Promise<void>((resolve) => {
+        returned = () => {
+          state.emitCollection(update("job-3"));
+          resolve();
+        };
+      });
+    const running = createJobRunner(events, () => "job-3", lateEvents)(async () => RESULT, {
+      progress: () => {},
+      collection: (u) => collections.push(u),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    returned();
+    await running.result;
+    expect(collections).toEqual([update("job-3")]);
+    expect(state.listeners).toBe(0);
+  });
+
   it("cancels its own job", async () => {
     const { events, state } = fakeEvents();
     const running = createJobRunner(events, () => "job-2")(async () => RESULT, IGNORED);

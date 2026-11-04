@@ -24,10 +24,11 @@ interface Props {
   results: CollectionResult[];
   /** What the list says when the filter hides everything of this phase. */
   noMatches: string;
+  databaseCount: number;
 }
 
 /** One phase of a sync or restore with its collections by database; they pass from the first to the second. */
-export function PhaseSection({ phase, collections, query, kind, results, noMatches }: Props) {
+export function PhaseSection({ phase, collections, query, kind, results, noMatches, databaseCount }: Props) {
   const entries = inPhase(collections, phase);
   const { title, hint, empty } = PHASES[phase];
   return (
@@ -44,6 +45,7 @@ export function PhaseSection({ phase, collections, query, kind, results, noMatch
           results={results}
           empty={entries.length ? noMatches : empty}
           phase={phase}
+          databaseCount={databaseCount}
         />
       </div>
     </section>

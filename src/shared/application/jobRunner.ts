@@ -25,9 +25,20 @@ export interface JobListener {
   collection(update: CollectionUpdate): void;
 }
 
+/**
+ * How long the job keeps listening once its command returned: Tauri doesn't promise that events
+ * emitted before the return arrive before it, and the last ones (applied, failed) matter.
+ */
+const LATE_EVENTS_MS = 100;
+const waitForLateEvents = () => new Promise<void>((resolve) => setTimeout(resolve, LATE_EVENTS_MS));
+
 export type StartJob = (run: (job: string) => Promise<CollectionResult[]>, listener: JobListener) => RunningJob;
 
-export function createJobRunner(events: JobEvents, newJobId: () => string = () => crypto.randomUUID()): StartJob {
+export function createJobRunner(
+  events: JobEvents,
+  newJobId: () => string = () => crypto.randomUUID(),
+  lateEvents: () => Promise<void> = waitForLateEvents,
+): StartJob {
   return (run, listener) => {
     const job = newJobId();
     const result = (async () => {
@@ -39,6 +50,8 @@ export function createJobRunner(events: JobEvents, newJobId: () => string = () =
       try {
         return await run(job);
       } finally {
+        // Before the outcome is known: the operation ends after its last collections did.
+        await lateEvents();
         stops.forEach((stop) => stop());
       }
     })();

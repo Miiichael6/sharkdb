@@ -102,6 +102,7 @@ export function OperationDetail({ operation: op, onClose }: { operation: Operati
               kind={op.kind}
               results={op.results}
               noMatches={NO_MATCHES}
+              databaseCount={groups.length}
             />
           ))}
         </div>
@@ -113,6 +114,7 @@ export function OperationDetail({ operation: op, onClose }: { operation: Operati
             kind={op.kind}
             results={op.results}
             empty={groups.length ? NO_MATCHES : NO_COLLECTIONS}
+            databaseCount={groups.length}
           />
         </div>
       )}

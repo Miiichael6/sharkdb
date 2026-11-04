@@ -93,7 +93,7 @@ const whileRunning = (ops: Operation[], id: string, change: (op: Operation) => O
 const ended = (op: Operation, status: Exclude<OperationStatus, "running">, at: number): Operation => ({
   ...op,
   status,
-  collections: settleCollections(op.collections, status),
+  collections: settleCollections(op.collections, status, op.kind),
   endedAt: at,
 });
 

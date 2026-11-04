@@ -21,6 +21,9 @@ export interface OperationDetailSource {
 const MIN_HEIGHT = 700;
 const WINDOW = { width: 560, height: MIN_HEIGHT, minHeight: MIN_HEIGHT, maximizable: true };
 
+/** At most one send per this many ms: per-batch events would re-serialize every collection each time. */
+const SEND_EVERY_MS = 150;
+
 /** "Detalle · Sync Prod → QA". */
 const detailTitle = (op: Operation) => `Detalle · ${KIND_LABELS[op.kind]} ${operationRoute(op)}`;
 
@@ -32,13 +35,22 @@ export function openOperationDetail(op: Operation, source: OperationDetailSource
     onRequest: (body) => source.handle(op.id, body as OperationDetailRequest),
     updates: (send) => {
       let last = op;
-      // The reducer gives a new object only to the operation that changed, so the others send nothing.
-      return source.subscribe(() => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      // The newest operation, once per period; the reducer gives a new object only to the one that changed.
+      const flush = () => {
+        timer = undefined;
         const now = source.find(op.id);
         if (!now || now === last) return;
         last = now;
         send(now);
+      };
+      const stop = source.subscribe(() => {
+        timer ??= setTimeout(flush, SEND_EVERY_MS);
       });
+      return () => {
+        stop();
+        clearTimeout(timer);
+      };
     },
   });
 }

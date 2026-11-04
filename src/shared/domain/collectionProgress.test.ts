@@ -158,3 +158,15 @@ describe("staging phases", () => {
     expect(copySummaryLabel({ applied: 0, total: 3, percent: 40, worst: "running" })).toBe("3 · 40 %");
   });
 });
+
+describe("settling a backup that didn't end well", () => {
+  it("discards even what was saved: an incomplete backup can't be restored", () => {
+    const list = apply(update("orders", "applied", 10), update("users", "failed", 3));
+    expect(statuses(settleCollections(list, "cancelled", "backup"))).toEqual([
+      "shop.orders:discarded",
+      "shop.users:failed",
+      "logs.events:discarded",
+    ]);
+    expect(statuses(settleCollections(list, "cancelled", "sync"))[0]).toBe("shop.orders:applied");
+  });
+});

@@ -27,6 +27,12 @@ interface Props {
 /** A click on the row's own buttons (Cancelar, ×, the folder) does what they say, not open the detail. */
 const fromInnerButton = (e: MouseEvent | KeyboardEvent) => (e.target as HTMLElement).closest("button") !== null;
 
+/** Dragging over the row to copy its text (an error, a path) ends in a click too: that one doesn't open. */
+const selectingText = () => !(window.getSelection()?.isCollapsed ?? true);
+
+/** The row acts as a button: Enter and Space open it. */
+const OPEN_KEYS = ["Enter", " "];
+
 /** One operation of the panel: its route, its progress while it runs and its outcome once it ends. */
 export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Props) {
   const { backup } = useServices();
@@ -35,8 +41,13 @@ export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Pro
   const detail = operationDetail(op);
   const running = isRunning(op);
   const elapsed = useElapsed(op.startedAt, op.endedAt);
-  const open = (e: MouseEvent | KeyboardEvent) => {
-    if (!fromInnerButton(e)) onOpen(op);
+  const openByClick = (e: MouseEvent) => {
+    if (!fromInnerButton(e) && !selectingText()) onOpen(op);
+  };
+  const openByKey = (e: KeyboardEvent) => {
+    if (!OPEN_KEYS.includes(e.key) || fromInnerButton(e)) return;
+    e.preventDefault(); // Space would scroll the panel.
+    onOpen(op);
   };
   return (
     <li
@@ -44,8 +55,8 @@ export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Pro
       tabIndex={0}
       aria-label={`Ver el detalle: ${KIND_LABELS[op.kind]} ${operationRoute(op)}, ${STATUS_LABELS[op.status]}`}
       title="Ver el detalle"
-      onClick={open}
-      onKeyDown={(e) => e.key === "Enter" && open(e)}
+      onClick={openByClick}
+      onKeyDown={openByKey}
     >
       <div className="ops-row-head">
         <span className={`ops-status ${op.status}`}>{STATUS_LABELS[op.status]}</span>

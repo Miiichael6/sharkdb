@@ -97,10 +97,17 @@ const completed = (entry: CollectionProgressEntry): CollectionProgressEntry => {
 /**
  * The collections once the operation ended. Done: every one was applied. Cancelled or failed: what
  * wasn't applied is discarded, the target kept it as it was (R95); the one that failed keeps its error.
+ * A backup that didn't end well keeps nothing: its folder is marked incomplete and can't be restored.
  */
-export function settleCollections(list: CollectionProgressEntry[], end: OperationEnd): CollectionProgressEntry[] {
+export function settleCollections(
+  list: CollectionProgressEntry[],
+  end: OperationEnd,
+  kind?: OperationKind,
+): CollectionProgressEntry[] {
   if (end === "done") return list.map((entry) => (entry.status === "applied" ? entry : completed(entry)));
-  return list.map((entry) => (entry.status === "applied" || entry.status === "failed" ? entry : { ...entry, status: "discarded" }));
+  const stays = (entry: CollectionProgressEntry) =>
+    entry.status === "failed" || (entry.status === "applied" && kind !== "backup");
+  return list.map((entry) => (stays(entry) ? entry : { ...entry, status: "discarded" }));
 }
 
 /** 0–100 of one collection; a copied one is whole even though the target doesn't have it yet. */
@@ -130,7 +137,11 @@ export const inPhase = (list: CollectionProgressEntry[], phase: CollectionPhase)
 /** The collections by database, in the order of the plan. */
 export function byDatabase(list: CollectionProgressEntry[]): DatabaseGroup[] {
   const groups = new Map<string, CollectionProgressEntry[]>();
-  for (const entry of list) groups.set(entry.db, [...(groups.get(entry.db) ?? []), entry]);
+  for (const entry of list) {
+    const collections = groups.get(entry.db);
+    if (collections) collections.push(entry);
+    else groups.set(entry.db, [entry]);
+  }
   return [...groups].map(([db, collections]) => ({ db, collections }));
 }
 

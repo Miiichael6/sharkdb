@@ -12,10 +12,12 @@ interface Props {
   /** What it says when there is nothing to show (no collections, or none matching). */
   empty: string;
   phase?: CollectionPhase;
+  /** How many databases the whole operation goes through (a phase may hold only some of them). */
+  databaseCount: number;
 }
 
 /** The databases of the detail that the filter lets through, each one foldable. */
-export function DatabaseList({ groups, query, kind, results, empty, phase }: Props) {
+export function DatabaseList({ groups, query, kind, results, empty, phase, databaseCount }: Props) {
   const filtered = filterGroups(groups, query);
   if (!filtered.length) return <p className="muted small ops-detail-empty">{empty}</p>;
   return (
@@ -28,7 +30,7 @@ export function DatabaseList({ groups, query, kind, results, empty, phase }: Pro
           query={query}
           kind={kind}
           results={results}
-          databaseCount={groups.length}
+          databaseCount={databaseCount}
           phase={phase}
         />
       ))}
