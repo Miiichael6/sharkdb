@@ -2883,6 +2883,16 @@ button.link.console-more {
 /* The type icon carries the colour; values stay in plain text so rows read calmly. */
 .grid-cell.tree-value {
   color: var(--text);
+  /* The cell fills the row's height even when the value is empty ("" or only spaces): otherwise it
+     collapses to nothing and can't be clicked (nor triple-clicked to edit). */
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.tree-value-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tree-value.bson-object,
 .tree-value.bson-array,
@@ -2895,6 +2905,8 @@ button.link.console-more {
 .inline-editor {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
   gap: 6px;
   height: 100%;
   margin: 0 -6px;

@@ -166,7 +166,7 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu, onDeleteDocum
               onCancel={inline.cancel}
             />
           ) : (
-            row.value
+            <span className="tree-value-text">{row.value}</span>
           )}
         </div>
         <div className={`grid-cell tree-type ${cellClass(index, "type")}`} role="gridcell" style={{ width: widthOf("type") }} onClick={pick("type")}>
