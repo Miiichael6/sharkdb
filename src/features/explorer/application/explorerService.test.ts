@@ -21,8 +21,10 @@ function fakeAdmin(targetCount = 7, failing?: string, sourceOptions: Doc = {}) {
       if (failing === "runPipeline") throw "E11000 duplicate key";
     },
     collectionOptions: async () => sourceOptions,
-    createCollection: async (sid: string, db: string, coll: string, opts: Doc) =>
-      void calls.push(["createCollection", sid, db, coll, opts]),
+    createCollection: async (sid: string, db: string, coll: string, opts: Doc) => {
+      calls.push(["createCollection", sid, db, coll, opts]);
+      if (failing === "createCollection") throw "NamespaceExists: Collection archive.orders already exists.";
+    },
     convertToCapped: async (sid: string, db: string, coll: string, size: number) =>
       void calls.push(["convertToCapped", sid, db, coll, size]),
     modifyCollection: async (sid: string, db: string, command: Doc) => void calls.push(["modifyCollection", sid, db, command]),
@@ -100,6 +102,20 @@ describe("explorerService.copyCollection", () => {
       "E11000 duplicate key",
     );
     expect(calls[calls.length - 1]).toEqual(["dropCollection", "s1", "archive", "orders"]);
+  });
+
+  it("doesn't drop a target another process created after the check", async () => {
+    const { admin, calls } = fakeAdmin(7, "createCollection");
+    await expect(createExplorerService(admin).copyCollection(TO_ARCHIVE)).rejects.toMatch(/NamespaceExists/);
+    expect(calls.map((c) => c[0])).toEqual(["createCollection"]);
+  });
+
+  it("doesn't drop a time series target $out never created", async () => {
+    const { admin, calls } = fakeAdmin(7, "runPipeline", { timeseries: { timeField: "t" } });
+    await expect(
+      createExplorerService(admin).copyCollection({ ...TO_ARCHIVE, target: { db: "shop", coll: "metrics" } }),
+    ).rejects.toBe("E11000 duplicate key");
+    expect(calls.map((c) => c[0])).toEqual(["runPipeline"]);
   });
 
   it("never replaces an existing target unless asked", async () => {

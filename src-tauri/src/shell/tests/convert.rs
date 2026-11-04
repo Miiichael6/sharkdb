@@ -107,6 +107,8 @@ fn js_numbers_become_int32_or_double_like_mongosh() {
     assert!(matches!(eval_to_bson("-0"), Bson::Double(z) if z == 0.0 && z.is_sign_negative()));
     assert_eq!(eval_to_bson("10 / 2"), Bson::Int32(5));
     assert_eq!(eval_to_bson("NumberInt(5)"), Bson::Int32(5));
+    assert_eq!(eval_to_bson("NumberInt(2147483647)"), Bson::Int32(i32::MAX));
+    assert_eq!(eval_to_bson("NumberInt(-2147483648)"), Bson::Int32(i32::MIN));
     assert_eq!(eval_to_bson("Double(5)"), Bson::Double(5.0));
     assert_eq!(eval_to_bson("new Double('2.5')"), Bson::Double(2.5));
     assert_eq!(
@@ -156,6 +158,9 @@ fn invalid_constructor_arguments_throw() {
         "NumberDecimal('abc')",
         "UUID('123')",
         "BinData(300, '')",
+        "NumberInt(3000000000)",
+        "NumberInt(-2147483649)",
+        "NumberInt(Infinity)",
     ] {
         let outcome = run(&mut engine(), code);
         assert!(outcome.error.is_some(), "debería fallar: {code}");

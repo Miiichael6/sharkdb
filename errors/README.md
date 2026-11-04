@@ -24,7 +24,7 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 17 | BAJO | ✅ [Remove documents confirmacion simple](resolved/17_bajo_remove-documents-confirmacion-simple.md) |
 | 18 | BAJO | [Reindex en produccion](18_bajo_reindex-en-produccion.md) |
 | 19 | BAJO | ✅ [Delete statement limit sobrescribible](resolved/19_bajo_delete-statement-limit-sobrescribible.md) |
-| 20 | BAJO | [Numberint desborda](20_bajo_numberint-desborda.md) |
+| 20 | BAJO | ✅ [Numberint desborda](resolved/20_bajo_numberint-desborda.md) |
 | 21 | BAJO | [Tipos que no sobreviven edicion](21_bajo_tipos-que-no-sobreviven-edicion.md) |
 | 22 | BAJO | [Sin transacciones en shell](22_bajo_sin-transacciones-en-shell.md) |
 | 23 | BAJO | [Menu copiar incoherente](23_bajo_menu-copiar-incoherente.md) |
@@ -34,7 +34,7 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 27 | MEDIO | ✅ [Restore sync fallan por validador](resolved/27_medio_restore-sync-fallan-por-validador.md) |
 | 28 | BAJO | ✅ [Quitar validacion sin confirmacion](resolved/28_bajo_quitar-validacion-sin-confirmacion.md) |
 | 29 | BAJO | [Remove function ignora write errors](29_bajo_remove-function-ignora-write-errors.md) |
-| 30 | BAJO | [Safe mode huecos](30_bajo_safe-mode-huecos.md) |
+| 30 | BAJO | ✅ [Safe mode huecos](resolved/30_bajo_safe-mode-huecos.md) |
 | 31 | BAJO | [Editar indice misma clave ventana](31_bajo_editar-indice-misma-clave-ventana.md) |
 | 32 | BAJO | [Nombre staging largo](32_bajo_nombre-staging-largo.md) |
 | 33 | BAJO | [Precision en validador y filtros](33_bajo_precision-en-validador-y-filtros.md) |
@@ -54,9 +54,9 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 47 | MEDIO | ✅ [Programacion BD completa lista fija](resolved/47_medio_programacion-bd-completa-lista-fija.md) |
 | 48 | MEDIO | [Backup carpeta existente mezcla](48_medio_backup-carpeta-existente-mezcla.md) |
 | 49 | BAJO | [Staging huerfanas tras caida](49_bajo_staging-huerfanas-tras-caida.md) |
-| 50 | BAJO | [Copiar coleccion borra ajena](50_bajo_copiar-coleccion-borra-ajena.md) |
+| 50 | BAJO | ✅ [Copiar coleccion borra ajena](resolved/50_bajo_copiar-coleccion-borra-ajena.md) |
 | 51 | BAJO | [Reintentar insert duplica](51_bajo_reintentar-insert-duplica.md) |
-| 52 | BAJO | [Menu scripts nombre con barra](52_bajo_menu-scripts-nombre-con-barra.md) |
+| 52 | BAJO | ✅ [Menu scripts nombre con barra](resolved/52_bajo_menu-scripts-nombre-con-barra.md) |
 | 53 | BAJO | [Redeclaracion ejecuta a medias](53_bajo_redeclaracion-ejecuta-a-medias.md) |
 | 54 | BAJO | [Cancelar antes de registrar job](54_bajo_cancelar-antes-de-registrar-job.md) |
 | 55 | MEDIO | [Ctrl+Enter en explorador re-ejecuta script](55_medio_ctrl-enter-explorador-reejecuta-script.md) |

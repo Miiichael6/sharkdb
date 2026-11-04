@@ -100,6 +100,8 @@
     if (instance) return instance;
     const n = Number(value ?? 0);
     if (Number.isNaN(n)) throw new TypeError(`NumberInt: número no válido "${value}"`);
+    // `n | 0` daría la vuelta en silencio fuera de Int32 (3000000000 → negativo).
+    if (!(n >= -2147483648 && n <= 2147483647)) throw new RangeError(`NumberInt: ${value} no cabe en Int32`);
     hidden(this, { _value: n | 0 });
   }
   defineType(NumberInt, 'NumberInt', {

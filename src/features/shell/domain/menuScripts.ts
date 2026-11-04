@@ -1,7 +1,11 @@
 // Scripts a shell tab opened from the explorer's context menus starts with, as in Robo 3T.
 
-/** `db.getCollection('…')` for a collection name, escaping its quotes. */
-export const collectionExpr = (coll: string) => `db.getCollection('${coll.replace(/'/g, "\\'")}')`;
+/**
+ * `db.getCollection('…')` for a collection name. JSON escapes backslashes and control characters
+ * (`data\_old` would otherwise address `data_old`); then the quotes are swapped for single ones.
+ */
+export const collectionExpr = (coll: string) =>
+  `db.getCollection('${JSON.stringify(coll).slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}')`;
 
 export type CollectionScriptKind =
   | "viewDocuments"

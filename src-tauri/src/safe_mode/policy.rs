@@ -76,6 +76,12 @@ const WRITE_COMMANDS: &[&str] = &[
     "configurequeryanalyzer",
     "setchangestreamstate",
     "appendoplognote",
+    "setprofilinglevel",
+    "autocompact",
+    "setfreemonitoring",
+    // Queryable Encryption: compactan o limpian las colecciones de metadatos
+    "compactstructuredencryptiondata",
+    "cleanupstructuredencryptiondata",
     // replica set
     "replsetinitiate",
     "replsetreconfig",
@@ -126,6 +132,11 @@ const WRITE_STAGES: &[&str] = &["$out", "$merge"];
 const AGGREGATE: &str = "aggregate";
 const MAP_REDUCE: &str = "mapreduce";
 const EXPLAIN: &str = "explain";
+const PROFILE: &str = "profile";
+const VALIDATE: &str = "validate";
+
+/// Opciones de `profile` que se aplican aunque el nivel sea -1 (solo consultar).
+const PROFILE_SETTINGS: &[&str] = &["slowms", "samplerate", "filter"];
 
 /// El nombre del comando es su primera clave.
 fn command_name(command: &Document) -> Option<String> {
@@ -145,6 +156,9 @@ pub fn is_write_command(command: &Document) -> bool {
         MAP_REDUCE => !is_inline_output(command.get("out")),
         // Se juzga por lo que explica: así no hay que fiarse de qué verbosidades ejecutan.
         EXPLAIN => command.get_document(EXPLAIN).is_ok_and(is_write_command),
+        PROFILE => changes_profiling(command),
+        // Sin `repair` solo comprueba la colección.
+        VALIDATE => command.iter().any(|(key, value)| key.eq_ignore_ascii_case("repair") && is_truthy(value)),
         _ => WRITE_COMMANDS.contains(&name.as_str()),
     }
 }
@@ -160,6 +174,34 @@ fn is_write_stage(stage: &Bson) -> bool {
 
 fn writes_to_collection(stage: &Document) -> bool {
     stage.keys().any(|key| WRITE_STAGES.contains(&key.as_str()))
+}
+
+/// `profile: -1` solo devuelve la configuración; otro nivel, o cambiar `slowms`, `sampleRate` o
+/// `filter`, la modifica.
+fn changes_profiling(command: &Document) -> bool {
+    let level = command.iter().next().and_then(|(_, level)| number(level));
+    level != Some(-1.0)
+        || command
+            .keys()
+            .any(|key| PROFILE_SETTINGS.contains(&key.to_lowercase().as_str()))
+}
+
+fn number(value: &Bson) -> Option<f64> {
+    match value {
+        Bson::Int32(n) => Some(f64::from(*n)),
+        Bson::Int64(n) => Some(*n as f64),
+        Bson::Double(n) => Some(*n),
+        _ => None,
+    }
+}
+
+/// Como lo interpreta el servidor: `true` o un número distinto de 0.
+fn is_truthy(value: &Bson) -> bool {
+    match value {
+        Bson::Boolean(b) => *b,
+        Bson::Null | Bson::Undefined => false,
+        other => number(other).is_none_or(|n| n != 0.0),
+    }
 }
 
 /// `mapReduce` solo es de lectura con `out: { inline: 1 }`.
@@ -247,6 +289,59 @@ mod tests {
             doc! { "appendOplogNote": 1, "data": {} },
         ] {
             assert!(is_write_command(&command), "{command}");
+        }
+    }
+
+    #[test]
+    fn profiling_monitoring_and_encryption_maintenance_are_writes() {
+        for command in [
+            doc! { "setProfilingLevel": 2 },
+            doc! { "autoCompact": true },
+            doc! { "setFreeMonitoring": 1, "action": "enable" },
+            doc! { "compactStructuredEncryptionData": "x", "compactionTokens": {} },
+            doc! { "cleanupStructuredEncryptionData": "x", "cleanupTokens": {} },
+        ] {
+            assert!(is_write_command(&command), "{command}");
+        }
+    }
+
+    #[test]
+    fn profile_is_a_write_unless_it_only_reads_the_settings() {
+        for command in [
+            doc! { "profile": 2 },
+            doc! { "profile": 1, "slowms": 50 },
+            doc! { "profile": 0 },
+            doc! { "profile": -1, "slowms": 50 },
+            doc! { "profile": -1, "sampleRate": 0.5 },
+            doc! { "profile": -1, "filter": { "op": "query" } },
+            doc! { "profile": "2" },
+        ] {
+            assert!(is_write_command(&command), "{command}");
+        }
+        for command in [
+            doc! { "profile": -1 },
+            doc! { "profile": -1_i64 },
+            doc! { "profile": -1.0, "comment": "x" },
+        ] {
+            assert!(!is_write_command(&command), "{command}");
+        }
+    }
+
+    #[test]
+    fn validate_is_a_write_only_when_it_repairs() {
+        for command in [
+            doc! { "validate": "x", "repair": true },
+            doc! { "validate": "x", "repair": 1 },
+        ] {
+            assert!(is_write_command(&command), "{command}");
+        }
+        for command in [
+            doc! { "validate": "x" },
+            doc! { "validate": "x", "full": true },
+            doc! { "validate": "x", "repair": false },
+            doc! { "validate": "x", "repair": 0 },
+        ] {
+            assert!(!is_write_command(&command), "{command}");
         }
     }
 

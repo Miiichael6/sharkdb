@@ -169,16 +169,23 @@ export function createExplorerService(admin: MongoAdmin, newId: () => string = (
     return (await admin.collStats(sid, target.db, target.coll)).count ?? 0;
   }
 
-  /** Fills `request.target`, which doesn't exist yet, with the copy; drops it if anything fails. */
+  /** Fills `request.target`, which doesn't exist yet, with the copy; drops it if anything fails after creating it. */
   async function buildCopy(request: CopyRequest, options: CopyOptions) {
     const { source, target, copyIndexes } = request;
     const { sid } = source;
     const indexes = copyIndexes ? indexesToCopy(await admin.listIndexes(sid, source.db, source.coll)) : [];
     const late = indexesAfterDocuments(options);
+    // Until this copy has created the target, a failure (another process created it in between,
+    // NamespaceExists) must not drop it: it isn't ours.
+    let created = false;
     try {
-      if (options.create) await admin.createCollection(sid, target.db, target.coll, options.create);
+      if (options.create) {
+        await admin.createCollection(sid, target.db, target.coll, options.create);
+        created = true;
+      }
       if (!late) for (const ix of indexes) await admin.createIndex(sid, target.db, target.coll, ix);
       await admin.runPipeline(sid, source.db, source.coll, copyPipeline(request, options.timeseries), COPY_PIPELINE_OPTIONS);
+      created = true; // a time series target is created by `$out` itself
       if (options.capped) {
         await admin.convertToCapped(sid, target.db, target.coll, options.capped.size);
         if (options.capped.max) await admin.modifyCollection(sid, target.db, { collMod: target.coll, cappedMax: options.capped.max });
@@ -187,8 +194,8 @@ export function createExplorerService(admin: MongoAdmin, newId: () => string = (
         await admin.modifyCollection(sid, target.db, { collMod: target.coll, expireAfterSeconds: options.expireAfterSeconds });
       if (late) for (const ix of indexes) await admin.createIndex(sid, target.db, target.coll, ix);
     } catch (e) {
-      // Only this copy created it; if dropping fails too, an empty or partial collection is left.
-      await admin.dropCollection(sid, target.db, target.coll).catch(() => {});
+      // If dropping fails too, an empty or partial collection is left.
+      if (created) await admin.dropCollection(sid, target.db, target.coll).catch(() => {});
       throw e;
     }
   }

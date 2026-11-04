@@ -6,6 +6,15 @@ describe("menuScripts", () => {
     expect(collectionExpr("it's")).toBe("db.getCollection('it\\'s')");
   });
 
+  it("escapes backslashes so the literal still names the same collection", () => {
+    for (const name of ["data\\_old", "a\\", 'say "hi"', "a\\'b", "tab\there", "users"]) {
+      const expr = collectionExpr(name);
+      const literal = expr.slice("db.getCollection(".length, -1);
+      expect(new Function(`return ${literal}`)()).toBe(name);
+    }
+    expect(collectionExpr("data\\_old")).toBe("db.getCollection('data\\\\_old')");
+  });
+
   it("runs reads right away and leaves write templates for the user to fill in", () => {
     expect(collectionScript("viewDocuments", "users")).toEqual({ code: "db.getCollection('users').find({})", run: true });
     expect(collectionScript("shardVersion", "users")).toEqual({ code: "db.getCollection('users').getShardVersion()", run: true });
