@@ -3,7 +3,7 @@
 (function (native, lib) {
   'use strict';
 
-  const { num, failWith, Cursor, ExplainQuery, WriteResult, DB, Collection } = lib;
+  const { num, failWith, Cursor, ExplainQuery, WriteResult, DB, Collection, describeFound } = lib;
 
   const BYTES_PER_GB = 1024 ** 3;
   const DB_NAME_WIDTH = 20;
@@ -91,7 +91,7 @@
       if (value instanceof Cursor) return describeCursor(value, firstBatchSize);
       if (value instanceof WriteResult) return { kind: 'write', value };
       if (value instanceof DB || value instanceof Collection) return { kind: 'value', value: value.toString() };
-      return { kind: 'value', value };
+      return describeFound(value) ?? { kind: 'value', value };
     },
   };
   Object.defineProperty(globalThis, '__shell', { value: shell });

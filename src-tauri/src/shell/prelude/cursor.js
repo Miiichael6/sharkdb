@@ -196,5 +196,58 @@
     toArray() { return [this.finish()]; }
   }
 
-  Object.assign(lib, { Cursor, ExplainQuery, verbosityOf });
+  // Documento de `findOne` → su cursor y cómo era al leerlo. Si queda intacto como valor de una
+  // sentencia se muestra como el resultado de un find de un documento, editable como tal.
+  const found = new WeakMap();
+
+  const isPlainObject = (value) => {
+    if (value === null || typeof value !== 'object') return false;
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
+  };
+
+  // Estructura del documento al leerlo: cada objeto y array con sus claves; las hojas (también
+  // ObjectId, NumberLong...) por identidad y las fechas además por su instante, que `setX` cambia.
+  function snapshotOf(value) {
+    if (Array.isArray(value) || isPlainObject(value)) {
+      return { value, entries: Object.entries(value).map(([key, child]) => [key, snapshotOf(child)]) };
+    }
+    return { value, time: value instanceof Date ? value.getTime() : undefined };
+  }
+
+  function unchanged(value, snapshot) {
+    if (!Object.is(value, snapshot.value)) return false;
+    if (snapshot.entries) {
+      const keys = Object.keys(value);
+      return keys.length === snapshot.entries.length &&
+        snapshot.entries.every(([key, child], i) => keys[i] === key && unchanged(value[key], child));
+    }
+    return snapshot.time === undefined || value.getTime() === snapshot.time;
+  }
+
+  function rememberFound(doc, cursor) {
+    if (isPlainObject(doc)) found.set(doc, { cursor, snapshot: snapshotOf(doc) });
+    return doc;
+  }
+
+  // Lo que `Cursor._take` daría para `value` si es un documento de `findOne` que el script no
+  // tocó y que se puede editar; null si no. Con proyección, de una vista... se muestra como valor.
+  function describeFound(value) {
+    const entry = isPlainObject(value) ? found.get(value) : undefined;
+    if (!entry || !unchanged(value, entry.snapshot) || !entry.cursor._editable()) return null;
+    return {
+      kind: 'cursor',
+      ns: entry.cursor._ns,
+      id: null,
+      documents: [value],
+      bufferFrom: null,
+      exhausted: true,
+      missing: 0,
+      fresh: false,
+      editable: true,
+      cursor: entry.cursor,
+    };
+  }
+
+  Object.assign(lib, { Cursor, ExplainQuery, verbosityOf, rememberFound, describeFound });
 });

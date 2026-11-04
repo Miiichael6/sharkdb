@@ -210,6 +210,51 @@ fn view_or_timeseries_cursor_is_not_editable() {
     assert!(editable(&mut session, "db.x.find({})"));
 }
 
+#[test]
+fn untouched_find_one_document_shows_as_editable_cursor() {
+    let (mut session, bridge) = session();
+    let outcome = run_ok(&mut session, "db.x.findOne({})");
+    let [
+        ScriptOutput::Cursor {
+            ns,
+            cursor_id,
+            documents,
+            exhausted,
+            editable,
+        },
+    ] = &outputs(&outcome)[..]
+    else {
+        panic!("se esperaba un cursor: {:?}", outcome.results);
+    };
+    assert_eq!(ns, "test.x");
+    assert_eq!(documents, &[Bson::Document(doc! { "_id": 0 })]);
+    assert!(*exhausted && *editable && cursor_id.is_none());
+    assert!(bridge.retained.borrow().is_empty());
+
+    let kept = run_ok(&mut session, "var d = db.x.findOne({}); d");
+    assert!(matches!(outputs(&kept).last(), Some(ScriptOutput::Cursor { .. })));
+}
+
+#[test]
+fn changed_projected_or_read_only_find_one_document_stays_a_value() {
+    let (mut session, _) = session();
+    for script in [
+        "db.x.findOne({}, { a: 1 })",
+        "db.vista.findOne({})",
+        "var d = db.x.findOne({}); d.a = 1; d",
+        "var d = db.x.findOne({}); d._id = 5; d",
+        "var d = db.x.findOne({}); delete d._id; d",
+        "({ ...db.x.findOne({}) })",
+    ] {
+        let outcome = run_ok(&mut session, script);
+        assert!(
+            matches!(outputs(&outcome).last(), Some(ScriptOutput::Value { .. })),
+            "{script}: {:?}",
+            outcome.results
+        );
+    }
+}
+
 /// Ids `_id` del cursor que deja la última sentencia.
 fn cursor_ids(outcome: &ScriptOutcome) -> Vec<i32> {
     let [.., ScriptOutput::Cursor { documents, .. }] = &outputs(outcome)[..] else {

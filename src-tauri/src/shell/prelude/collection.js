@@ -5,7 +5,7 @@
 
   const {
     num, compact, withChildren, failWith, withId, scaleOption,
-    Cursor, ExplainQuery, verbosityOf,
+    Cursor, ExplainQuery, verbosityOf, rememberFound,
     WriteResult, runWrites, failOnWriteErrors, updateResult,
     Bulk, bulkWrite, updateStatement, deleteStatement, checkUpdate, checkReplacement, checkFilter, checkDefined,
   } = lib;
@@ -105,7 +105,7 @@
 
     findOne(filter = {}, projection = undefined) {
       const cursor = this.find(filter, projection).limit(1);
-      return cursor.hasNext() ? cursor.next() : null;
+      return cursor.hasNext() ? rememberFound(cursor.next(), cursor) : null;
     }
 
     aggregate(pipeline = [], options = {}) {

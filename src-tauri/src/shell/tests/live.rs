@@ -111,10 +111,12 @@ async fn live_shell_against_local_mongo() {
         "db.x.insertOne({ _id: NumberInt(1000) });\ndb.x.findOne({ _id: 1000 })",
     )
     .await;
-    assert_eq!(
-        value(&same_script),
-        Some(Bson::Document(doc! { "_id": 1000 }))
-    );
+    // Un findOne intacto llega como un cursor agotado de un documento, editable como un find.
+    let Some(ScriptOutput::Cursor { documents, editable, .. }) = outputs(&same_script).last().copied() else {
+        panic!("se esperaba un cursor: {:?}", same_script.results);
+    };
+    assert_eq!(documents, &[Bson::Document(doc! { "_id": 1000 })]);
+    assert!(*editable);
 
     let other = run_ok(&shell, &format!("use {OTHER_DB}; db.y.count()")).await;
     assert_eq!(prints(&other), [format!("switched to db {OTHER_DB}")]);
