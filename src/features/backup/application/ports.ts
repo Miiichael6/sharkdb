@@ -1,6 +1,7 @@
 import type { CollectionResult } from "../../../shared/domain/jobs";
 import type { DatabaseCatalog } from "../../../shared/domain/selection";
 import type { BackupRequest, RestoreRequest } from "../domain/backupSpec";
+import type { RunFolder } from "../domain/runFolders";
 import type { SystemAlert } from "../domain/runAlert";
 import type { BackupSchedule } from "../domain/schedule";
 
@@ -12,14 +13,19 @@ export interface ScheduleStore {
 
 /** The run folders inside a schedule's folder (`<dir>/<name>`); only names that look like runs are listed or removed. */
 export interface RunFolders {
-  /** Run folder names in `parent`; none when it doesn't exist yet. */
-  list(parent: string): Promise<string[]>;
+  /** Run folders in `parent`, and whether each ended well; none when it doesn't exist yet. */
+  list(parent: string): Promise<RunFolder[]>;
   remove(parent: string, names: string[]): Promise<void>;
 }
 
 /** The operating system's notifications, seen even with the app in the background. */
 export interface SystemNotifier {
   show(alert: SystemAlert): Promise<void>;
+}
+
+/** The databases of a connected source, with the collections they have now. */
+export interface SourceCatalog {
+  databaseCatalog(sid: string): Promise<DatabaseCatalog[]>;
 }
 
 /** Calls `listener` at the start of every minute; resolves to the function that stops it. */

@@ -5,7 +5,8 @@ import { errorMessage } from "../../../shared/errors";
 import { useNotify } from "../../../shared/ui/useNotifications";
 import type { BorrowedSession } from "../../connections/domain/session";
 import type { BackupRequest } from "../domain/backupSpec";
-import { runBlocker, type BackupSchedule, type ScheduleContext } from "../domain/schedule";
+import { missingNote } from "../domain/backupSpec";
+import { BACKUP_REQUIRED, runBlocker, type BackupSchedule, type ScheduleContext } from "../domain/schedule";
 
 interface Options {
   /** The connection's open session, or one opened apart for the run and closed after it (R61). */
@@ -46,9 +47,15 @@ export function useScheduleRun({ borrowSession, run, cancel }: Options) {
   const execute = async (schedule: BackupSchedule, at: Date) => {
     setRunning(schedule.id);
     try {
-      const request = await service.runRequest(schedule, at);
-      const lent = await borrowSession(request.sid);
+      if (!schedule.backup) throw BACKUP_REQUIRED;
+      // Connected first: the run saves the collections the source has now (error 47).
+      const lent = await borrowSession(schedule.backup.sid);
       try {
+        const { request, missing } = await service.runRequest(schedule, at);
+        if (missing.length) {
+          notify.info(`${schedule.name}: ${missingNote(missing)}`);
+          void service.alertSkipped(schedule, missing).catch(() => {});
+        }
         const started = run(request);
         if (!started) return;
         setOperationId(started.id);

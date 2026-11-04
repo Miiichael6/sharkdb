@@ -11,7 +11,7 @@
 
 pub mod commands;
 mod dump;
-mod folder;
+pub mod folder;
 mod format;
 mod restore;
 pub mod source;
@@ -26,7 +26,7 @@ mod tests {
     use mongodb::bson::{Document, doc, oid::ObjectId};
 
     use super::dump::dump_databases;
-    use super::folder::{backup_databases, read_catalog};
+    use super::folder::{INCOMPLETE_ERROR, backup_databases, read_catalog};
     use super::restore::{DatabaseRestore, restore_databases};
     use super::staging::Destination;
     use crate::jobs::selection::DatabaseSelection;
@@ -115,6 +115,8 @@ mod tests {
         let cancel = CancelFlag::default();
         cancel.cancel();
         assert_eq!(dump_databases(&client, &chosen, &dir, &cancel, |_| {}).await, Err(CANCELLED.into()));
+        // Un backup cancelado queda marcado: ya no se ofrece para restaurar (error 46).
+        assert_eq!(read_catalog(&dir), Err(INCOMPLETE_ERROR.into()));
         safe_mode.set(true);
         assert_eq!(
             restore_databases(&destination, &restores, &CancelFlag::default(), |_| {}).await,

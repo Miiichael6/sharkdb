@@ -24,7 +24,21 @@ const FIND_BATCH_SIZE: u32 = 1000;
 const PARTIAL_SUFFIX: &str = ".partial";
 
 /// Vuelca las colecciones elegidas de cada BD de `client` en `dir/<bd>` (que se crean si no existen).
+/// Mientras dura, `dir` lleva la marca de backup sin terminar; si falla o se cancela, se queda.
 pub async fn dump_databases(
+    client: &Client,
+    databases: &[DatabaseSelection],
+    dir: &Path,
+    cancel: &CancelFlag,
+    report: impl Fn(Progress),
+) -> Result<Vec<CollectionResult>, String> {
+    folder::mark_incomplete(dir)?;
+    let results = dump_all(client, databases, dir, cancel, report).await?;
+    folder::mark_complete(dir)?;
+    Ok(results)
+}
+
+async fn dump_all(
     client: &Client,
     databases: &[DatabaseSelection],
     dir: &Path,

@@ -7,9 +7,9 @@ use tauri_plugin_notification::NotificationExt;
 
 use super::runs;
 
-/// Las carpetas de ejecución de una programación (`<carpeta>/<nombre>`).
+/// Las carpetas de ejecución de una programación (`<carpeta>/<nombre>`), y si terminaron bien.
 #[tauri::command]
-pub fn list_backup_runs(parent: PathBuf) -> Result<Vec<String>, String> {
+pub fn list_backup_runs(parent: PathBuf) -> Result<Vec<runs::RunFolder>, String> {
     runs::list_runs(&parent)
 }
 

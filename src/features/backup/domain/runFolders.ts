@@ -1,9 +1,16 @@
 // Where each run of a schedule goes (D16): `<dir>/<name>/<AAAA-MM-DD_HHMM>`, and which old runs to delete.
-import type { BackupRequest } from "./backupSpec";
-import { BACKUP_REQUIRED, dateStamp, folderSafeName, pad, type BackupSchedule } from "./schedule";
+import type { DatabaseCatalog } from "../../../shared/domain/selection";
+import { currentDatabases, type BackupRequest } from "./backupSpec";
+import { BACKUP_REQUIRED, NOTHING_LEFT, dateStamp, folderSafeName, pad, type BackupSchedule } from "./schedule";
 
 /** Runs kept in a schedule's folder: older ones are deleted after each run that ends well (D16). */
 export const RETAINED_RUNS = 7;
+
+/** A run's folder, and whether its backup ended well: one that failed or was cancelled is marked. */
+export interface RunFolder {
+  name: string;
+  complete: boolean;
+}
 
 /** "2026-10-31_0230", or "2026-10-31_0230_2" for a second run in the same minute. */
 const RUN_NAME = /^(\d{4}-\d{2}-\d{2}_\d{4})(?:_(\d+))?$/;
@@ -37,10 +44,22 @@ export function runFolder(dir: string, name: string, at: Date, taken: string[] =
   return [runsParent(dir, name), runName(at, taken)].join(separatorOf(dir));
 }
 
-/** The backup a run at `at` makes. Throws the message to show when nothing was chosen yet. */
-export function runRequest(schedule: BackupSchedule, at: Date, taken: string[] = []): BackupRequest {
+/** A run's backup, and what it chose that no longer exists (skipped, not a failure). */
+export interface RunPlan {
+  request: BackupRequest;
+  missing: string[];
+}
+
+/**
+ * The backup a run at `at` makes, with the collections the source has now (`catalog`): whole
+ * databases take the new ones, and gone ones are skipped (error 47). Throws the message to show when
+ * nothing was chosen yet, or nothing chosen exists anymore.
+ */
+export function runRequest(schedule: BackupSchedule, at: Date, catalog: DatabaseCatalog[], taken: string[] = []): RunPlan {
   if (!schedule.backup) throw BACKUP_REQUIRED;
-  return { ...schedule.backup, dir: runFolder(schedule.backup.dir, schedule.name, at, taken) };
+  const { databases, missing } = currentDatabases(schedule.backup.databases, catalog);
+  if (!databases.length) throw NOTHING_LEFT;
+  return { request: { ...schedule.backup, databases, dir: runFolder(schedule.backup.dir, schedule.name, at, taken) }, missing };
 }
 
 /** Oldest first: by date, then "_2" after the run without a suffix. */
@@ -50,8 +69,17 @@ function compareRuns(a: string, b: string): number {
   return stampA === stampB ? Number(repeatA ?? 1) - Number(repeatB ?? 1) : stampA < stampB ? -1 : 1;
 }
 
-/** The runs to delete so that only the newest `keep` stay; folders that aren't runs don't count. */
-export function runsToDelete(names: string[], keep = RETAINED_RUNS): string[] {
-  const runs = names.filter(isRunName).sort(compareRuns);
-  return runs.slice(0, Math.max(0, runs.length - keep));
+/**
+ * The runs to delete so that only the newest `keep` complete ones stay; folders that aren't runs don't
+ * count. Unfinished runs never take a complete one's place (error 46): those older than the newest
+ * complete run go too, a newer one may still be running.
+ */
+export function runsToDelete(folders: RunFolder[], keep = RETAINED_RUNS): string[] {
+  const runs = folders.filter((run) => isRunName(run.name)).sort((a, b) => compareRuns(a.name, b.name));
+  const complete = runs.filter((run) => run.complete);
+  const kept = complete.slice(Math.max(0, complete.length - keep));
+  const newest = kept[kept.length - 1]?.name;
+  const goes = (run: RunFolder) =>
+    run.complete ? !kept.includes(run) : newest !== undefined && compareRuns(run.name, newest) < 0;
+  return runs.filter(goes).map((run) => run.name);
 }

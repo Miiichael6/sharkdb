@@ -75,6 +75,7 @@ export function createServices(): Services {
     schedules: createScheduleService({
       store: tauriScheduleStore,
       runs: tauriRunFolders,
+      source: tauriSyncGateway,
       notifier: tauriSystemNotifier,
       clock: tauriMinuteClock,
     }),

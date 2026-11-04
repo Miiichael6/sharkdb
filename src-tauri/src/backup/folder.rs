@@ -1,12 +1,19 @@
 //! Carpeta de un backup, con el formato de `mongodump --out`: una subcarpeta por base de datos y,
 //! dentro, un `.bson` y un `.metadata.json` por colección. También se lee la carpeta de una sola BD
-//! (la que guardaba la tarea 14, o `mongodump --db`).
+//! (la que guardaba la tarea 14, o `mongodump --db`). Un backup en curso, fallido o cancelado lleva
+//! la marca `INCOMPLETE_MARK`: no se restaura ni cuenta para la retención (error 46).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::format::{self, CollectionMetadata, DATA_EXTENSION};
 use crate::jobs::selection::{DatabaseCatalog, is_system_collection, is_system_database};
+
+/// Archivo que marca un backup sin terminar: se crea al empezar y se borra solo si acaba bien.
+pub const INCOMPLETE_MARK: &str = "BACKUP_INCOMPLETO.txt";
+const INCOMPLETE_TEXT: &str = "Este backup no terminó bien (falló o se canceló): no se puede restaurar.
+";
+pub const INCOMPLETE_ERROR: &str = "Este backup no terminó bien (falló o se canceló): no se puede restaurar";
 
 /// Una colección guardada en la carpeta de una base de datos.
 #[derive(Debug, Clone, PartialEq)]
@@ -28,9 +35,34 @@ pub fn database_dir(dir: &Path, db: &str) -> PathBuf {
     dir.join(db)
 }
 
+/// Marca `dir` como backup sin terminar (la crea si no existe).
+pub fn mark_incomplete(dir: &Path) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|e| format!("No se pudo crear {}: {e}", dir.display()))?;
+    let mark = dir.join(INCOMPLETE_MARK);
+    fs::write(&mark, INCOMPLETE_TEXT).map_err(|e| format!("No se pudo escribir {}: {e}", mark.display()))
+}
+
+/// Quita la marca: el backup de `dir` terminó bien.
+pub fn mark_complete(dir: &Path) -> Result<(), String> {
+    let mark = dir.join(INCOMPLETE_MARK);
+    match fs::remove_file(&mark) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(format!("No se pudo borrar {}: {e}", mark.display())),
+        _ => Ok(()),
+    }
+}
+
+/// Si `dir` lleva la marca de backup sin terminar.
+pub fn is_marked_incomplete(dir: &Path) -> bool {
+    dir.join(INCOMPLETE_MARK).is_file()
+}
+
 /// Bases de datos de la carpeta `dir`, por nombre. Con `.bson` en la raíz es la carpeta de una sola
 /// BD, que se llama como ella; si no, cada subcarpeta con `.bson` es una. Las de sistema no se ofrecen.
+/// Un backup sin terminar es un error, también si `dir` es la carpeta de una de sus BDs.
 pub fn backup_databases(dir: &Path) -> Result<Vec<BackupDatabase>, String> {
+    if is_marked_incomplete(dir) || dir.parent().is_some_and(is_marked_incomplete) {
+        return Err(INCOMPLETE_ERROR.into());
+    }
     if !list_entries(dir)?.is_empty() {
         let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
         return Ok(vec![BackupDatabase { name, dir: dir.to_path_buf() }]);
@@ -171,6 +203,23 @@ mod tests {
         assert_eq!(backup_databases(&dir).unwrap(), [BackupDatabase { name: "sales".into(), dir: dir.clone() }]);
         assert_eq!(read_catalog(&dir).unwrap()[0].collections, ["orders"]);
         fs::remove_dir_all(dir.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn an_unfinished_backup_is_not_restored() {
+        let dir = temp_dir("incomplete");
+        fs::create_dir_all(dir.join("shop")).unwrap();
+        fs::write(dir.join("shop").join("orders.bson"), [0u8; 4]).unwrap();
+        mark_incomplete(&dir).unwrap();
+
+        assert!(is_marked_incomplete(&dir));
+        assert_eq!(read_catalog(&dir), Err(INCOMPLETE_ERROR.into()));
+        assert_eq!(backup_databases(&dir.join("shop")), Err(INCOMPLETE_ERROR.into()));
+
+        mark_complete(&dir).unwrap();
+        assert!(!is_marked_incomplete(&dir));
+        assert_eq!(read_catalog(&dir).unwrap()[0].collections, ["orders"]);
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

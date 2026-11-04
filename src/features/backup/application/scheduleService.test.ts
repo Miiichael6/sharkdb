@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Operation, OperationStatus } from "../../../shared/domain/operations";
 import type { SystemAlert } from "../domain/runAlert";
+import type { RunFolder } from "../domain/runFolders";
 import { newSchedule, type BackupSchedule } from "../domain/schedule";
 import type { RunFolders, ScheduleStore } from "./ports";
 import { createScheduleService } from "./scheduleService";
@@ -12,7 +13,7 @@ const DAILY: BackupSchedule = {
   backup: { sid: "qa", dir: "/backups", databases: [{ db: "shop", collections: ["orders"] }] },
 };
 
-function fakes(saved: Awaited<ReturnType<ScheduleStore["load"]>> = [], folders: Record<string, string[]> = {}) {
+function fakes(saved: Awaited<ReturnType<ScheduleStore["load"]>> = [], folders: Record<string, RunFolder[]> = {}) {
   let file = saved;
   const alerts: SystemAlert[] = [];
   const store: ScheduleStore = {
@@ -24,12 +25,13 @@ function fakes(saved: Awaited<ReturnType<ScheduleStore["load"]>> = [], folders: 
   const runs: RunFolders = {
     list: async (parent) => folders[parent] ?? [],
     remove: async (parent, names) => {
-      folders[parent] = folders[parent].filter((n) => !names.includes(n));
+      folders[parent] = folders[parent].filter((run) => !names.includes(run.name));
     },
   };
   const service = createScheduleService({
     store,
     runs,
+    source: { databaseCatalog: async () => [{ name: "shop", sizeOnDisk: 0, collections: ["orders", "invoices"] }] },
     notifier: { show: async (alert) => void alerts.push(alert) },
     clock: { onMinute: async () => () => {} },
   });
@@ -65,15 +67,24 @@ describe("scheduleService", () => {
   });
 
   it("gives a run of a minute already used its own folder", async () => {
-    const { service } = fakes([], { "/backups/Diario": ["2026-10-31_0230"] });
-    expect((await service.runRequest(DAILY, AT)).dir).toBe("/backups/Diario/2026-10-31_0230_2");
+    const { service } = fakes([], { "/backups/Diario": [{ name: "2026-10-31_0230", complete: false }] });
+    expect((await service.runRequest(DAILY, AT)).request.dir).toBe("/backups/Diario/2026-10-31_0230_2");
+  });
+
+  it("runs a whole database with the collections its connection has now", async () => {
+    const { service } = fakes();
+    const whole = { ...DAILY, backup: { ...DAILY.backup!, databases: [{ db: "shop", collections: ["orders"], complete: true }] } };
+    expect((await service.runRequest(whole, AT)).request.databases).toEqual([
+      { db: "shop", collections: ["orders", "invoices"], complete: true },
+    ]);
   });
 
   it("deletes the oldest runs past the last 7, never other folders", async () => {
-    const runs = Array.from({ length: 9 }, (_, i) => `2026-10-2${i}_0200`);
-    const { service, folders } = fakes([], { "/backups/Diario": ["notas", ...runs] });
-    expect(await service.prune(DAILY)).toEqual(runs.slice(0, 2));
-    expect(folders["/backups/Diario"]).toEqual(["notas", ...runs.slice(2)]);
+    const runs = Array.from({ length: 9 }, (_, i) => ({ name: `2026-10-2${i}_0200`, complete: true }));
+    const notes = { name: "notas", complete: true };
+    const { service, folders } = fakes([], { "/backups/Diario": [notes, ...runs] });
+    expect(await service.prune(DAILY)).toEqual(runs.slice(0, 2).map((run) => run.name));
+    expect(folders["/backups/Diario"]).toEqual([notes, ...runs.slice(2)]);
     expect(await service.prune(newSchedule("b"))).toEqual([]);
   });
 

@@ -90,6 +90,11 @@ describe("schedule", () => {
 
   it("labels what a backup saves", () => {
     expect(backupLabel(BACKUP)).toBe("2 bases de datos · 3 colecciones");
+    const whole = { db: "log", collections: ["a", "b"], complete: true };
+    expect(backupLabel({ ...BACKUP, databases: [whole] })).toBe("1 base de datos completa");
+    expect(backupLabel({ ...BACKUP, databases: [whole, whole, ...BACKUP.databases] })).toBe(
+      "2 bases de datos completas + 2 bases de datos · 3 colecciones",
+    );
   });
 
   it("keeps folder names valid on Windows", () => {

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServices } from "../../../app/services";
-import { planLabel, planSelections } from "../../../shared/domain/databasePlan";
+import { planLabel } from "../../../shared/domain/databasePlan";
 import { catalogFavoritesFirst, initiallyExpanded } from "../../../shared/domain/selection";
 import { errorMessage } from "../../../shared/errors";
 import { DatabasePicker } from "../../../shared/ui/DatabasePicker";
@@ -12,7 +12,7 @@ import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
 import { favoritesOf } from "../../connections/domain/connection";
 import { ConnectionField } from "../../connections/ui/ConnectionField";
 import { TagBadge } from "../../connections/ui/TagBadge";
-import { backupPlan, validateBackup } from "../domain/backupSpec";
+import { backupDatabases, backupPlan, currentSelection, validateBackup } from "../domain/backupSpec";
 import type { BackupChoice, BackupWindowData } from "./backupViews";
 import { FolderField } from "./FolderField";
 import { useBackupForm } from "./useBackupForm";
@@ -32,6 +32,12 @@ export function BackupWindow({ data, onDone, onClose }: Props) {
   const form = useBackupForm(data);
   const source = useCatalog(form.sourceStatus.connected ? form.sourceId : "", sync.databaseCatalog);
   useOriginSelection(!initial && form.sourceId === origin.sid, source.catalog, origin, form.setSelection);
+  // Coming back to a saved choice: whole databases with the collections they have now (error 47).
+  const { setSelection } = form;
+  const resumed = initial && form.sourceId === initial.sid;
+  useEffect(() => {
+    if (resumed && source.catalog.length) setSelection(currentSelection(initial.databases, source.catalog));
+  }, [resumed, initial, source.catalog, setSelection]);
 
   const plan = backupPlan(source.catalog, form.selection);
   const ready = !!form.dir.trim() && plan.length > 0;
@@ -42,7 +48,7 @@ export function BackupWindow({ data, onDone, onClose }: Props) {
   };
   const submit = () => {
     try {
-      onDone({ request: validateBackup({ sid: form.sourceId, dir: form.dir, databases: planSelections(plan) }), plan });
+      onDone({ request: validateBackup({ sid: form.sourceId, dir: form.dir, databases: backupDatabases(plan) }), plan });
     } catch (err) {
       setSubmitError(errorMessage(err));
     }

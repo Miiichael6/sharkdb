@@ -52,6 +52,7 @@ export interface BackupSchedule {
 export const DEFAULT_SCHEDULE_NAME = "Backup sin nombre";
 export const DEFAULT_TIME = "02:00";
 export const BACKUP_REQUIRED = "Elige qué guardar y dónde";
+export const NOTHING_LEFT = "Ya no existe nada de lo que guarda este backup";
 const DEFAULT_WEEKDAYS = [1];
 const WORKDAYS = [1, 2, 3, 4, 5];
 const WEEKEND = [6, 7];
@@ -340,8 +341,15 @@ export function filterSchedules(list: BackupSchedule[], query: string): BackupSc
 }
 
 /** "2 bases de datos · 35 colecciones". */
-export const backupLabel = (backup: BackupRequest) =>
-  `${databasesLabel(backup.databases.length)} · ${collectionsLabel(backup.databases.reduce((sum, d) => sum + d.collections.length, 0))}`;
+/** "1 base de datos completa + 2 bases de datos · 3 colecciones": whole ones change with the server, so no count. */
+export function backupLabel(backup: BackupRequest): string {
+  const whole = backup.databases.filter((d) => d.complete).length;
+  const some = backup.databases.filter((d) => !d.complete);
+  const parts = [];
+  if (whole) parts.push(`${databasesLabel(whole)} ${whole === 1 ? "completa" : "completas"}`);
+  if (some.length) parts.push(`${databasesLabel(some.length)} · ${collectionsLabel(some.reduce((sum, d) => sum + d.collections.length, 0))}`);
+  return parts.join(" + ");
+}
 
 /** Names Windows keeps for devices, with or without an extension: CON, NUL, COM1, LPT1.txt… */
 const RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;

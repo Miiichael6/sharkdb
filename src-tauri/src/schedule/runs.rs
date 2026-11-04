@@ -1,8 +1,20 @@
 //! Las carpetas de las ejecuciones de una programación: `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>` (D16),
 //! con `_2`, `_3`… si dos caen en el mismo minuto. Solo se listan y borran las que tienen ese nombre.
+//! Cada una dice si terminó bien: una sin terminar no cuenta para la retención (error 46).
 
 use std::fs;
 use std::path::Path;
+
+use serde::Serialize;
+
+use crate::backup::folder::is_marked_incomplete;
+
+/// Una carpeta de ejecución y si su backup terminó bien.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RunFolder {
+    pub name: String,
+    pub complete: bool,
+}
 
 /// Largo de `2026-10-31_0230`.
 const STAMP_LEN: usize = 15;
@@ -31,19 +43,21 @@ pub fn is_run_name(name: &str) -> bool {
 }
 
 /// Las carpetas de ejecución que hay en `parent`, por nombre; ninguna si aún no existe.
-pub fn list_runs(parent: &Path) -> Result<Vec<String>, String> {
+pub fn list_runs(parent: &Path) -> Result<Vec<RunFolder>, String> {
     if !parent.is_dir() {
         return Ok(Vec::new());
     }
     let entries = fs::read_dir(parent).map_err(|e| format!("No se pudo leer {}: {e}", parent.display()))?;
-    let mut names: Vec<String> = entries
+    let mut runs: Vec<RunFolder> = entries
         .filter_map(Result::ok)
         .filter(|entry| entry.path().is_dir())
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .filter(|name| is_run_name(name))
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok().filter(|name| is_run_name(name))?;
+            Some(RunFolder { name, complete: !is_marked_incomplete(&entry.path()) })
+        })
         .collect();
-    names.sort();
-    Ok(names)
+    runs.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(runs)
 }
 
 /// Borra las ejecuciones `names` de `parent`. Rechaza cualquier nombre que no sea de una ejecución:
@@ -75,19 +89,39 @@ mod tests {
         }
     }
 
+    fn names(parent: &Path) -> Vec<String> {
+        list_runs(parent).unwrap().into_iter().map(|run| run.name).collect()
+    }
+
+    #[test]
+    fn says_which_runs_did_not_finish() {
+        let parent = std::env::temp_dir().join(format!("robo3b-runs-incomplete-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&parent);
+        fs::create_dir_all(parent.join("2026-10-30_0200")).unwrap();
+        crate::backup::folder::mark_incomplete(&parent.join("2026-10-31_0200")).unwrap();
+        assert_eq!(
+            list_runs(&parent).unwrap(),
+            [
+                RunFolder { name: "2026-10-30_0200".into(), complete: true },
+                RunFolder { name: "2026-10-31_0200".into(), complete: false },
+            ]
+        );
+        fs::remove_dir_all(parent).unwrap();
+    }
+
     #[test]
     fn lists_and_removes_runs_and_nothing_else() {
         let parent = std::env::temp_dir().join(format!("robo3b-runs-{}", std::process::id()));
-        assert_eq!(list_runs(&parent).unwrap(), Vec::<String>::new());
+        assert_eq!(names(&parent), Vec::<String>::new());
         for name in ["2026-10-30_0200", "2026-10-31_0200", "2026-10-31_0200_2", "notas"] {
             fs::create_dir_all(parent.join(name)).unwrap();
         }
         fs::write(parent.join("2026-10-29_0200"), "un archivo, no una carpeta").unwrap();
-        assert_eq!(list_runs(&parent).unwrap(), ["2026-10-30_0200", "2026-10-31_0200", "2026-10-31_0200_2"]);
+        assert_eq!(names(&parent), ["2026-10-30_0200", "2026-10-31_0200", "2026-10-31_0200_2"]);
 
         assert!(remove_runs(&parent, &["..".into()]).is_err());
         remove_runs(&parent, &["2026-10-30_0200".into(), "2026-10-31_0200".into()]).unwrap();
-        assert_eq!(list_runs(&parent).unwrap(), ["2026-10-31_0200_2"]);
+        assert_eq!(names(&parent), ["2026-10-31_0200_2"]);
         assert!(parent.join("notas").is_dir());
         fs::remove_dir_all(parent).unwrap();
     }

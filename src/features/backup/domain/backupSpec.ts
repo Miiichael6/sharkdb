@@ -3,13 +3,21 @@ import type { DangerConfirmRequest } from "../../../shared/domain/confirmation";
 import { databasePlan, databasesLabel, planItems, replacePlan, type PlanDatabase } from "../../../shared/domain/databasePlan";
 import { collectionsLabel, totalDocuments, type CollectionResult } from "../../../shared/domain/jobs";
 import { folderName } from "../../../shared/domain/operations";
-import { requireCollections, type DatabaseCatalog, type DatabaseSelection, type Selection } from "../../../shared/domain/selection";
+import { requireCollections, selectionOf, type DatabaseCatalog, type DatabaseSelection, type Selection } from "../../../shared/domain/selection";
+
+/**
+ * A database of a backup. `complete` when it was chosen whole: a schedule then saves the collections
+ * it has at each run, not the ones it had when chosen (error 47). The backend ignores it.
+ */
+export interface BackupDatabase extends DatabaseSelection {
+  complete?: boolean;
+}
 
 export interface BackupRequest {
   sid: string;
   /** Output folder: each database goes to `<dir>/<db>`. */
   dir: string;
-  databases: DatabaseSelection[];
+  databases: BackupDatabase[];
 }
 
 export interface RestoreRequest {
@@ -45,6 +53,40 @@ export function validateRestore(r: RestoreRequest): RestoreRequest {
   requireCollections(r.databases);
   return { ...r, dir };
 }
+
+/** The plan as a backup's databases: those chosen whole say so. */
+export const backupDatabases = (plan: PlanDatabase[]): BackupDatabase[] =>
+  plan.map(({ db, collections, complete }) => (complete ? { db, collections, complete } : { db, collections }));
+
+/** What a backup saves of each database now: the whole ones as they are, the rest without what no longer exists. */
+export interface CurrentDatabases {
+  databases: BackupDatabase[];
+  /** "db" or "db.collection": chosen, but gone from the server. */
+  missing: string[];
+}
+
+export function currentDatabases(databases: BackupDatabase[], catalog: DatabaseCatalog[]): CurrentDatabases {
+  const missing: string[] = [];
+  const current = databases.flatMap((d): BackupDatabase[] => {
+    const found = catalog.find((c) => c.name === d.db);
+    if (!found?.collections.length) {
+      missing.push(d.db);
+      return [];
+    }
+    if (d.complete) return [{ ...d, collections: [...found.collections] }];
+    const kept = d.collections.filter((c) => found.collections.includes(c));
+    missing.push(...d.collections.filter((c) => !kept.includes(c)).map((c) => `${d.db}.${c}`));
+    return kept.length ? [{ ...d, collections: kept }] : [];
+  });
+  return { databases: current, missing };
+}
+
+/** Choosing again what a backup saves: the whole databases with every collection they have now (error 47). */
+export const currentSelection = (databases: BackupDatabase[], catalog: DatabaseCatalog[]): Selection =>
+  selectionOf(currentDatabases(databases, catalog).databases);
+
+/** What a run skipped: "shop.orders, logs". */
+export const missingNote = (missing: string[]) => `Ya no existen y no se guardaron: ${missing.join(", ")}`;
 
 /** Every chosen database is saved to the folder. */
 export const backupPlan = (catalog: DatabaseCatalog[], selection: Selection) => databasePlan(catalog, selection, () => "save");
