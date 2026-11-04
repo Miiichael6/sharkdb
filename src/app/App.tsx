@@ -267,6 +267,7 @@ function App() {
                     details={details}
                     newTabTarget={tabFor(selected)}
                     draggedCollection={draggedCollection && shellTab(draggedCollection, true)}
+                    connections={connections}
                   />
                 </WithOperationsPanel>
               )}

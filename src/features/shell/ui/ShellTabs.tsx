@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import type { MongoConnection } from "../../connections/domain/connection";
 import { confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { NodeIcon } from "../../explorer/ui/NodeIcon";
 import type { BarEntry } from "../domain/splitTabs";
@@ -22,6 +23,8 @@ interface Props {
   newTabTarget: () => NewTab | null;
   /** Tab for the collection being dragged out of the explorer, if any. */
   draggedCollection: NewTab | null;
+  /** Saved connections, for the tabs' colour dots. */
+  connections: MongoConnection[];
 }
 
 /** Something dragged onto the shell area, and what dropping it does. */
@@ -38,7 +41,7 @@ interface Incoming {
  * dragged out of the bar onto the area opens beside the shown one (a split tab); a collection dragged
  * from the explorer too, or in a tab of its own when there's no shell tab shown.
  */
-export function ShellTabs({ tabs, files, details, newTabTarget, draggedCollection }: Props) {
+export function ShellTabs({ tabs, files, details, newTabTarget, draggedCollection, connections }: Props) {
   const active = tabs.active;
   const body = useRef<HTMLDivElement>(null);
   const layout = useSplitLayout(body, active?.id, tabs.activeSplit);
@@ -102,6 +105,7 @@ export function ShellTabs({ tabs, files, details, newTabTarget, draggedCollectio
         onMove={tabs.move}
         onSeparate={tabs.separate}
         dragOut={setDraggedOut}
+        connections={connections}
       />
       <div ref={body} className="shell-body">
         <div className="details-tab" hidden={!!active}>

@@ -1,3 +1,4 @@
+import { LockIcon } from "../../../shared/ui/LockIcon";
 import { GearIcon } from "../../../shared/ui/settingsMenu";
 import type { ToolbarActionId } from "../domain/toolbarActions";
 
@@ -67,12 +68,7 @@ export function ToolbarIcon({ id, pressed }: { id: ToolbarActionId; pressed?: bo
         </svg>
       );
     case "safeMode":
-      return (
-        <svg {...props} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="7" width="10" height="7.5" rx="1.5" />
-          {pressed ? <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /> : <path d="M5.5 7V4a2.5 2.5 0 0 1 4.9-.7" />}
-        </svg>
-      );
+      return <LockIcon open={!pressed} />;
     case "operations":
       return (
         <svg {...props} strokeLinecap="round">

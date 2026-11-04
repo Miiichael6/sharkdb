@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import type { MongoConnection } from "../../connections/domain/connection";
 import { MenuList } from "../../../shared/ui/MenuList";
 import type { BarEntry } from "../domain/splitTabs";
+import { paneConnection, tabConnections, tabTooltip } from "../domain/tabConnection";
 import { TabFace } from "./TabFace";
+import { TabConnectionDots } from "./TabConnectionDots";
 import { useActivePill } from "./useActivePill";
 import { useTabDrag, type TabDragOut } from "./useTabDrag";
 
@@ -19,6 +22,8 @@ interface Props {
   onSeparate: (id: string) => void;
   /** A tab dragged out of the bar, onto the shell area. */
   dragOut: TabDragOut;
+  /** Saved connections, for each tab's colour dot, lock and tooltip. */
+  connections: MongoConnection[];
 }
 
 const MIDDLE_BUTTON = 1;
@@ -31,7 +36,7 @@ const focusedPane = (entry: BarEntry) => entry.panes[entry.activePane];
  * highlight that slides between them. Drag reorders (or, out of the bar, splits), double click
  * renames, middle click closes.
  */
-export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, onRename, onMove, onSeparate, dragOut }: Props) {
+export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, onRename, onMove, onSeparate, dragOut, connections }: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; entry: BarEntry } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -73,7 +78,7 @@ export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, on
               aria-selected={selected}
               data-tab-id={entry.id}
               className={`tab ${selected ? "active" : ""} ${dragged ? "dragging" : ""} ${dragged && drag.outside ? "out" : ""}`}
-              title={entry.panes.map((t) => t.filePath ?? `${t.serverLabel} · ${t.db}`).join("\n")}
+              title={tabTooltip(entry, connections)}
               onPointerDown={drag.onPointerDown(entry.id)}
               onClick={() => drag.consumeClick() || onActivate(entry.id)}
               onDoubleClick={() => setEditing(entry.id)}
@@ -83,6 +88,7 @@ export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, on
                 setMenu({ x: e.clientX, y: e.clientY, entry });
               }}
             >
+              <TabConnectionDots conns={tabConnections(entry, connections)} />
               {editing === entry.id ? (
                 <input
                   className="tab-rename"
@@ -95,7 +101,7 @@ export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, on
                   }}
                 />
               ) : (
-                <TabFace entry={entry} />
+                <TabFace entry={entry} connections={entry.panes.map((t) => paneConnection(t, connections))} />
               )}
               <button
                 className="tab-close"

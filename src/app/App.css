@@ -2101,6 +2101,34 @@ table.grid {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The tab's connection colour: a dot at its left edge, out of the title's flow so the title stays
+   centred; a split on two connections shows one dot per connection. */
+.tab-track {
+  --tab-dot-size: 7px;
+  --tab-dot-inset: 10px;
+  --tab-dot-gap: 3px;
+}
+.tab-conn-dots {
+  position: absolute;
+  top: 50%;
+  left: var(--tab-dot-inset);
+  display: flex;
+  gap: var(--tab-dot-gap);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.tab-conn-dot {
+  width: var(--tab-dot-size);
+  height: var(--tab-dot-size);
+  border-radius: 50%;
+  background: var(--tab-conn-color);
+}
+/* Production or a protected connection: a lock before the title, as safe mode shows it. */
+.tab-lock {
+  display: inline-flex;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
 .tab-rename {
   width: 100%;
   height: 20px;

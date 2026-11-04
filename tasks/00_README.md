@@ -140,7 +140,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
 | 37 | [Actualizador](done/37_actualizador.md) | 22 Actualizador | 08 | ✅ Terminada |
 | 38 | [Edición en línea de valores primitivos](done/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ✅ Terminada (prueba GUI pendiente) |
-| 39 | [Franja de color de la conexión en las pestañas](pending/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ⬜ Pendiente |
+| 39 | [Punto de color de la conexión en las pestañas](done/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ✅ Terminada |
 | 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
 | 41 | [Detalle de una operación: origen → destino y colecciones por BD](done/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ✅ Terminada |
 
@@ -235,8 +235,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R82 Enter con cambio: sub-ventana con documento, campo, antes y después | 38 |
 | R83 Solo se escribe ese campo (`$set`), conserva el tipo y no pisa cambios ajenos | 38 |
 | R84 Clic fuera mientras se edita: sub-ventana "Seguir editando" / "Descartar cambios" | 38 |
-| R85 Cada pestaña lleva una franja fina con el color de su conexión (no el fondo entero) | 39 |
-| R86 Pestaña dividida entre dos conexiones: franja en dos tramos | 39 |
+| R85 Cada pestaña lleva un punto con el color de su conexión a la izquierda (no el fondo entero) | 39 |
+| R86 Pestaña dividida entre dos conexiones: dos puntos | 39 |
 | R87 Producción y conexiones protegidas: candado además del color | 39 |
 | R88 El tooltip de la pestaña nombra la conexión (el color no es la única pista) | 39 |
 | R89 Clic en una operación del panel (sync, restore, backup) muestra su detalle | 41 |
