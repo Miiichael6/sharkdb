@@ -73,24 +73,30 @@ mod tests {
             .await
             .unwrap();
         client.database(a).collection::<Document>("users").insert_one(doc! { "name": "ana" }, None).await.unwrap();
+        // Solo difiere en mayúsculas: en Windows/macOS iría al mismo archivo (error 36).
+        let upper = vec![doc! { "name": "ANA" }, doc! { "name": "LUIS" }];
+        client.database(a).collection::<Document>("Users").insert_many(upper, None).await.unwrap();
         client.database(b).collection::<Document>("logs").insert_one(doc! { "m": 1 }, None).await.unwrap();
         client.database(b).collection::<Document>("skipped").insert_one(doc! { "m": 1 }, None).await.unwrap();
 
         let dir = std::env::temp_dir().join(format!("robo3b-it-backup-{}", std::process::id()));
-        let chosen = vec![selection(a, &["orders", "users"]), selection(b, &["logs"])];
+        let chosen = vec![selection(a, &["orders", "users", "Users"]), selection(b, &["logs"])];
         let reports = RefCell::new(0);
         let dumped = dump_databases(&client, &chosen, &dir, &CancelFlag::default(), |_| *reports.borrow_mut() += 1)
             .await
             .unwrap();
         let labels: Vec<_> = dumped.iter().map(|r| r.collection.as_str()).collect();
-        assert_eq!(labels, [format!("{a}.orders"), format!("{a}.users"), format!("{b}.logs")]);
+        assert_eq!(labels, [format!("{a}.orders"), format!("{a}.users"), format!("{a}.Users"), format!("{b}.logs")]);
         assert!(*reports.borrow() > 3);
         let catalog = read_catalog(&dir).unwrap();
         assert_eq!(catalog.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), DATABASES);
+        assert_eq!(catalog[0].collections, ["Users", "orders", "users"]);
+        assert!(dir.join(a).join("Users~1.bson").is_file());
 
         // Lo que cambia después del backup se pierde al restaurar: se reemplaza cada colección.
         client.database(a).collection::<Document>("orders").delete_many(doc! { "n": { "$lt": 100_i64 } }, None).await.unwrap();
         client.database(b).collection::<Document>("logs").insert_one(doc! { "m": 2 }, None).await.unwrap();
+        client.database(a).collection::<Document>("Users").drop(None).await.unwrap();
         let original_indexes = index_names(&client, a, "orders").await;
 
         let safe_mode = SafeMode::new(false);
@@ -106,8 +112,11 @@ mod tests {
             })
             .collect();
         let restored = restore_databases(&destination, &restores, &CancelFlag::default(), |_| {}).await.unwrap();
-        assert_eq!(restored.iter().map(|r| r.documents).collect::<Vec<_>>(), [2500, 1, 1]);
+        assert_eq!(restored.iter().map(|r| r.documents).collect::<Vec<_>>(), [2500, 1, 2, 1]);
         assert_eq!((count(&client, a, "orders").await, count(&client, b, "logs").await), (2500, 1));
+        assert_eq!((count(&client, a, "users").await, count(&client, a, "Users").await), (1, 2));
+        let ana = client.database(a).collection::<Document>("users").find_one(None, None).await.unwrap().unwrap();
+        assert_eq!(ana.get_str("name"), Ok("ana"));
         assert_eq!(index_names(&client, a, "orders").await, original_indexes);
         let first = client.database(a).collection::<Document>("orders").find_one(doc! { "n": 0_i64 }, None).await.unwrap().unwrap();
         assert!(first.get_datetime("at").is_ok() && first.get_object_id("_id").is_ok());

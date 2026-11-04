@@ -3,13 +3,14 @@
 //! están llenas reemplazan a las originales (`staging`): un fallo o una cancelación mientras se
 //! escriben dejan el destino como estaba.
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use mongodb::Database;
 
-use super::folder;
+use super::folder::{self, BackupEntry};
 use super::format::DocumentReader;
 use super::staging::{Destination, Replacements, new_run, staging_name};
 use super::writer::{self, BatchWriter};
@@ -46,15 +47,25 @@ async fn restore_all(
 ) -> Result<Vec<CollectionResult>, String> {
     let run = new_run();
     let collections = each_collection(restores, |r| &r.collections);
+    // Los archivos de cada colección, buscados antes de escribir nada: su nombre puede no ser el
+    // de la colección (`Users~1.bson`, error 36), y si falta una se sabe antes de empezar.
+    let mut found = HashMap::new();
+    for restore in restores {
+        found.insert(restore.dir.as_path(), folder::list_entries(&restore.dir)?);
+    }
+    let entries = collections
+        .iter()
+        .map(|(restore, collection)| folder::find_entry(&found[restore.dir.as_path()], collection))
+        .collect::<Result<Vec<_>, _>>()?;
     let count = collections.len();
     let mut results = Vec::with_capacity(count);
-    for (index, (restore, collection)) in collections.into_iter().enumerate() {
+    for (index, ((restore, collection), entry)) in collections.into_iter().zip(entries).enumerate() {
         cancel.check()?;
         destination.safe_mode.ensure_writable()?;
         let label = collection_label(restore.target.name(), collection);
         let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
         let staging = staging_name(collection, &run);
-        let fill = restore_into(destination, &restore.dir, &restore.target, collection, &staging, cancel, progress);
+        let fill = restore_into(destination, &restore.dir, &restore.target, entry, &staging, cancel, progress);
         let result = replacements.stage(&restore.target, collection, &staging, fill).await?;
         results.push(CollectionResult { collection: label, ..result });
     }
@@ -62,18 +73,18 @@ async fn restore_all(
     Ok(results)
 }
 
-/// Escribe documentos e índices de `collection` (de la carpeta `dir`) en `staging`. El progreso va en bytes del `.bson`.
+/// Escribe documentos e índices de `entry` (de la carpeta `dir`) en `staging`. El progreso va en bytes del `.bson`.
 async fn restore_into(
     destination: &Destination<'_>,
     dir: &Path,
     target: &Database,
-    collection: &str,
+    entry: &BackupEntry,
     staging: &str,
     cancel: &CancelFlag,
     progress: impl Fn(u64, u64),
 ) -> Result<CollectionResult, String> {
-    let metadata = folder::read_metadata(dir, collection)?;
-    let data_path = folder::data_path(dir, collection)?;
+    let metadata = folder::read_metadata(dir, entry)?;
+    let data_path = folder::data_path(dir, &entry.stem)?;
     let file = File::open(&data_path).map_err(|e| format!("No se pudo leer {}: {e}", data_path.display()))?;
     let total = file.metadata().map(|m| m.len()).unwrap_or(0);
     progress(0, total);
@@ -92,7 +103,7 @@ async fn restore_into(
     writer::create_indexes(target, staging, &indexes).await?;
     progress(total, total);
     Ok(CollectionResult {
-        collection: collection.to_string(),
+        collection: entry.collection.clone(),
         documents: writer.inserted(),
         duplicates: writer.duplicates(),
         indexes: indexes.len(),

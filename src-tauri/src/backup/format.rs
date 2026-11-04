@@ -2,6 +2,7 @@
 //! y `<colección>.metadata.json` (opciones e índices en extended JSON canónico). Solo IO sobre
 //! `Read`/`Write`, sin servidor: se testea con ida y vuelta en memoria.
 
+use std::collections::HashSet;
 use std::io::{self, Read, Write};
 
 use mongodb::bson::{Bson, Document, RawDocumentBuf, doc};
@@ -22,6 +23,8 @@ const COLLECTION_TYPE: &str = "collection";
 
 /// Caracteres que no pueden ir en un nombre de archivo (Windows es el más estricto).
 const FORBIDDEN_FILE_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+/// Separa el nombre del número que se añade a un archivo que chocaría con otro (`Users~1`).
+const COLLISION_MARK: char = '~';
 
 /// Nombre base de los archivos de una colección; falla si el nombre no sirve como archivo.
 pub fn file_stem(collection: &str) -> Result<&str, String> {
@@ -35,12 +38,38 @@ pub fn file_stem(collection: &str) -> Result<&str, String> {
     }
 }
 
-pub fn data_file_name(collection: &str) -> Result<String, String> {
-    Ok(format!("{}.{DATA_EXTENSION}", file_stem(collection)?))
+/// Nombres de archivo (o de carpeta) para `names`, en el mismo orden. Windows y macOS no distinguen
+/// mayúsculas: `users` y `Users` irían al mismo archivo, así que el segundo se guarda como
+/// `Users~1`; su nombre real lo dice su `.metadata.json` o el archivo con el nombre de la BD (error 36).
+pub fn unique_stems<'a>(names: impl IntoIterator<Item = &'a str>) -> Result<Vec<String>, String> {
+    let mut taken = HashSet::new();
+    names
+        .into_iter()
+        .map(|name| {
+            let stem = file_stem(name)?;
+            let mut candidate = stem.to_string();
+            let mut n = 0;
+            while !taken.insert(candidate.to_lowercase()) {
+                n += 1;
+                candidate = format!("{stem}{COLLISION_MARK}{n}");
+            }
+            Ok(candidate)
+        })
+        .collect()
 }
 
-pub fn metadata_file_name(collection: &str) -> Result<String, String> {
-    Ok(format!("{}{METADATA_SUFFIX}", file_stem(collection)?))
+pub fn data_file_name(stem: &str) -> Result<String, String> {
+    Ok(format!("{}.{DATA_EXTENSION}", file_stem(stem)?))
+}
+
+pub fn metadata_file_name(stem: &str) -> Result<String, String> {
+    Ok(format!("{}{METADATA_SUFFIX}", file_stem(stem)?))
+}
+
+/// Nombre de la colección que anota un `.metadata.json` (`collectionName`), si lo trae.
+pub fn metadata_collection_name(json: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(json).ok()?;
+    value.get("collectionName")?.as_str().map(str::to_string)
 }
 
 /// Escribe un documento tal cual llegó del servidor: sin pasar por tipos de Rust, no se pierde nada.
@@ -116,7 +145,7 @@ impl CollectionMetadata {
         serde_json::to_string(&Bson::Document(metadata).into_canonical_extjson()).map_err(|e| e.to_string())
     }
 
-    /// Lee un `.metadata.json`; `collection` es el nombre que dice el archivo de datos.
+    /// Lee un `.metadata.json`; `collection` es el nombre de la colección en el backup.
     pub fn from_json(collection: &str, json: &str) -> Result<Self, String> {
         let invalid = |e: String| format!("{collection}{METADATA_SUFFIX} inválido: {e}");
         let value: Value = serde_json::from_str(json).map_err(|e| invalid(e.to_string()))?;
@@ -237,5 +266,23 @@ mod tests {
         for name in ["", "a/b", "a\\b", "a:b", "a?b", "a\nb"] {
             assert!(file_stem(name).is_err(), "{name:?}");
         }
+    }
+
+    #[test]
+    fn names_that_differ_only_in_case_get_different_files() {
+        let stems = unique_stems(["users", "Users", "orders", "USERS", "users~1", "Orders"]).unwrap();
+        assert_eq!(stems, ["users", "Users~1", "orders", "USERS~2", "users~1~1", "Orders~1"]);
+        let lower: HashSet<String> = stems.iter().map(|s| s.to_lowercase()).collect();
+        assert_eq!(lower.len(), stems.len());
+        assert_eq!(unique_stems(["a", "b"]).unwrap(), ["a", "b"]);
+        assert!(unique_stems(["ok", "a/b"]).is_err());
+    }
+
+    #[test]
+    fn the_real_name_comes_from_the_metadata() {
+        let metadata = CollectionMetadata { collection: "Users".into(), options: doc! {}, indexes: vec![] };
+        assert_eq!(metadata_collection_name(&metadata.to_json().unwrap()).as_deref(), Some("Users"));
+        assert_eq!(metadata_collection_name(r#"{"indexes":[]}"#), None);
+        assert_eq!(metadata_collection_name("no es json"), None);
     }
 }

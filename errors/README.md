@@ -40,7 +40,7 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 33 | BAJO | [Precision en validador y filtros](33_bajo_precision-en-validador-y-filtros.md) |
 | 34 | BAJO | ✅ [Editar en vista o timeseries](resolved/34_bajo_editar-en-vista-o-timeseries.md) |
 | 35 | BAJO | [Renombres finales no atomicos](35_bajo_renombres-finales-no-atomicos.md) |
-| 36 | ALTO | [Backup colecciones mayusculas](36_alto_backup-colecciones-mayusculas.md) |
+| 36 | ALTO | ✅ [Backup colecciones mayusculas](resolved/36_alto_backup-colecciones-mayusculas.md) |
 | 37 | MEDIO | ✅ [FindOneAnd sin filtro](resolved/37_medio_findoneand-sin-filtro.md) |
 | 38 | MEDIO | ✅ [DropIndex asterisco](resolved/38_medio_dropindex-asterisco.md) |
 | 39 | MEDIO | ✅ [Insert id undefined guarda null](resolved/39_medio_insert-id-undefined-guarda-null.md) |

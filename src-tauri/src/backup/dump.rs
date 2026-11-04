@@ -1,5 +1,6 @@
 //! Backup: vuelca colecciones de una o varias BDs a una carpeta con el formato de `mongodump --out`
-//! (`<carpeta>/<bd>/<colección>.bson`).
+//! (`<carpeta>/<bd>/<colección>.bson`). Los nombres que solo difieren en mayúsculas van a archivos
+//! distintos (`Users~1.bson`, error 36): el real queda en el `.metadata.json` o en `NOMBRE_BD.txt`.
 
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
@@ -14,7 +15,7 @@ use super::format;
 use super::source::read_metadata;
 use crate::jobs::CancelFlag;
 use crate::jobs::report::{CollectionResult, Progress};
-use crate::jobs::selection::{DatabaseSelection, collection_label, each_collection};
+use crate::jobs::selection::{DatabaseSelection, collection_label};
 use crate::mongo::describe;
 
 /// Cada cuántos documentos se avisa del progreso.
@@ -22,6 +23,14 @@ const PROGRESS_EVERY: u64 = 1000;
 const FIND_BATCH_SIZE: u32 = 1000;
 /// Los datos se escriben aquí y se renombran al acabar: un backup cortado no deja un `.bson` a medias.
 const PARTIAL_SUFFIX: &str = ".partial";
+
+/// Dónde se guarda una colección: la carpeta de su BD y el nombre base de sus archivos.
+struct Target<'a> {
+    database: &'a DatabaseSelection,
+    collection: &'a str,
+    db_dir: PathBuf,
+    stem: String,
+}
 
 /// Vuelca las colecciones elegidas de cada BD de `client` en `dir/<bd>` (que se crean si no existen).
 /// Mientras dura, `dir` lleva la marca de backup sin terminar; si falla o se cancela, se queda.
@@ -45,38 +54,54 @@ async fn dump_all(
     cancel: &CancelFlag,
     report: impl Fn(Progress),
 ) -> Result<Vec<CollectionResult>, String> {
-    // Reunidas antes del bucle: un iterador de closures vivo entre `await`s no es `Send`.
-    let collections = each_collection(databases, |d| &d.collections);
-    let count = collections.len();
+    let targets = targets(databases, dir)?;
+    let count = targets.len();
     let mut results = Vec::with_capacity(count);
-    for (index, (database, collection)) in collections.into_iter().enumerate() {
+    for (index, target) in targets.iter().enumerate() {
         cancel.check()?;
-        let db_dir = folder::database_dir(dir, &database.db);
-        fs::create_dir_all(&db_dir).map_err(|e| format!("No se pudo crear {}: {e}", db_dir.display()))?;
-        let label = collection_label(&database.db, collection);
+        let (database, collection) = (&target.database.db, target.collection);
+        folder::create_database_dir(&target.db_dir, database)?;
+        let label = collection_label(database, collection);
         let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
-        let result = dump_collection(&client.database(&database.db), collection, &db_dir, cancel, progress).await?;
+        let db = client.database(database);
+        let result = dump_collection(&db, collection, &target.db_dir, &target.stem, cancel, progress).await?;
         results.push(CollectionResult { collection: label, ..result });
     }
     Ok(results)
+}
+
+/// Cada colección elegida, en orden, con carpeta y archivos que no chocan aunque el sistema de
+/// archivos no distinga mayúsculas.
+fn targets<'a>(databases: &'a [DatabaseSelection], dir: &Path) -> Result<Vec<Target<'a>>, String> {
+    let folders = format::unique_stems(databases.iter().map(|d| d.db.as_str()))?;
+    let mut targets = Vec::new();
+    for (database, folder) in databases.iter().zip(folders) {
+        let db_dir = folder::database_dir(dir, &folder);
+        let stems = format::unique_stems(database.collections.iter().map(String::as_str))?;
+        for (collection, stem) in database.collections.iter().zip(stems) {
+            targets.push(Target { database, collection, db_dir: db_dir.clone(), stem });
+        }
+    }
+    Ok(targets)
 }
 
 async fn dump_collection(
     db: &Database,
     collection: &str,
     dir: &Path,
+    stem: &str,
     cancel: &CancelFlag,
     progress: impl Fn(u64, u64),
 ) -> Result<CollectionResult, String> {
     let metadata = read_metadata(db, collection).await?;
-    let metadata_path = folder::metadata_path(dir, collection)?;
+    let metadata_path = folder::metadata_path(dir, stem)?;
     fs::write(&metadata_path, metadata.to_json()?).map_err(|e| write_error(&metadata_path, e))?;
 
     let coll = db.collection::<RawDocumentBuf>(collection);
     let total = coll.estimated_document_count(None).await.map_err(describe)?;
     progress(0, total);
 
-    let data_path = folder::data_path(dir, collection)?;
+    let data_path = folder::data_path(dir, stem)?;
     let partial = partial_path(&data_path);
     let result = write_documents(&coll, &partial, cancel, |done| progress(done, total.max(done))).await;
     let documents = match result {
