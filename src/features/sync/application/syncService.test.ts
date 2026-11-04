@@ -20,6 +20,8 @@ function fakeGateway() {
       sent.push({ job, request });
       return RESULT;
     },
+    findLeftovers: async () => [],
+    dropLeftovers: async () => {},
   };
   return { gateway, sent };
 }

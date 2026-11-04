@@ -9,7 +9,7 @@ use super::value;
 use crate::shell::bridge::MongoBridge;
 use crate::shell::engine::EngineLimits;
 use crate::shell::outcome::ScriptErrorKind;
-use crate::shell::runtime::ShellRuntime;
+use crate::shell::runtime::{ShellRuntime, BUSY};
 use crate::shell::session::RunOptions;
 
 const DB: &str = "test";
@@ -63,4 +63,24 @@ async fn each_run_uses_the_timeout_it_is_given() {
     let error = outcome.error.expect("tiempo agotado");
     assert_eq!(error.kind, ScriptErrorKind::Timeout);
     assert!(error.message.contains("1 s"), "{}", error.message);
+}
+
+#[tokio::test]
+async fn a_second_run_while_one_is_running_is_rejected_not_queued() {
+    let runtime = ShellRuntime::spawn(EngineLimits::default(), Handle::current(), |_| {
+        FakeBridge::shared() as Rc<dyn MongoBridge>
+    })
+    .unwrap();
+    let run = |code: &str| runtime.run(DB.into(), code.into(), None, RunOptions::default());
+    let (first, second) = tokio::join!(run("var n = 1; while (true) {}"), async {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let second = run("n = 2").await;
+        runtime.cancel();
+        second
+    });
+    assert_eq!(second.unwrap_err(), BUSY);
+    assert_eq!(first.unwrap().error.map(|e| e.kind), Some(ScriptErrorKind::Cancelled));
+
+    // El segundo no se ejecutó después a escondidas, y terminado el primero se puede ejecutar otro.
+    assert_eq!(value(&run("n").await.unwrap()), Some(Bson::Int32(1)));
 }

@@ -13,9 +13,24 @@ export interface ScheduleStore {
 
 /** The run folders inside a schedule's folder (`<dir>/<name>`); only names that look like runs are listed or removed. */
 export interface RunFolders {
+  /**
+   * Makes the folder of a run starting at `stamp`, marked unfinished: `stamp`, or `stamp_2`, `_3`…
+   * when taken, even by another SharkDB window at the same moment. Resolves to its name.
+   */
+  create(parent: string, stamp: string): Promise<string>;
   /** Run folders in `parent`, and whether each ended well; none when it doesn't exist yet. */
   list(parent: string): Promise<RunFolder[]>;
   remove(parent: string, names: string[]): Promise<void>;
+}
+
+/**
+ * The turn to run a schedule, shared by every SharkDB window (each one is a process of its own): at
+ * most one holds it, and none while another runs a backup, restore or sync (error 60).
+ */
+export interface ScheduleTurn {
+  /** Takes the turn; false when another window (or this one) is at it. */
+  take(): Promise<boolean>;
+  release(): Promise<void>;
 }
 
 /** The operating system's notifications, seen even with the app in the background. */

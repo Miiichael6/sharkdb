@@ -95,7 +95,7 @@ export const backupPlan = (catalog: DatabaseCatalog[], selection: Selection) => 
 export const restorePlan = replacePlan;
 
 /** "Se va a GUARDAR en {carpeta}": a backup only reads its connection, but may overwrite files of the folder. */
-export const backupConfirmation = (plan: PlanDatabase[], source: string, dir: string): DangerConfirmRequest => ({
+export const backupConfirmation = (plan: PlanDatabase[], source: string, dir: string, blocked?: string): DangerConfirmRequest => ({
   title: "Confirmar backup",
   heading: "Se va a GUARDAR en",
   target: { name: dir },
@@ -103,6 +103,7 @@ export const backupConfirmation = (plan: PlanDatabase[], source: string, dir: st
   items: planItems(plan),
   note: "Si la carpeta ya tiene alguna de estas bases de datos, sus archivos se sobrescriben.",
   confirmLabel: "Hacer backup",
+  blocked,
 });
 
 /** "Se va a MODIFICAR {conexión}": what the destination loses, before typing the confirmation word. */

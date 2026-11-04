@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::format::{self, CollectionMetadata, DATA_EXTENSION};
-use crate::jobs::selection::{DatabaseCatalog, is_system_collection, is_system_database};
+use crate::jobs::selection::{DatabaseCatalog, is_offered_collection, is_system_database};
 
 /// Archivo que marca un backup sin terminar: se crea al empezar y se borra solo si acaba bien.
 pub const INCOMPLETE_MARK: &str = "BACKUP_INCOMPLETO.txt";
@@ -88,7 +88,7 @@ pub fn read_catalog(dir: &Path) -> Result<Vec<DatabaseCatalog>, String> {
         .map(|database| {
             let entries: Vec<_> = list_entries(&database.dir)?
                 .into_iter()
-                .filter(|e| !is_system_collection(&e.collection))
+                .filter(|e| is_offered_collection(&e.collection))
                 .collect();
             Ok(DatabaseCatalog {
                 name: database.name,

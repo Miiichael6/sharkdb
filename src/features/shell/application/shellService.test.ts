@@ -49,6 +49,28 @@ describe("shellService", () => {
     expect(calls).toEqual(["execute t1 test print('hola') null 60/50", "cancel t1", "closeShell t1"]);
   });
 
+  it("knows a tab is running from the moment the script is sent until it ends, even if it fails", async () => {
+    const { gateway } = fakeGateway();
+    const pending: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
+    const outcome = await gateway.execute(SHELL, "test", "", null, OPTIONS);
+    gateway.execute = () => new Promise((resolve, reject) => pending.push({ resolve: () => resolve(outcome), reject }));
+    const shell = createShellService(gateway, () => OPTIONS);
+    const other = { sid: "s1", tab: "t2" };
+
+    const ok = shell.execute(SHELL, "test", "slow()");
+    expect(shell.isRunning(SHELL)).toBe(true);
+    expect(shell.isRunning(other)).toBe(false);
+    pending[0].resolve();
+    await ok;
+    expect(shell.isRunning(SHELL)).toBe(false);
+
+    const failed = shell.execute(SHELL, "test", "slow()");
+    expect(shell.isRunning(SHELL)).toBe(true);
+    pending[1].reject("Conexión perdida");
+    await expect(failed).rejects.toBe("Conexión perdida");
+    expect(shell.isRunning(SHELL)).toBe(false);
+  });
+
   it("runs each script with the options in force when it starts", async () => {
     const { gateway, calls } = fakeGateway();
     let options = OPTIONS;

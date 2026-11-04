@@ -57,6 +57,19 @@ describe("tabs", () => {
     expect(ids(runCollectionTab(again, "z", { ...orders, sid: "s2" }))).toContain("z");
   });
 
+  it("never reruns a tab on the collection whose code isn't the query asked for", () => {
+    const orders = { ...on("shop"), coll: "orders", code: "q", runOnOpen: true };
+    const remove = openTab(three("a"), "rm", { ...orders, code: "db.orders.deleteMany({})", runOnOpen: false });
+    const viaTemplate = runCollectionTab(remove, "x", orders);
+    expect(viaTemplate.tabs.find((t) => t.id === "rm")?.runRequest).toBe(0);
+    expect(viaTemplate.activeId).toBe("x");
+
+    const edited = updateTab(viaTemplate, "x", { code: "db.orders.drop()" });
+    const next = runCollectionTab(edited, "y", orders);
+    expect(next.tabs.find((t) => t.id === "x")?.runRequest).toBe(0);
+    expect(next.activeId).toBe("y");
+  });
+
   it("builds the default query for a collection, escaping quotes", () => {
     expect(defaultQuery("users")).toBe("db.getCollection('users').find({})");
     expect(defaultQuery("it's")).toBe("db.getCollection('it\\'s').find({})");

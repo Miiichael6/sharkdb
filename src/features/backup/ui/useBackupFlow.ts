@@ -17,6 +17,8 @@ export interface BackupWindowsContext {
 }
 
 interface Options extends BackupWindowsContext {
+  /** Why no backup can start now (another window has an operation running), if so. */
+  busyElsewhere: () => string | undefined;
   /** Runs the confirmed backup in the background; settles when it ends. */
   run: (request: BackupRequest) => Promise<unknown> | undefined;
 }
@@ -25,13 +27,14 @@ interface Options extends BackupWindowsContext {
  * The backup in two windows, like the sync: the selection (starting from `initial` when given), then
  * "Se va a GUARDAR en {carpeta}" with the confirmation word. "Volver" reopens the selection with what
  * was chosen. `use` gets the confirmed request; what the windows borrowed is given back once the
- * promise it returns settles.
+ * promise it returns settles. While `blocked` says why, the confirmation can't go ahead.
  */
 export async function chooseBackup(
   { connections, sessions, borrowSession }: BackupWindowsContext,
   origin: SelectionOrigin,
   use: (request: BackupRequest) => Promise<unknown> | undefined,
   initial?: BackupRequest,
+  blocked: () => string | undefined = () => undefined,
 ) {
   const opened = connectOnRequest(sessions, borrowSession);
   let settled: Promise<unknown> | undefined;
@@ -43,7 +46,7 @@ export async function chooseBackup(
           { connections, sessions: opened.sessions(), origin, initial: previous?.request ?? initial },
           { ...BACKUP_WINDOW, onRequest: opened.connect },
         ),
-      ({ request, plan }) => backupConfirmation(plan, connectionEndpoint(connections, request.sid).name, request.dir),
+      ({ request, plan }) => backupConfirmation(plan, connectionEndpoint(connections, request.sid).name, request.dir, blocked()),
     );
     if (choice) settled = use(choice.request);
   } finally {
@@ -52,9 +55,9 @@ export async function chooseBackup(
 }
 
 /** The backup windows, then the confirmed backup runs in the background. */
-export function useBackupFlow({ connections, sessions, borrowSession, run }: Options) {
+export function useBackupFlow({ connections, sessions, borrowSession, busyElsewhere, run }: Options) {
   return useCallback(
-    (origin: SelectionOrigin) => chooseBackup({ connections, sessions, borrowSession }, origin, run),
-    [connections, sessions, borrowSession, run],
+    (origin: SelectionOrigin) => chooseBackup({ connections, sessions, borrowSession }, origin, run, undefined, busyElsewhere),
+    [connections, sessions, borrowSession, busyElsewhere, run],
   );
 }

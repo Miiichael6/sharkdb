@@ -2,6 +2,7 @@ import {
   COPY_PIPELINE_OPTIONS,
   copyOptions,
   copyPipeline,
+  copyRunId,
   copyStagingName,
   duplicateRequest,
   indexesAfterDocuments,
@@ -33,7 +34,7 @@ const sameKey = (a: Doc, b: Doc) => JSON.stringify(a) === JSON.stringify(b);
 
 export type ExplorerService = ReturnType<typeof createExplorerService>;
 
-export function createExplorerService(admin: MongoAdmin, newId: () => string = () => crypto.randomUUID()) {
+export function createExplorerService(admin: MongoAdmin, newId: () => string = copyRunId) {
   // What the explorer shows of each connection (by session id): its saved favorites, and the
   // temporary databases opened during this run, which are never saved.
   const favorites = new Map<string, string[]>();

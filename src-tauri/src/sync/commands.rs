@@ -41,6 +41,8 @@ pub async fn sync_databases(
     job: String,
     request: SyncRequest,
 ) -> Result<Vec<CollectionResult>, String> {
+    // Antes de cualquier `await`: si no, un "Cancelar" que llegue mientras se conecta se pierde.
+    let running = jobs.start(&job, "un sync")?;
     let SyncRequest { source_sid, target_sid, databases } = request;
     let databases = non_empty(databases)?;
     ensure_distinct_connections(&source_sid, &target_sid)?;
@@ -52,7 +54,6 @@ pub async fn sync_databases(
     safe_mode.ensure_writable()?;
     // Del origen solo se lee: puede estar protegido o en safe mode.
     let (source_client, _) = mongo::session_with_safe_mode(&sessions, &source_sid).await?;
-    let running = jobs.start(&job)?;
     let copies: Vec<DatabaseCopy> = databases
         .into_iter()
         .map(|d| DatabaseCopy {

@@ -7,6 +7,7 @@ import { tauriFolderPicker } from "../features/backup/infrastructure/tauriFolder
 import { tauriMinuteClock } from "../features/backup/infrastructure/tauriMinuteClock";
 import { tauriRunFolders } from "../features/backup/infrastructure/tauriRunFolders";
 import { tauriScheduleStore } from "../features/backup/infrastructure/tauriScheduleStore";
+import { tauriScheduleTurn } from "../features/backup/infrastructure/tauriScheduleTurn";
 import { tauriSystemNotifier } from "../features/backup/infrastructure/tauriSystemNotifier";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
@@ -39,6 +40,7 @@ import { createJobRunner } from "../shared/application/jobRunner";
 import { createOperationsService, type OperationsService } from "../shared/application/operationsService";
 import { tauriCommandRunner } from "../shared/infrastructure/commandRunner";
 import { tauriJobEvents } from "../shared/infrastructure/tauriJobEvents";
+import { tauriOtherWindows } from "../shared/infrastructure/tauriOtherWindows";
 
 export interface Services {
   connections: ConnectionService;
@@ -78,9 +80,10 @@ export function createServices(): Services {
       source: tauriSyncGateway,
       notifier: tauriSystemNotifier,
       clock: tauriMinuteClock,
+      turn: tauriScheduleTurn,
     }),
     sync: createSyncService(tauriSyncGateway, startJob),
-    operations: createOperationsService(),
+    operations: createOperationsService(undefined, undefined, tauriOtherWindows),
     settings,
     updates: createUpdateService(tauriUpdateGateway),
   };

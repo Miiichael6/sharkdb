@@ -7,6 +7,7 @@ import {
   TARGET_IS_SOURCE,
   copyOptions,
   copyPipeline,
+  copyRunId,
   indexesAfterDocuments,
   indexesToCopy,
   validateCopy,
@@ -74,5 +75,12 @@ describe("copySpec", () => {
     expect(copyPipeline(request({ coll: "m" }), { timeField: "t" })[1]).toEqual({
       $out: { db: "shop", coll: "m", timeseries: { timeField: "t" } },
     });
+  });
+
+  it("names a copy's run with its start time first, like an ObjectId", () => {
+    const run = copyRunId(Date.UTC(2026, 10, 4) + 999);
+    expect(run).toMatch(/^[0-9a-f]{24}$/);
+    expect(parseInt(run.slice(0, 8), 16)).toBe(Date.UTC(2026, 10, 4) / 1000);
+    expect(copyRunId()).not.toBe(copyRunId());
   });
 });

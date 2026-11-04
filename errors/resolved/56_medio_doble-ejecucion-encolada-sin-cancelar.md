@@ -3,7 +3,7 @@
 - **Severidad:** MEDIO
 - **Tipo:** implícito (la segunda ejecución no se ve en la UI ni se puede cancelar)
 - **Dónde:** src/features/shell/ui/QueryEditor.tsx (keymap `Mod-Enter`/`F5` con `Prec.highest` llama a `onRun` sin mirar `running`), src/features/shell/ui/ShellTab.tsx (`execute` no comprueba `run.running`; solo lo hace el `onKeyDown` de la sección, que el editor nunca alcanza), src/features/shell/ui/useShellRun.ts (`run` sin guarda de concurrencia), src-tauri/src/shell/runtime.rs (`Job::Run` encolados en un mpsc; `cancel()` solo pone el `AtomicBool`), src-tauri/src/shell/watchdog.rs (`arm()` hace `cancel.store(false)` al empezar cada job)
-- **Estado:** pendiente
+- **Estado:** resuelto — frontend: `shellService` sabe qué pestañas tienen un script en curso (`isRunning`, desde que se envía hasta que acaba o falla) y `useShellRun.run` ignora la llamada mientras tanto, así cubre el keymap del editor, el botón y `runRequest`. Backend: `ShellRuntime::run` rechaza con `BUSY` un script si ya hay otro en curso o en cola en la pestaña (no se encola), así ningún job hereda el flag de cancelación limpiado por `arm()`. Tests: `shellService.test.ts` (`knows a tab is running from the moment the script is sent until it ends, even if it fails`) y `shell/tests/runtime.rs` (`a_second_run_while_one_is_running_is_rejected_not_queued`).
 - **Relacionado:** #09 (resuelto: `killSessions` solo actúa sobre el job en curso), #54, #55 (el efecto de `runRequest` tampoco mira `running`)
 
 ## Problema

@@ -30,10 +30,15 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
   };
 
   return {
-    /** Why nothing can start writing to `sid` now: another operation already writes there. */
+    /**
+     * Why nothing can start writing to `sid` now: another window has an operation running (error 60),
+     * or another operation already writes there.
+     */
     busyReason(sid: string) {
-      return runningOn(operations.list(), sid) ? busyTargetMessage(connection(sid).name) : undefined;
+      return operations.busyElsewhere() ?? (runningOn(operations.list(), sid) ? busyTargetMessage(connection(sid).name) : undefined);
     },
+    /** Why nothing can start now: another window has an operation running (error 60). */
+    busyElsewhere: () => operations.busyElsewhere(),
     sync(request: SyncRequest) {
       const target = connection(request.targetSid);
       const spec = { kind: "sync", title: "Sincronizar", source: connection(request.sourceSid), target, writesTo: request.targetSid } as const;

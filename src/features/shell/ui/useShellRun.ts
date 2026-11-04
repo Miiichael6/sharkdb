@@ -43,7 +43,9 @@ export function useShellRun(tab: ShellTab, onDbChange: (db: string) => void) {
 
   const run = useCallback(
     async (code: string, origin: RunOrigin = SCRIPT_START) => {
-      if (!code.trim()) return;
+      // Ctrl+Enter/F5 in the editor, the button and `runRequest` all land here; a second run would
+      // replace this one's state while it keeps going on the server.
+      if (!code.trim() || shell.isRunning(ref)) return;
       // The previous cursors are freed after the run, not before: `it` may continue one of them.
       const previous = [...pagers.current.values()];
       setState({ ...IDLE, running: true });

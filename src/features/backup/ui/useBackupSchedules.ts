@@ -28,7 +28,7 @@ interface Options extends BackupWindowsContext {
 /** The backup schedules of the connections screen: loaded once, saved on every change and run on their own. */
 export function useBackupSchedules(options: Options) {
   const { connections, sessions, borrowSession, connectionsLoaded } = options;
-  const { schedules: service, backup } = useServices();
+  const { schedules: service, backup, operations } = useServices();
   const notify = useNotify();
   const [schedules, setSchedules] = useState<BackupSchedule[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -48,7 +48,7 @@ export function useBackupSchedules(options: Options) {
   const persist = (next: BackupSchedule[]) => {
     latest.current = next;
     setSchedules(next);
-    service.save(next).catch(notify.fail);
+    return service.save(next).catch(notify.fail);
   };
   const save = (schedule: BackupSchedule) => persist(upsertSchedule(latest.current, schedule));
   const add = (schedule: BackupSchedule) => {
@@ -74,27 +74,59 @@ export function useBackupSchedules(options: Options) {
     ).catch(notify.fail);
   };
 
+  /** Why ▶ can't run `schedule` now: another window has an operation running (error 60), or what the runner says. */
+  const runBlockerOf = (schedule: BackupSchedule) => operations.busyElsewhere() ?? runner.blockerOf(schedule, context());
+
   /** ▶: the backup now; confirmed already when what it saves was chosen (D17). */
   const runNow = (schedule: BackupSchedule) => {
-    const blocker = runner.blockerOf(schedule, context());
+    const blocker = runBlockerOf(schedule);
     if (blocker) notify.fail(blocker);
     else void runner.execute(schedule, new Date());
   };
 
+  // The turn is being asked for: a minute tick and the end of a run must not both take it.
+  const claiming = useRef(false);
+  const runDueRef = useRef<() => Promise<void>>(async () => {});
+
   /**
-   * The first schedule due now, on its own and without asking (D17). It counts as run for that time
-   * before starting, so it never runs twice for it, even when it can't start (that is notified).
+   * The first schedule due now, on its own and without asking (D17). Only with the turn every SharkDB
+   * window shares (error 60): while another one runs a schedule (or any backup, restore or sync) this
+   * one waits, and the schedules read again from disk tell whether it already ran this one. It counts
+   * as run for that time before starting, so it never runs twice for it, even when it can't start
+   * (that is notified). The turn is held until the run ends.
    */
-  const runDue = () => {
-    const now = new Date();
-    const due = firstDue(latest.current, now);
-    if (!due || runner.isBusy()) return;
-    save(afterScheduledRun(due, now));
-    const blocker = runner.blockerOf(due, context());
-    if (blocker) runner.failToStart(due, blocker);
-    else void runner.execute(due, now);
+  const runDue = async () => {
+    if (claiming.current || runner.isBusy() || !firstDue(latest.current, new Date())) return;
+    claiming.current = true;
+    let ran: Promise<void> | undefined;
+    let taken = false;
+    try {
+      taken = await service.takeTurn();
+      if (!taken) return;
+      const saved = await service.list();
+      latest.current = saved;
+      setSchedules(saved);
+      const now = new Date();
+      const due = firstDue(saved, now);
+      if (!due) return;
+      await persist(upsertSchedule(saved, afterScheduledRun(due, now)));
+      const blocker = runner.blockerOf(due, context());
+      if (blocker) runner.failToStart(due, blocker);
+      else ran = runner.execute(due, now);
+    } catch (e) {
+      notify.fail(e);
+    } finally {
+      claiming.current = false;
+      if (taken) {
+        void Promise.resolve(ran)
+          .finally(() => service.releaseTurn().catch(() => {}))
+          // The run ended while the turn was still held: the next one waiting goes now.
+          .then(() => ran && runDueRef.current());
+      }
+    }
   };
-  useScheduler({ ready: loaded && connectionsLoaded, runningId: runner.runningId, runDue });
+  runDueRef.current = runDue;
+  useScheduler({ ready: loaded && connectionsLoaded, runningId: runner.runningId, runDue: () => void runDue() });
 
   const remove = async (schedule: BackupSchedule) => {
     const conn = connectionOf(schedule);
@@ -112,7 +144,7 @@ export function useBackupSchedules(options: Options) {
     cancelRun: runner.cancelRun,
     connectionOf,
     /** Why ▶ can't run it, if it can't. */
-    runBlockerOf: (schedule: BackupSchedule) => runner.blockerOf(schedule, context()),
+    runBlockerOf,
     /** Why its switch can't be turned on, if it can't. */
     enableBlockerOf: (schedule: BackupSchedule) => enableBlocker(schedule, { ...context(), runningId: runner.runningId }, new Date()),
     /** The other schedule already saving into this one's folder. */

@@ -23,6 +23,13 @@ function fakes(saved: Awaited<ReturnType<ScheduleStore["load"]>> = [], folders: 
     },
   };
   const runs: RunFolders = {
+    create: async (parent, stamp) => {
+      const taken = (folders[parent] ?? []).map((run) => run.name);
+      let name = stamp;
+      for (let repeat = 2; taken.includes(name); repeat++) name = `${stamp}_${repeat}`;
+      folders[parent] = [...(folders[parent] ?? []), { name, complete: false }];
+      return name;
+    },
     list: async (parent) => folders[parent] ?? [],
     remove: async (parent, names) => {
       folders[parent] = folders[parent].filter((run) => !names.includes(run.name));
@@ -34,6 +41,7 @@ function fakes(saved: Awaited<ReturnType<ScheduleStore["load"]>> = [], folders: 
     source: { databaseCatalog: async () => [{ name: "shop", sizeOnDisk: 0, collections: ["orders", "invoices"] }] },
     notifier: { show: async (alert) => void alerts.push(alert) },
     clock: { onMinute: async () => () => {} },
+    turn: { take: async () => true, release: async () => {} },
   });
   return { service, file: () => file, folders, alerts };
 }
@@ -71,6 +79,13 @@ describe("scheduleService", () => {
     expect((await service.runRequest(DAILY, AT)).request.dir).toBe("/backups/Diario/2026-10-31_0230_2");
   });
 
+  it("makes no folder for a run that can't start", async () => {
+    const { service, folders } = fakes();
+    const gone = { ...DAILY, backup: { ...DAILY.backup!, databases: [{ db: "gone", collections: ["x"] }] } };
+    await expect(service.runRequest(gone, AT)).rejects.toBeTruthy();
+    expect(folders).toEqual({});
+  });
+
   it("runs a whole database with the collections its connection has now", async () => {
     const { service } = fakes();
     const whole = { ...DAILY, backup: { ...DAILY.backup!, databases: [{ db: "shop", collections: ["orders"], complete: true }] } };
@@ -83,7 +98,7 @@ describe("scheduleService", () => {
     const runs = Array.from({ length: 9 }, (_, i) => ({ name: `2026-10-2${i}_0200`, complete: true }));
     const notes = { name: "notas", complete: true };
     const { service, folders } = fakes([], { "/backups/Diario": [notes, ...runs] });
-    expect(await service.prune(DAILY)).toEqual(runs.slice(0, 2).map((run) => run.name));
+    expect(await service.prune(DAILY, new Date(2026, 11, 31))).toEqual(runs.slice(0, 2).map((run) => run.name));
     expect(folders["/backups/Diario"]).toEqual([notes, ...runs.slice(2)]);
     expect(await service.prune(newSchedule("b"))).toEqual([]);
   });

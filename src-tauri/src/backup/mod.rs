@@ -7,12 +7,14 @@
 //!   sync (15) los reutiliza para copiar entre conexiones sin pasar por disco.
 //! - `staging`: reemplazo de una colección a través de una provisional, común al restore y al sync.
 //! - `dump` / `restore`: el trabajo contra el servidor, con progreso y cancelación (`crate::jobs`).
+//! - `leftovers`: provisionales abandonadas por un trabajo cortado a mitad, para ofrecer borrarlas.
 //! - `commands`: comandos Tauri (`backup_databases`, `read_backup_catalog`, `restore_databases`).
 
 pub mod commands;
 mod dump;
 pub mod folder;
 mod format;
+mod leftovers;
 mod restore;
 pub mod source;
 pub mod staging;

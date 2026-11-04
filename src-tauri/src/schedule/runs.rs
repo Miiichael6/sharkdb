@@ -1,13 +1,15 @@
 //! Las carpetas de las ejecuciones de una programación: `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>` (D16),
 //! con `_2`, `_3`… si dos caen en el mismo minuto. Solo se listan y borran las que tienen ese nombre.
-//! Cada una dice si terminó bien: una sin terminar no cuenta para la retención (error 46).
+//! Cada una dice si terminó bien: una sin terminar no cuenta para la retención (error 46). Se crean
+//! en exclusiva: dos ejecuciones, aunque sean de instancias distintas, nunca comparten carpeta (error 60).
 
 use std::fs;
+use std::io::ErrorKind;
 use std::path::Path;
 
 use serde::Serialize;
 
-use crate::backup::folder::is_marked_incomplete;
+use crate::backup::folder::{is_marked_incomplete, mark_incomplete};
 
 /// Una carpeta de ejecución y si su backup terminó bien.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -60,6 +62,32 @@ pub fn list_runs(parent: &Path) -> Result<Vec<RunFolder>, String> {
     Ok(runs)
 }
 
+/// Primer `_n` de una ejecución repetida en el mismo minuto.
+const FIRST_REPEAT: u32 = 2;
+
+/// Crea en `parent` la carpeta de una ejecución que empieza en `stamp` (`2026-10-31_0230`), o
+/// `<stamp>_2`, `_3`… si ya existe, marcada como sin terminar; devuelve su nombre. Crearla es lo que
+/// la reserva: si otra instancia la crea antes, esta pasa a la siguiente.
+pub fn create_run(parent: &Path, stamp: &str) -> Result<String, String> {
+    if !is_stamp(stamp) {
+        return Err(format!("“{stamp}” no es la fecha de una ejecución"));
+    }
+    fs::create_dir_all(parent).map_err(|e| format!("No se pudo crear {}: {e}", parent.display()))?;
+    let mut repeat = FIRST_REPEAT - 1;
+    loop {
+        let name = if repeat < FIRST_REPEAT { stamp.to_string() } else { format!("{stamp}_{repeat}") };
+        let run = parent.join(&name);
+        match fs::create_dir(&run) {
+            Ok(()) => {
+                mark_incomplete(&run)?;
+                return Ok(name);
+            }
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => repeat += 1,
+            Err(e) => return Err(format!("No se pudo crear {}: {e}", run.display())),
+        }
+    }
+}
+
 /// Borra las ejecuciones `names` de `parent`. Rechaza cualquier nombre que no sea de una ejecución:
 /// así nunca se borra fuera de la carpeta de la programación.
 pub fn remove_runs(parent: &Path, names: &[String]) -> Result<(), String> {
@@ -106,6 +134,19 @@ mod tests {
                 RunFolder { name: "2026-10-31_0200".into(), complete: false },
             ]
         );
+        fs::remove_dir_all(parent).unwrap();
+    }
+
+    #[test]
+    fn each_run_gets_a_folder_of_its_own() {
+        let parent = std::env::temp_dir().join(format!("robo3b-runs-create-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&parent);
+        assert_eq!(create_run(&parent, "2026-10-31_0200"), Ok("2026-10-31_0200".into()));
+        assert_eq!(create_run(&parent, "2026-10-31_0200"), Ok("2026-10-31_0200_2".into()));
+        assert_eq!(create_run(&parent, "2026-10-31_0200"), Ok("2026-10-31_0200_3".into()));
+        assert!(create_run(&parent, "../x").is_err());
+        // Recién creada cuenta como sin terminar hasta que su backup acabe bien.
+        assert!(list_runs(&parent).unwrap().iter().all(|run| !run.complete));
         fs::remove_dir_all(parent).unwrap();
     }
 

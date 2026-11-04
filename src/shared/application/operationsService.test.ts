@@ -26,6 +26,17 @@ const newService = () => {
 };
 
 describe("operationsService", () => {
+  it("tells what another window has running, as last checked, and forgets it when unreadable (error 60)", async () => {
+    let busy: Promise<string | null> = Promise.resolve("un backup");
+    const service = createOperationsService(undefined, undefined, { busy: () => busy });
+    expect(service.busyElsewhere()).toBeUndefined();
+    await service.checkElsewhere();
+    expect(service.busyElsewhere()).toBe("un backup");
+    busy = Promise.reject(new Error("sin acceso"));
+    await service.checkElsewhere();
+    expect(service.busyElsewhere()).toBeUndefined();
+  });
+
   it("lists a started operation, its progress and its summary, and tells the listeners", async () => {
     const service = newService();
     const job = fakeJob();

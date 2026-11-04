@@ -116,10 +116,12 @@ export function closeTab(state: TabsState, id: string): TabsState {
 
 /**
  * Runs the script of the tab on `init`'s collection (the active one when it is, else the first),
- * activating it; with none, opens `init` as a new tab.
+ * activating it; with none, opens `init` as a new tab. Only a tab whose code is still exactly
+ * `init`'s counts: one edited (or opened from a write template) could run something else.
  */
 export function runCollectionTab(state: TabsState, id: string, init: NewTab): TabsState {
-  const onColl = (t: ShellTab) => t.sid === init.sid && t.db === init.db && t.coll === init.coll;
+  const onColl = (t: ShellTab) =>
+    t.sid === init.sid && t.db === init.db && t.coll === init.coll && t.code === (init.code ?? "");
   const active = activeTab(state);
   const tab = active && onColl(active) ? active : state.tabs.find(onColl);
   if (!init.coll || !tab) return openTab(state, id, init);

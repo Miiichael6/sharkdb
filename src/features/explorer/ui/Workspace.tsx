@@ -12,6 +12,7 @@ import { useBackupFlow } from "../../backup/ui/useBackupFlow";
 import { useRestoreFlow } from "../../backup/ui/useRestoreFlow";
 import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
+import { useLeftoverCleanup } from "../../sync/ui/useLeftoverCleanup";
 import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
@@ -100,12 +101,13 @@ export function Workspace(props: Props) {
     fail,
   });
   const data = useDataOperations(connections, actions.refreshAll);
+  useLeftoverCleanup(sessions, actions.refreshAll);
   // Sync, backup and restore are chosen and confirmed in their own windows (this one stays disabled)
   // and run in the operations panel.
   const flow = { connections, sessions, borrowSession: props.onBorrowSession, busyReason: data.busyReason };
   const flows: Partial<Record<Action, OperationFlow>> = {
     syncDatabase: { open: useSyncFlow({ ...flow, run: data.sync }), name: "sincronización" },
-    backupDatabase: { open: useBackupFlow({ ...flow, run: data.backup }), name: "backup" },
+    backupDatabase: { open: useBackupFlow({ ...flow, busyElsewhere: data.busyElsewhere, run: data.backup }), name: "backup" },
     restoreDatabase: { open: useRestoreFlow({ ...flow, run: data.restore }), name: "restore" },
   };
 

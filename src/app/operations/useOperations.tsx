@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { LaunchJob, StartedOperation } from "../../shared/application/operationsService";
 import type { CollectionResult } from "../../shared/domain/jobs";
 import { cancelConfirmation, operationOutcome, type Operation, type OperationSpec } from "../../shared/domain/operations";
@@ -24,6 +24,9 @@ interface OperationsContextValue {
 
 const OperationsContext = createContext<OperationsContextValue | null>(null);
 
+/** How often the other windows are asked what they have running (error 60). */
+const ELSEWHERE_POLL_MS = 3000;
+
 /**
  * The background operations of the main window: they keep running while the app is used, report
  * their end in the notification center and are cancelled (once confirmed) when the app closes.
@@ -34,6 +37,12 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const notify = useNotify();
   useCancelOnClose(service);
+
+  useEffect(() => {
+    void service.checkElsewhere();
+    const timer = setInterval(() => void service.checkElsewhere(), ELSEWHERE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [service]);
 
   const start = useCallback<OperationsContextValue["start"]>(
     (spec, launch, summarize) => {

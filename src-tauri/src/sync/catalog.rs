@@ -5,7 +5,7 @@ use mongodb::options::ListDatabasesOptions;
 use mongodb::results::CollectionType;
 use mongodb::{Client, Database};
 
-use crate::jobs::selection::{DatabaseCatalog, is_system_collection, is_system_database};
+use crate::jobs::selection::{DatabaseCatalog, is_offered_collection, is_system_database};
 use crate::mongo::describe;
 
 /// Colecciones de `db` que un sync puede copiar, por nombre: sin vistas, series temporales ni `system.*`.
@@ -19,7 +19,7 @@ pub async fn syncable_collections(db: &Database) -> Result<Vec<String>, String> 
         .map_err(describe)?;
     let mut names: Vec<String> = specs
         .into_iter()
-        .filter(|s| matches!(s.collection_type, CollectionType::Collection) && !is_system_collection(&s.name))
+        .filter(|s| matches!(s.collection_type, CollectionType::Collection) && is_offered_collection(&s.name))
         .map(|s| s.name)
         .collect();
     names.sort();

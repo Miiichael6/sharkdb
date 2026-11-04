@@ -2,6 +2,7 @@
 //! poder cancelarlo (`crate::jobs`) y emiten el progreso como evento.
 
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use mongodb::Client;
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use tauri::{AppHandle, State};
 
 use super::dump;
 use super::folder;
+use super::leftovers::{self, Leftover};
 use super::restore::{self, DatabaseRestore};
 use super::staging::Destination;
 use crate::jobs::Jobs;
@@ -46,11 +48,12 @@ pub async fn backup_databases(
     job: String,
     request: BackupRequest,
 ) -> Result<Vec<CollectionResult>, String> {
+    // Antes de cualquier `await`: si no, un "Cancelar" que llegue mientras se conecta se pierde.
+    let running = jobs.start(&job, "un backup")?;
     let BackupRequest { sid, dir, databases } = request;
     let databases = non_empty(databases)?;
     // Un backup solo lee: se permite con safe mode activo y sobre conexiones protegidas.
     let (client, _) = mongo::session_with_safe_mode(&sessions, &sid).await?;
-    let running = jobs.start(&job)?;
     dump::dump_databases(&client, &databases, &dir, running.cancel_flag(), emitter(&app, &job)).await
 }
 
@@ -77,6 +80,8 @@ pub async fn restore_databases(
     job: String,
     request: RestoreRequest,
 ) -> Result<Vec<CollectionResult>, String> {
+    // Antes de cualquier `await`: si no, un "Cancelar" que llegue mientras se conecta se pierde.
+    let running = jobs.start(&job, "un restore")?;
     let RestoreRequest { dir, target_sid, databases } = request;
     let databases = non_empty(databases)?;
     // No basta con que la UI no lo ofrezca: se comprueba con lo guardado en disco.
@@ -84,9 +89,28 @@ pub async fn restore_databases(
     let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &target_sid).await?;
     safe_mode.ensure_writable()?;
     let restores = restores_from(&client, &dir, databases)?;
-    let running = jobs.start(&job)?;
     let destination = Destination { client: &client, safe_mode: &safe_mode };
     restore::restore_databases(&destination, &restores, running.cancel_flag(), emitter(&app, &job)).await
+}
+
+/// Provisionales que dejaron en la conexión trabajos cortados a mitad, para ofrecer borrarlas.
+#[tauri::command]
+pub async fn find_leftovers(sessions: State<'_, Sessions>, sid: String) -> Result<Vec<Leftover>, String> {
+    let (client, _) = mongo::session_with_safe_mode(&sessions, &sid).await?;
+    leftovers::find(&client, SystemTime::now()).await
+}
+
+#[tauri::command]
+pub async fn drop_leftovers(
+    app: AppHandle,
+    sessions: State<'_, Sessions>,
+    sid: String,
+    leftovers: Vec<Leftover>,
+) -> Result<(), String> {
+    // Como el restore: una conexión protegida o de producción nunca se modifica.
+    ensure_restorable(store::is_protected(&app, &sid)?)?;
+    let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &sid).await?;
+    leftovers::drop_all(&Destination { client: &client, safe_mode: &safe_mode }, &leftovers).await
 }
 
 /// Nunca se restaura sobre una conexión protegida o de producción.

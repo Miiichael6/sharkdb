@@ -3,6 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::backup::staging::is_staging_collection;
+
 pub const NO_COLLECTIONS: &str = "Elige al menos una colección";
 
 /// Bases de datos del servidor que nunca se ofrecen.
@@ -13,8 +15,10 @@ pub fn is_system_database(name: &str) -> bool {
     SYSTEM_DATABASES.contains(&name)
 }
 
-pub fn is_system_collection(name: &str) -> bool {
-    name.starts_with(SYSTEM_PREFIX)
+/// Colecciones que se ofrecen para elegir: ni las de sistema ni las provisionales de un sync o
+/// restore, que si quedaron huérfanas se copiarían o respaldarían como datos reales.
+pub fn is_offered_collection(name: &str) -> bool {
+    !name.starts_with(SYSTEM_PREFIX) && !is_staging_collection(name)
 }
 
 /// Colecciones elegidas de una base de datos.
@@ -62,6 +66,13 @@ mod tests {
         let chosen = non_empty(vec![selection("a", &[]), selection("b", &["x"])]).unwrap();
         assert_eq!(chosen, [selection("b", &["x"])]);
         assert_eq!(non_empty(vec![selection("a", &[])]), Err(NO_COLLECTIONS.into()));
+    }
+
+    #[test]
+    fn system_and_staging_collections_are_not_offered() {
+        assert!(is_offered_collection("orders"));
+        assert!(!is_offered_collection("system.views"));
+        assert!(!is_offered_collection("orders.sharkdb-staging-abc"));
     }
 
     #[test]

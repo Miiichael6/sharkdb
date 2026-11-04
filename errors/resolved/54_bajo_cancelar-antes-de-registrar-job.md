@@ -2,7 +2,7 @@
 
 - **Severidad:** BAJO
 - **Dónde:** src-tauri/src/sync/commands.rs, src-tauri/src/backup/commands.rs (`jobs.start` tras varios `await`), src-tauri/src/jobs/mod.rs (`Jobs::cancel`)
-- **Estado:** pendiente
+- **Estado:** resuelto — `sync_databases`, `backup_databases` y `restore_databases` llaman a `jobs.start` antes de cualquier `await`, así un "Cancelar" que llegue mientras se conecta pone la bandera, y el trabajo la mira antes de la primera colección.
 
 ## Problema
 `jobs.start` se llama después de varios `await`; `Jobs::cancel` no hace nada si el id aún no existe.

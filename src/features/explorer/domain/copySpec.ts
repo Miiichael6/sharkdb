@@ -52,6 +52,15 @@ export function validateCopy(r: CopyRequest): CopyRequest {
  */
 export const copyStagingName = (run: string) => `sharkdb-copy-${run}`;
 
+/**
+ * Id of a copy's run, like an ObjectId: 24 hex digits starting with the seconds since the epoch, so
+ * the backend can tell a provisional collection left by an interrupted copy from a running one by its age.
+ */
+export function copyRunId(now = Date.now()): string {
+  const seconds = Math.floor(now / 1000).toString(16).padStart(8, "0");
+  return seconds + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
+
 /** Name a duplicate of `coll` is offered with, as in Robo 3T. */
 export const duplicateName = (coll: string) => `${coll}_copy`;
 

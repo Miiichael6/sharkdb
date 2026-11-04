@@ -1,6 +1,7 @@
 //! Hilo propio por sesión de shell: recibe trabajos por canal (scripts, lotes de cursor), los
 //! ejecuta en su `ShellSession` y responde por un `oneshot`. La cancelación se hace desde fuera
-//! con una bandera atómica.
+//! con una bandera atómica. Solo hay un script a la vez: otro mientras tanto se rechaza, no se
+//! encola (correría después sin verse en la UI, y la cancelación del primero no lo frenaría).
 
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -20,6 +21,7 @@ use super::watchdog::Watchdog;
 
 const THREAD_NAME: &str = "sharkdb-shell";
 const STOPPED: &str = "El motor de la sesión se ha detenido";
+pub const BUSY: &str = "Ya hay un script en ejecución en esta pestaña";
 
 enum Job {
     Run {
@@ -42,6 +44,8 @@ enum Job {
 pub struct ShellRuntime {
     jobs: mpsc::Sender<Job>,
     cancel: Arc<AtomicBool>,
+    /// Hay un script enviado al hilo que aún no ha terminado; lo suelta el hilo al acabarlo.
+    busy: Arc<AtomicBool>,
 }
 
 impl ShellRuntime {
@@ -55,6 +59,8 @@ impl ShellRuntime {
         let (jobs, inbox) = mpsc::channel::<Job>();
         let (ready, started) = mpsc::channel::<Result<(), String>>();
         let flag = cancel.clone();
+        let busy = Arc::new(AtomicBool::new(false));
+        let done = busy.clone();
         thread::Builder::new()
             .name(THREAD_NAME.into())
             .spawn(move || {
@@ -67,15 +73,16 @@ impl ShellRuntime {
                 };
                 let _ = ready.send(Ok(()));
                 for job in inbox {
-                    handle_job(&mut session, job);
+                    handle_job(&mut session, job, &done);
                 }
             })
             .map_err(|e| e.to_string())?;
         started.recv().map_err(|e| e.to_string())??;
-        Ok(Self { jobs, cancel })
+        Ok(Self { jobs, cancel, busy })
     }
 
-    /// Ejecuta un script; los trabajos de una misma sesión se hacen en orden, uno a uno.
+    /// Ejecuta un script; los trabajos de una misma sesión se hacen en orden, uno a uno. Si ya hay
+    /// un script en curso, falla con `BUSY` sin enviarlo.
     /// `script_dir` es la carpeta del fichero abierto en la pestaña, para `load`; `options`, las
     /// preferencias vigentes, que valen también para las páginas que se lean después.
     pub async fn run(
@@ -85,14 +92,25 @@ impl ShellRuntime {
         script_dir: Option<PathBuf>,
         options: RunOptions,
     ) -> Result<ScriptOutcome, String> {
+        if self
+            .busy
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return Err(BUSY.to_string());
+        }
         let (reply, outcome) = oneshot::channel();
-        self.send(Job::Run {
+        let sent = self.send(Job::Run {
             db,
             code,
             script_dir,
             options,
             reply,
-        })?;
+        });
+        if sent.is_err() {
+            self.busy.store(false, Ordering::SeqCst);
+        }
+        sent?;
         outcome.await.map_err(|_| STOPPED.to_string())
     }
 
@@ -128,7 +146,7 @@ impl Drop for ShellRuntime {
     }
 }
 
-fn handle_job(session: &mut ShellSession, job: Job) {
+fn handle_job(session: &mut ShellSession, job: Job, busy: &AtomicBool) {
     match job {
         Job::Run {
             db,
@@ -138,7 +156,10 @@ fn handle_job(session: &mut ShellSession, job: Job) {
             reply,
         } => {
             session.configure(options);
-            drop(reply.send(session.run(&db, &code, script_dir)))
+            let outcome = session.run(&db, &code, script_dir);
+            // Antes de responder: quien espera la respuesta ya puede lanzar el siguiente.
+            busy.store(false, Ordering::SeqCst);
+            drop(reply.send(outcome))
         }
         Job::NextBatch {
             cursor,

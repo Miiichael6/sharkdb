@@ -3,6 +3,7 @@
 //! (`dropTarget`). Un fallo o una cancelación mientras se llenan dejan el destino como estaba.
 
 use std::future::Future;
+use std::time::SystemTime;
 
 use mongodb::bson::{RawDocumentBuf, doc, oid::ObjectId};
 use mongodb::{Client, Database};
@@ -14,6 +15,8 @@ use crate::safe_mode::SafeMode;
 const ADMIN_DB: &str = "admin";
 /// Marca de las colecciones provisionales en las que se escribe antes de reemplazar.
 const STAGING_MARK: &str = "sharkdb-staging";
+/// Prefijo de la provisional de "Copiar colección" (la nombra el frontend: `copyStagingName`).
+const COPY_PREFIX: &str = "sharkdb-copy-";
 
 /// La conexión que se modifica, con su safe mode, que se vuelve a mirar antes de cada lote y antes de reemplazar.
 pub struct Destination<'a> {
@@ -29,6 +32,24 @@ pub fn new_run() -> String {
 /// Colección provisional del destino donde se escribe `collection` antes de renombrarla encima.
 pub fn staging_name(collection: &str, run: &str) -> String {
     format!("{collection}.{STAGING_MARK}-{run}")
+}
+
+/// El `run` de una provisional (de un sync, un restore o una copia de colección), si lo es.
+fn staging_run(name: &str) -> Option<&str> {
+    name.strip_prefix(COPY_PREFIX)
+        .or_else(|| name.rsplit_once(STAGING_MARK).and_then(|(_, rest)| rest.strip_prefix('-')))
+}
+
+/// Si es una provisional: de un trabajo en marcha o huérfana de uno que se cortó (la app se cerró a mitad).
+pub fn is_staging_collection(name: &str) -> bool {
+    staging_run(name).is_some()
+}
+
+/// Cuándo empezó el trabajo de una provisional, por la fecha de su `run` (un `ObjectId`); `None`
+/// si no la lleva (las copias de versiones anteriores usaban un UUID).
+pub fn staging_started(name: &str) -> Option<SystemTime> {
+    let run = ObjectId::parse_str(staging_run(name)?).ok()?;
+    Some(run.timestamp().to_system_time())
 }
 
 /// Provisional llena que espera a ponerse en el lugar de su colección.
@@ -152,5 +173,24 @@ mod tests {
     #[test]
     fn staging_collection_keeps_the_name_and_marks_the_run() {
         assert_eq!(staging_name("orders", "abc"), "orders.sharkdb-staging-abc");
+        assert!(is_staging_collection(&staging_name("orders", "abc")));
+        assert!(!is_staging_collection("orders"));
+    }
+
+    #[test]
+    fn copy_staging_is_a_staging_collection_too() {
+        assert!(is_staging_collection("sharkdb-copy-abc"));
+        assert!(!is_staging_collection("sharkdb-copyright"));
+        assert!(!is_staging_collection("orders.sharkdb-copy-abc"));
+    }
+
+    #[test]
+    fn a_staging_collection_started_when_its_run_was_made() {
+        let run = ObjectId::new();
+        let started = Some(run.timestamp().to_system_time());
+        assert_eq!(staging_started(&staging_name("orders", &run.to_hex())), started);
+        assert_eq!(staging_started(&format!("{COPY_PREFIX}{}", run.to_hex())), started);
+        assert_eq!(staging_started("sharkdb-copy-7c9e6679-7425-40de-944b-e07fc1f90ae7"), None);
+        assert_eq!(staging_started("orders"), None);
     }
 }

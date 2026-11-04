@@ -20,10 +20,24 @@ export interface StartedOperation {
   settled: Promise<Operation>;
 }
 
+/** The other SharkDB windows: each one is a process of its own, with operations this one doesn't see (error 60). */
+export interface OtherWindows {
+  /** Why nothing can start here now: what another window has running; null when nothing. */
+  busy(): Promise<string | null>;
+}
+
+const NO_OTHER_WINDOWS: OtherWindows = { busy: async () => null };
+
 export type OperationsService = ReturnType<typeof createOperationsService>;
 
-export function createOperationsService(clock: () => number = Date.now, newId: () => string = () => crypto.randomUUID()) {
+export function createOperationsService(
+  clock: () => number = Date.now,
+  newId: () => string = () => crypto.randomUUID(),
+  otherWindows: OtherWindows = NO_OTHER_WINDOWS,
+) {
   let operations: Operation[] = [];
+  // What another window had running when last asked: the backend refuses to start anything meanwhile.
+  let elsewhere: string | undefined;
   const listeners = new Set<() => void>();
   const jobs = new Map<string, RunningJob>();
   const cancelRequested = new Set<string>();
@@ -51,6 +65,12 @@ export function createOperationsService(clock: () => number = Date.now, newId: (
   return {
     /** Every operation of the session, oldest first; a new array after each change. */
     list: () => operations,
+    /** Why nothing can start now because of another window, as last checked (`checkElsewhere`). */
+    busyElsewhere: () => elsewhere,
+    /** Asks the other windows again what they have running; it's polled while the app is open. */
+    async checkElsewhere() {
+      elsewhere = (await otherWindows.busy().catch(() => null)) ?? undefined;
+    },
     /** Calls `listener` after every change; returns the function that stops it. */
     subscribe(listener: () => void) {
       listeners.add(listener);
