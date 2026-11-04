@@ -2891,6 +2891,39 @@ button.link.console-more {
   color: var(--muted);
   font-style: italic;
 }
+/* A value edited in its row (triple click): the field fills the cell, the reason of an error follows it. */
+.inline-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  margin: 0 -6px;
+  user-select: text;
+}
+.inline-editor-field {
+  flex: 1;
+  min-width: 0;
+  height: calc(100% - 2px);
+  box-sizing: border-box;
+  padding: 0 5px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  outline: none;
+}
+.inline-editor-field.invalid {
+  border-color: var(--danger);
+}
+.inline-editor-error {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  color: var(--danger);
+}
 .tree-type {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 10.5px;
@@ -3107,6 +3140,72 @@ button.link.console-more {
   color: var(--text);
   overflow-wrap: anywhere;
   overflow-y: auto;
+}
+/* With detail lines, they take the free space under the message instead. */
+.confirm-window p:has(+ .confirm-details) {
+  flex: none;
+}
+.confirm-details {
+  flex: 1;
+  margin: 10px 0 0;
+  overflow-y: auto;
+}
+.confirm-details > div {
+  display: flex;
+  gap: 10px;
+  min-height: 22px;
+  align-items: baseline;
+}
+.confirm-details dt {
+  flex: none;
+  width: 84px;
+  color: var(--muted);
+}
+.confirm-details dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+/* Before / after of a change, one under the other so the values line up; it takes the free space then. */
+.confirm-details:has(+ .confirm-table) {
+  flex: none;
+}
+.confirm-table {
+  flex: none;
+  margin: 12px 0 auto;
+  border-collapse: collapse;
+  width: 100%;
+}
+.confirm-table th,
+.confirm-table td {
+  height: 26px;
+  padding: 0 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.confirm-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+}
+.confirm-table tbody th {
+  width: 74px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.confirm-table td:first-of-type {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.confirm-table td:last-child {
+  width: 90px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .db-dialog {

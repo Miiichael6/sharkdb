@@ -6,9 +6,12 @@ import { VirtualList } from "../../../../shared/ui/VirtualList";
 import type { DateZone } from "../../domain/bsonFormat";
 import { cellText, type TreeColumn, type TreeRow } from "../../domain/resultView";
 import { ROW_HEIGHT } from "./layout";
+import { InlineValueEditor } from "./InlineValueEditor";
 import { TypeIcon } from "./TypeIcon";
 import { DELETE_DOCUMENT_KEY } from "./useDocumentMenu";
 import { useDocumentPick } from "./useDocumentPick";
+import type { InlineEditing } from "./useFieldEdit";
+import { INLINE_EDIT_CLICKS, useInlineEdit } from "./useInlineEdit";
 import type { ResultTarget } from "./useResultMenu";
 import { useTreeRows } from "./useTreeRows";
 
@@ -33,18 +36,22 @@ interface Props {
   onContextMenu: (e: MouseEvent, target: ResultTarget) => void;
   /** Delete key: deletes the picked documents. */
   onDeleteDocuments?: (docs: unknown[]) => void;
+  /** Triple click edits a primitive value in its row; without it values aren't editable. */
+  inlineEditing?: InlineEditing;
 }
 
 /**
  * Robo 3T's Key / Value / Type tree: one numbered row per document, opened level by level. Clicking a
  * cell picks its column; Ctrl+C copies that cell of the selected row. Documents are picked with click,
- * Ctrl/Shift+click, dragging, Shift+arrows or Ctrl+A, and Delete deletes the picked ones.
+ * Ctrl/Shift+click, dragging, Shift+arrows or Ctrl+A, and Delete deletes the picked ones. A triple
+ * click on a string, number or boolean edits it in place.
  */
-export function TreeView({ docs, firstNumber, zone, onContextMenu, onDeleteDocuments }: Props) {
+export function TreeView({ docs, firstNumber, zone, onContextMenu, onDeleteDocuments, inlineEditing }: Props) {
   const docPick = useDocumentPick(docs);
   const tree = useTreeRows(docs, firstNumber, zone, (row, extend) => docPick.pick(row.docIndex, extend ? "range" : "only"));
   const { widthOf, startResize } = useColumnWidths(defaultWidth);
   const log = useLog();
+  const inline = useInlineEdit(docs, inlineEditing);
   const [column, setColumn] = useState<TreeColumn>("value");
   const [copied, setCopied] = useState(false);
 
@@ -84,6 +91,7 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu, onDeleteDocum
   const renderRow = (index: number) => {
     const row: TreeRow = tree.rows[index];
     const pick = (id: TreeColumn) => () => setColumn(id);
+    const isEditing = inline.edit?.rowId === row.id;
     // The document rows of a pick of several are highlighted; a lone pick is just the selected row.
     const isPicked = row.depth === 0 && docPick.picked.size > 1 && docPick.picked.has(row.docIndex);
     return (
@@ -142,10 +150,24 @@ export function TreeView({ docs, firstNumber, zone, onContextMenu, onDeleteDocum
           className={`grid-cell tree-value bson-${row.type} ${cellClass(index, "value")}`}
           role="gridcell"
           style={{ width: widthOf("value") }}
-          title={row.value}
-          onClick={pick("value")}
+          title={isEditing ? undefined : row.value}
+          onClick={(e) => {
+            setColumn("value");
+            if (e.detail === INLINE_EDIT_CLICKS) inline.open(row);
+          }}
         >
-          {row.value}
+          {isEditing && inline.edit ? (
+            <InlineValueEditor
+              edit={inline.edit}
+              editorRef={inline.editorRef}
+              inputRef={inline.inputRef}
+              onChange={inline.change}
+              onCommit={inline.commit}
+              onCancel={inline.cancel}
+            />
+          ) : (
+            row.value
+          )}
         </div>
         <div className={`grid-cell tree-type ${cellClass(index, "type")}`} role="gridcell" style={{ width: widthOf("type") }} onClick={pick("type")}>
           {row.typeLabel}

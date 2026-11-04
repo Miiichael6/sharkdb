@@ -23,6 +23,8 @@ export interface DocumentStore {
    * in another order in `original`: they don't count as a change.
    */
   replaceUnchanged(target: DocumentTarget, original: Doc, doc: Doc): Promise<number>;
+  /** Applies `update` (update operators such as `$set`) to the one document `filter` matches. */
+  update(target: DocumentTarget, filter: Doc, update: Doc): Promise<number>;
   delete(target: DocumentTarget, filter: Doc): Promise<number>;
   /** How many documents match `filter` (a read). */
   count(target: DocumentTarget, filter: Doc): Promise<number>;

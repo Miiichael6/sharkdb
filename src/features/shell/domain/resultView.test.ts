@@ -6,6 +6,7 @@ import {
   documentKey,
   documentsOf,
   documentViewMode,
+  isSamePage,
   expandRecursively,
   isConsoleOn,
   lookup,
@@ -149,6 +150,21 @@ describe("expand / collapse recursively", () => {
   it("closes the row and its descendants only", () => {
     const open = new Set([rowId(0, []), rowId(0, ["a"]), rowId(0, ["a", "b"]), rowId(1, ["a"])]);
     expect([...collapseRecursively(open, 0, ["a"])]).toEqual([rowId(0, []), rowId(1, ["a"])]);
+  });
+});
+
+describe("isSamePage", () => {
+  const a = { _id: { $oid: "65a1b2c3d4e5f6a7b8c9d0e1" }, n: 1 };
+  const b = { _id: { $oid: "65a1b2c3d4e5f6a7b8c9d0e2" }, n: 1 };
+
+  it("matches the same documents by _id, in order, even with other values", () => {
+    expect(isSamePage([a, b], [{ ...a, n: 2 }, b])).toBe(true);
+    expect(isSamePage([a, b], [b, a])).toBe(false);
+    expect(isSamePage([a, b], [a])).toBe(false);
+  });
+
+  it("never matches documents without _id", () => {
+    expect(isSamePage([{ n: 1 }], [{ n: 1 }])).toBe(false);
   });
 });
 

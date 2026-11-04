@@ -1,10 +1,29 @@
 // A yes/no question shown before an action that can't be undone.
 import type { TargetWhere } from "./documentTarget";
 
+/** One line of what is about to change, shown under the message: `Campo  EECC.RUC`. */
+export interface ConfirmDetail {
+  label: string;
+  value: string;
+}
+
+/** A small comparison under the detail lines: a header row, then one row per compared thing. */
+export interface ConfirmTable {
+  /** Header of each value column (the first column holds the row labels). */
+  columns: string[];
+  rows: { label: string; cells: string[] }[];
+}
+
 export interface ConfirmRequest {
   /** Title of the window. */
   title: string;
   message: string;
+  details?: ConfirmDetail[];
+  table?: ConfirmTable;
+  /** The go-ahead button only saves (not red): nothing is lost by pressing it. */
+  safe?: boolean;
+  /** Enter presses the back-out button, which then is the one that keeps things as they are. */
+  focusDismiss?: boolean;
   /** Label of the button that goes ahead. */
   confirmLabel: string;
   /** Label of the button that backs out (`DISMISS_LABEL` by default). */
@@ -14,6 +33,18 @@ export interface ConfirmRequest {
 }
 
 export const DISMISS_LABEL = "Cancelar";
+
+/**
+ * Asked when the user clicks elsewhere while editing a value in place (D22): by default it keeps
+ * editing, so a stray click doesn't throw away what was typed.
+ */
+export const leaveInlineEditRequest = (field: string): ConfirmRequest => ({
+  title: "Edición en curso",
+  message: `Estás editando el campo ${field}. ¿Descartar los cambios?`,
+  confirmLabel: "Descartar cambios",
+  dismissLabel: "Seguir editando",
+  focusDismiss: true,
+});
 
 /** Asked when Escape would close an editor with changes nobody saved. */
 export const discardChangesRequest = (what: string): ConfirmRequest => ({
@@ -32,13 +63,20 @@ const LINE_HEIGHT = 20;
 const CHROME_HEIGHT = 120;
 const MAX_LINES = 12;
 const WHERE_HEIGHT = 34;
+const DETAIL_HEIGHT = 22;
+const DETAILS_MARGIN = 10;
+const TABLE_ROW_HEIGHT = 26;
+const TABLE_MARGIN = 12;
 
 /** Height of a confirmation window that shows `message` without scrolling (long ones are capped). */
-export function confirmWindowHeight({ message, where }: Pick<ConfirmRequest, "message" | "where">): number {
+export function confirmWindowHeight({ message, where, details = [], table }: Pick<ConfirmRequest, "message" | "where" | "details" | "table">): number {
   const lines = message
     .split("\n")
     .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / CHARS_PER_LINE)), 0);
-  return CHROME_HEIGHT + Math.min(lines, MAX_LINES) * LINE_HEIGHT + (where ? WHERE_HEIGHT : 0);
+  const detailsHeight = details.length ? DETAILS_MARGIN + details.length * DETAIL_HEIGHT : 0;
+  // The header row plus one per compared thing.
+  const tableHeight = table ? TABLE_MARGIN + (table.rows.length + 1) * TABLE_ROW_HEIGHT : 0;
+  return CHROME_HEIGHT + Math.min(lines, MAX_LINES) * LINE_HEIGHT + (where ? WHERE_HEIGHT : 0) + detailsHeight + tableHeight;
 }
 
 /** Word typed to let an operation modify a destination (D9): the same for sync, backup and restore. */

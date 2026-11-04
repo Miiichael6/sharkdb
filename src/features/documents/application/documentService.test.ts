@@ -18,6 +18,7 @@ function fakeStore(matched = 1, existing = 0) {
   const store: DocumentStore = {
     insert: async (_, doc) => (calls.push(["insert", doc]), matched),
     replace: async (_, filter, doc) => (calls.push(["replace", filter, doc]), matched),
+    update: async (_, filter, update) => (calls.push(["update", filter, update]), matched),
     replaceUnchanged: async (_, original, doc) => (calls.push(["replaceUnchanged", original, doc]), matched),
     delete: async (_, filter) => (calls.push(["delete", filter]), matched),
     count: async (_, filter) => (calls.push(["count", filter]), existing),
@@ -52,6 +53,22 @@ describe("documentService", () => {
     calls.length = 0;
     await expect(service.replaceDocument(TARGET, { _id: A, n: 1 }, { n: 2 }, true)).rejects.toThrow(DOCUMENT_GONE);
     expect(calls).toEqual([["replace", { _id: A }, { _id: A, n: 2 }]]);
+  });
+
+  it("sets one field while it still holds the value read, and resolves to the stored document", async () => {
+    const { store, calls } = fakeStore();
+    const doc = { _id: A, EECC: { RUC: "1", name: "x" } };
+    const stored = await createDocumentService(parser, store).updateField(TARGET, doc, ["EECC", "RUC"], "1", "2");
+    expect(stored).toEqual({ _id: A, EECC: { RUC: "2", name: "x" } });
+    expect(calls).toEqual([["update", { _id: A, "EECC.RUC": "1" }, { $set: { "EECC.RUC": "2" } }]]);
+  });
+
+  it("doesn't overwrite a field someone else changed, and tells a deleted document apart", async () => {
+    const changed = fakeStore(0, 1);
+    const doc = { _id: A, n: 1 };
+    await expect(createDocumentService(parser, changed.store).updateField(TARGET, doc, ["n"], 1, 2)).rejects.toThrow(DOCUMENT_CHANGED);
+    expect(changed.calls.map(([name]) => name)).toEqual(["update", "count"]);
+    await expect(createDocumentService(parser, fakeStore(0, 0).store).updateField(TARGET, doc, ["n"], 1, 2)).rejects.toThrow(DOCUMENT_GONE);
   });
 
   it("deletes one document, several by _id, or all of them", async () => {

@@ -33,6 +33,8 @@ export function createCommandDocumentStore(run: CommandRunner, replaceUnchanged:
     insert: ({ sid, db, coll }, doc) => write(sid, db, { insert: coll, documents: [doc] }),
     replace: ({ sid, db, coll }, filter, doc) =>
       write(sid, db, { update: coll, updates: [{ q: filter, u: doc, upsert: false }] }),
+    update: ({ sid, db, coll }, filter, update) =>
+      write(sid, db, { update: coll, updates: [{ q: filter, u: update, upsert: false, multi: false }] }),
     replaceUnchanged: ({ sid, db, coll }, original, doc) => matched(replaceUnchanged(sid, db, coll, original, doc)),
     delete: ({ sid, db, coll }, filter) => write(sid, db, { delete: coll, deletes: [{ q: filter, limit: EVERY_MATCH }] }),
     count: async ({ sid, db, coll }, filter) => Number((await run(sid, db, { count: coll, query: filter })).n ?? 0),

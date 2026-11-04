@@ -24,6 +24,16 @@ describe("confirmWindowHeight", () => {
     expect(confirmWindowHeight({ message: "x".repeat(10_000) })).toBe(120 + 12 * 20);
   });
 
+  it("makes room for the detail lines", () => {
+    const details = [{ label: "Campo", value: "a" }, { label: "Antes", value: "1" }];
+    expect(confirmWindowHeight({ message: "¿Guardar?", details })).toBe(140 + 10 + 2 * 22);
+  });
+
+  it("makes room for the comparison table and its header", () => {
+    const table = { columns: ["Valor"], rows: [{ label: "Antes", cells: ["1"] }, { label: "Después", cells: ["2"] }] };
+    expect(confirmWindowHeight({ message: "¿Guardar?", table })).toBe(140 + 12 + 3 * 26);
+  });
+
   it("makes room for the connection, database and collection", () => {
     const where = { server: { name: "LOCAL", host: "localhost:27017" }, db: "shop", coll: "orders" };
     expect(confirmWindowHeight({ message: "¿Eliminar?", where })).toBe(140 + 34);

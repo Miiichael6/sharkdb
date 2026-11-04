@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/App.css"
+        ],
+        "createdAt": "2026-11-04T14:00:23.805Z",
+        "reason": "Claude triage: L3823 is a CSS triangle (border-left on a 0x0 ::before disclosure marker of .danger-db-head), not a card side-tab; pre-existing code"
+      }
+    ]
+  }
+}

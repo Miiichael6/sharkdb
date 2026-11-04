@@ -3,6 +3,7 @@ import type { DateZone } from "../../domain/bsonFormat";
 import {
   collapseRecursively,
   expandRecursively,
+  isSamePage,
   rowId,
   toggleExpanded,
   visibleTreeRows,
@@ -33,8 +34,8 @@ export function useTreeRows(
   onMove?: (row: TreeRow, extend: boolean) => void,
 ) {
   const [state, setState] = useState(() => fresh(docs));
-  // A new page starts over.
-  const current = state.docs === docs ? state : fresh(docs);
+  // A new page starts over; the same page back after a save keeps what was open.
+  const current = state.docs === docs ? state : isSamePage(state.docs, docs) ? { ...state, docs } : fresh(docs);
   if (current !== state) setState(current);
 
   const rows = useMemo(

@@ -5,6 +5,7 @@ import { DocumentsView } from "./DocumentsView";
 import { PagingBar } from "./PagingBar";
 import { useCursorPage } from "./useCursorPage";
 import { useDocumentMenu } from "./useDocumentMenu";
+import { useFieldEdit } from "./useFieldEdit";
 import type { ResultViewState } from "./useResultView";
 
 interface Props {
@@ -19,7 +20,9 @@ interface Props {
 /** A cursor left as a statement's value: its namespace, the page bar and the page's documents. */
 export function CursorResult({ sid, pager, view, title }: Props) {
   const { paging, setPaging, page, loading, error, reload } = useCursorPage(pager);
-  const documentMenu = useDocumentMenu(targetOfNamespace(sid, pager.ns), pager, reload, view.zone);
+  const target = targetOfNamespace(sid, pager.ns);
+  const documentMenu = useDocumentMenu(target, pager, reload, view.zone);
+  const inlineEditing = useFieldEdit(target, pager, reload);
 
   return (
     <section className="doc-result" aria-label={`Resultado de ${pager.ns}`}>
@@ -40,6 +43,7 @@ export function CursorResult({ sid, pager, view, title }: Props) {
           zone={view.zone}
           documentMenu={documentMenu.entries}
           onDeleteDocuments={documentMenu.removeDocuments}
+          inlineEditing={inlineEditing}
         />
       )}
     </section>

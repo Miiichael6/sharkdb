@@ -196,4 +196,57 @@ mod live_tests {
         assert_eq!(reply.get_i32("n"), Ok(0));
         db.drop(None).await.unwrap();
     }
+
+    /// El `update` que arma la edición en línea (`commandDocumentStore.update` + `fieldUpdate`):
+    /// cambia solo ese campo y conserva su tipo BSON; si otro proceso cambió el campo no coincide, y
+    /// con safe mode activo ni se envía.
+    #[tokio::test]
+    #[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+    async fn live_inline_edit_sets_one_field_keeping_its_type() {
+        use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
+        use serde_json::{Value, json};
+        let client = Client::with_uri_str("mongodb://127.0.0.1:27017").await.unwrap();
+        let db = client.database("robo3b_test_inline_edit");
+        db.drop(None).await.unwrap();
+        let docs = db.collection::<Document>("x");
+        let id = ObjectId::new();
+        let original = doc! {
+            "_id": id, "EECC": { "RUC": "1", "name": "x" }, "int": 5, "double": 1.5, "flag": true, "tags": ["a", "b"],
+        };
+        docs.insert_one(original, None).await.unwrap();
+
+        let set = |field: &str, before: Value, after: Value| {
+            command_from_json(json!({ "update": "x", "updates": [{
+                "q": { "_id": { "$oid": id.to_hex() }, field: before },
+                "u": { "$set": { field: after } }, "upsert": false, "multi": false,
+            }] }))
+            .unwrap()
+        };
+        let edits = [
+            set("EECC.RUC", json!("1"), json!("20100")),
+            set("int", json!({ "$numberInt": "5" }), json!({ "$numberInt": "6" })),
+            set("double", json!({ "$numberDouble": "1.5" }), json!({ "$numberDouble": "7.0" })),
+            set("flag", json!(true), json!(false)),
+            set("tags.1", json!("b"), json!("c")),
+        ];
+        for edit in edits {
+            SafeMode::new(false).check_command(&edit).unwrap();
+            assert_eq!(db.run_command(edit, None).await.unwrap().get_i32("n"), Ok(1));
+        }
+        let stored = docs.find_one(None, None).await.unwrap().unwrap();
+        assert_eq!(
+            stored,
+            doc! { "_id": id, "EECC": { "RUC": "20100", "name": "x" }, "int": 6, "double": 7.0, "flag": false, "tags": ["a", "c"] }
+        );
+        assert!(matches!(stored.get("int"), Some(Bson::Int32(6))));
+        assert!(matches!(stored.get("double"), Some(Bson::Double(_))));
+
+        // Otro proceso ya lo cambió: el valor leído no coincide y no se pisa.
+        let stale = set("int", json!({ "$numberInt": "5" }), json!({ "$numberInt": "9" }));
+        assert_eq!(db.run_command(stale.clone(), None).await.unwrap().get_i32("n"), Ok(0));
+        assert_eq!(docs.find_one(None, None).await.unwrap().unwrap().get_i32("int"), Ok(6));
+
+        assert_eq!(SafeMode::new(true).check_command(&stale), Err(SAFE_MODE_ERROR.to_string()));
+        db.drop(None).await.unwrap();
+    }
 }

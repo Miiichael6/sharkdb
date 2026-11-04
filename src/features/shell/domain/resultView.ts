@@ -127,6 +127,20 @@ export function valueText(raw: unknown, zone: DateZone): string {
   return value.type === "string" ? value.value : formatValue(raw, zone);
 }
 
+const idText = (doc: unknown) => JSON.stringify(childrenOf(bsonValue(doc)).find(([key]) => key === "_id")?.[1] ?? null);
+
+/**
+ * Whether `next` holds the same documents as `previous`, in order, by `_id`: the page came back after
+ * one of them was saved, so the tree keeps what was open. Documents without `_id` never match.
+ */
+export function isSamePage(previous: unknown[], next: unknown[]): boolean {
+  if (previous.length !== next.length) return false;
+  return previous.every((doc, i) => {
+    const id = idText(doc);
+    return id !== "null" && id === idText(next[i]);
+  });
+}
+
 export function toggleExpanded(expanded: ReadonlySet<string>, id: string): Set<string> {
   const next = new Set(expanded);
   if (!next.delete(id)) next.add(id);

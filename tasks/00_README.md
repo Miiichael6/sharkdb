@@ -137,7 +137,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
 | 37 | [Actualizador](done/37_actualizador.md) | 22 Actualizador | 08 | ✅ Terminada |
-| 38 | [Edición en línea de valores primitivos](pending/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ⬜ Pendiente |
+| 38 | [Edición en línea de valores primitivos](done/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ✅ Terminada (prueba GUI pendiente) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

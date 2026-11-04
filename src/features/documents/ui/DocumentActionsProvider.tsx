@@ -2,12 +2,14 @@ import { useMemo, type ReactNode } from "react";
 import { useServices } from "../../../app/services";
 import { destructiveRequest, type DestructiveAction } from "../../../shared/domain/destructiveActions";
 import { describeWhere, type DocumentTarget, type TargetWhere } from "../../../shared/domain/documentTarget";
-import { confirmDeleteInWindow } from "../../../shared/ui/confirmInWindow";
+import { confirmDeleteInWindow, confirmInWindow } from "../../../shared/ui/confirmInWindow";
 import { DocumentActionsContext, type DocumentActions } from "../../../shared/ui/documentActions";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
 import { useLog } from "../../../shared/ui/useLog";
 import { useServerOf } from "../../connections/ui/useTargetServer";
 import { formatEditable, formatValue } from "../../shell/domain/bsonFormat";
+import { fieldEditRequest } from "../domain/fieldEditConfirmation";
+import { fieldPath } from "../domain/fieldUpdate";
 import { EDITOR_TITLES } from "./DocumentEditorDialog";
 import { DOCUMENT_EDITOR_VIEW, type DocumentEditorData, type DocumentEditorResult } from "./DocumentEditorWindow";
 
@@ -69,6 +71,18 @@ export function DocumentActionsProvider({ children }: { children: ReactNode }) {
         if (!result?.saved) return;
         log.info(`Documento actualizado en ${describe(target)}`);
         onDone(result.saved);
+      },
+      editField: async (target, edit) => {
+        if (!(await confirmInWindow(fieldEditRequest(whereOf(target), edit)))) return "cancelled";
+        const field = fieldPath(edit.path);
+        try {
+          const saved = await documents.updateField(target, edit.doc, edit.path, edit.before, edit.after);
+          log.info(`Campo ${field} actualizado en ${describe(target)}`);
+          return { saved };
+        } catch (e) {
+          log.error(`No se pudo actualizar el campo ${field} en ${describe(target)}`, e);
+          return "failed";
+        }
       },
       insert: async (target, onDone) => {
         if (!(await openEditor({ mode: "insert", target, initial: NEW_DOCUMENT }))) return;
