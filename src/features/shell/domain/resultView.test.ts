@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cellText,
   collapseRecursively,
+  copyEntries,
   documentKey,
   documentsOf,
   documentViewMode,
@@ -167,5 +168,23 @@ describe("isConsoleOn", () => {
   it("keeps the switch whatever the preferences", () => {
     expect(isConsoleOn(false, "console")).toBe(false);
     expect(isConsoleOn(true, "text")).toBe(true);
+  });
+});
+
+describe("copyEntries", () => {
+  it("offers only the JSON of a whole document", () => {
+    expect(copyEntries([], { _id: oid, name: "Ana" })).toEqual(["copyJson"]);
+  });
+
+  it("offers value, name and path on a plain field", () => {
+    expect(copyEntries(["name"], "Ana")).toEqual(["copyValue", "copyName", "copyPath"]);
+    expect(copyEntries(["age"], 31)).toEqual(["copyValue", "copyName", "copyPath"]);
+    expect(copyEntries(["_id"], oid)).toEqual(["copyValue", "copyName", "copyPath"]);
+    expect(copyEntries(["deleted"], null)).toEqual(["copyValue", "copyName", "copyPath"]);
+  });
+
+  it("offers name, path and JSON on an object or array field", () => {
+    expect(copyEntries(["address"], { city: "Lima" })).toEqual(["copyName", "copyPath", "copyJson"]);
+    expect(copyEntries(["tags", "0"], ["a", "b"])).toEqual(["copyName", "copyPath", "copyJson"]);
   });
 });

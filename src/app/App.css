@@ -912,6 +912,7 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   min-width: 140px;
   font-size: 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 6px;

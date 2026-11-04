@@ -41,7 +41,7 @@ export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPage
     const write = { disabled: isReadOnly(target.sid) };
     const original = doc as StoredDocument;
     const view = resultItem("view", "Ver documento…", () => actions.view(target, original, zone));
-    if (!pager.editable) return { manage: [view], remove: [], compact: true };
+    if (!pager.editable) return { manage: [view], remove: [] };
     const update = (next: StoredDocument | null) => replace(original, next);
     return {
       manage: [

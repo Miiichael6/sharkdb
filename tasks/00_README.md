@@ -88,6 +88,10 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D16** Carpeta de cada ejecución → **fechada** `<carpeta>/<nombre>/<AAAA-MM-DD_HHMM>`, conservando las **últimas 7** (se borran las más viejas) (2026-10-31) → afecta 31, 32
 - [x] **D17** Confirmación de las programaciones → `confirmo` **una sola vez al guardar**; ni la ejecución diaria ni el ▶ manual vuelven a pedirlo (2026-10-31) → afecta 31
 - [x] **D18** Actualizador → **GitHub Releases del repo público `Miiichael6/sharkdb`**; endpoint `releases/latest/download/latest.json` (2026-11-01) → afecta 37
+- [x] **D19** Edición en línea → **solo string, números (Int32, Int64, Double, Decimal128) y booleanos**; null, fechas y ObjectId no se editan en línea (2026-11-04) → afecta 38
+- [x] **D20** Edición en línea → **el tipo no puede cambiar**: un valor de otro tipo se marca como error y no se guarda. No aplica al editor de documentos (06), que sigue libre salvo la validación de la colección (2026-11-04) → afecta 38
+- [x] **D21** Edición en línea → **solo en la vista árbol** (2026-11-04) → afecta 38
+- [x] **D22** Edición en línea → **Esc cancela** y deja el valor original. Clic fuera (otro documento, el explorador, otra pestaña o fuera de la ventana) → sub-ventana "Estás editando un campo" con **Seguir editando** (devuelve el foco) y **Descartar cambios** (2026-11-04) → afecta 38
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -133,6 +137,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 35 | [Compatibilidad del shell con Robo 3T](done/35_compatibilidad_shell.md) | 20 Shell compatible | 03 | ✅ Terminada (prueba en la app pendiente) |
 | 36 | [Rendimiento de los resultados](done/36_rendimiento_resultados.md) | 21 Rendimiento | 34 | ✅ Terminada (comparar consulta con Robo 3T) |
 | 37 | [Actualizador](done/37_actualizador.md) | 22 Actualizador | 08 | ✅ Terminada |
+| 38 | [Edición en línea de valores primitivos](pending/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -219,6 +224,12 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R76 Actualizador firmado (plugin updater + instalador NSIS) | 37 |
 | R77 Aviso de versión nueva al arrancar y botón «Buscar actualizaciones» | 37 |
 | R78 Aviso y botón bajo el título «SharkDB» de la pantalla principal | 37 |
+| R79 Triple clic sobre el valor de un campo primitivo lo edita en la fila (objetos, arrays y `_id` no) | 38 |
+| R80 Editor según el tipo: texto/número en un campo, booleano con `true`/`false` | 38 |
+| R81 Enter con el valor igual cierra sin preguntar; Esc cancela | 38 |
+| R82 Enter con cambio: sub-ventana con documento, campo, antes y después | 38 |
+| R83 Solo se escribe ese campo (`$set`), conserva el tipo y no pisa cambios ajenos | 38 |
+| R84 Clic fuera mientras se edita: sub-ventana "Seguir editando" / "Descartar cambios" | 38 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -247,5 +258,6 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 03 → 35
 34 → 36
 08 → 37
+06, 18 → 38
 12 ────────────────────┘
 ```

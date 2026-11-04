@@ -53,6 +53,22 @@ export const rowId = (docIndex: number, path: KeyPath) => [docIndex, ...path].jo
 /** Path as the shell writes it in queries: `address.city`, `items.0.name`. */
 export const dottedPath = (path: KeyPath) => path.join(".");
 
+export type CopyEntry = "copyValue" | "copyName" | "copyPath" | "copyJson";
+
+/**
+ * Copy entries of the right-click menu for `value` at `path`: value on a plain field, name and path
+ * on any field, JSON on a document, object or array. Nothing that doesn't apply is offered.
+ */
+export function copyEntries(path: KeyPath, value: unknown): CopyEntry[] {
+  const isRoot = !path.length;
+  const isJson = isRoot || isContainer(bsonValue(value));
+  return [
+    ...(isJson ? [] : ["copyValue" as const]),
+    ...(isRoot ? [] : ["copyName" as const, "copyPath" as const]),
+    ...(isJson ? ["copyJson" as const] : []),
+  ];
+}
+
 /** Key of a document's root row, like Robo 3T: `(1) ObjectId("…")`, numbered from 1. */
 export function documentKey(doc: unknown, number: number, zone: DateZone): string {
   const id = childrenOf(bsonValue(doc)).find(([key]) => key === "_id");

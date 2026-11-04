@@ -155,7 +155,7 @@ export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange,
       onFocusCapture={onFocus}
     >
       <header className="shell-head">
-        <WhereBar where={{ server: serverOf(tab.sid), db: tab.db, coll: tab.coll }}>
+        <WhereBar where={{ server: serverOf(tab.sid), db: tab.db }}>
           {run.outcome && (
             <span className="where-part muted" title="Tiempo de la consulta y de carga de los resultados">
               <ShellActionIcon action="time" />

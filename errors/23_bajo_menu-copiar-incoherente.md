@@ -2,7 +2,7 @@
 
 - **Severidad:** BAJO
 - **Dónde:** src/features/shell/ui/results/useResultMenu.tsx, src/features/shell/ui/results/ValueResult.tsx
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Las opciones de copia del menú contextual dependen del tipo de resultado. Los cursores no editables (proyección, aggregate) usan la regla de Robo 3T; el resto usa el menú antiguo.
