@@ -142,7 +142,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 38 | [Edición en línea de valores primitivos](done/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ✅ Terminada (prueba GUI pendiente) |
 | 39 | [Franja de color de la conexión en las pestañas](pending/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ⬜ Pendiente |
 | 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
-| 41 | [Detalle de una operación: origen → destino y colecciones por BD](in_progress/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | 🔄 En progreso (falta prueba manual) |
+| 41 | [Detalle de una operación: origen → destino y colecciones por BD](done/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ✅ Terminada |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
