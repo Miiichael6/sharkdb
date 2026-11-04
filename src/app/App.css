@@ -3140,6 +3140,8 @@ button.link.console-more {
   color: var(--text);
   overflow-wrap: anywhere;
   overflow-y: auto;
+  /* Line breaks in the message (e.g. a list of names, one per line) show as such. */
+  white-space: pre-line;
 }
 /* With detail lines, they take the free space under the message instead. */
 .confirm-window p:has(+ .confirm-details) {
@@ -3397,6 +3399,14 @@ button.link.console-more {
 .modal-window-body {
   flex: 1;
   min-height: 0;
+}
+/* `fitContent`: everything at its natural height; the window is resized to it (no space under the buttons). */
+.modal-window.fit,
+.modal-window.fit .modal-window-body > * {
+  height: auto;
+}
+.modal-window.fit .modal-window-body {
+  flex: none;
 }
 .modal-titlebar {
   position: relative;

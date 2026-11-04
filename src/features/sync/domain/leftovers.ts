@@ -10,19 +10,18 @@ export interface Leftover {
   collection: string;
 }
 
-/** How many are named in the question; the rest are only counted. */
-const LISTED = 8;
-
-/** Asked on connecting to `server` when it has `leftovers` (never empty). */
+/** Asked on connecting to `server` when it has `leftovers` (never empty). Lists every one of them. */
 export function leftoversRequest(server: string, leftovers: Leftover[]): ConfirmRequest {
-  const what = leftovers.length === 1 ? "una colección provisional" : `${leftovers.length} colecciones provisionales`;
-  const names = leftovers.slice(0, LISTED).map((l) => `• ${l.db}.${l.collection}`);
-  if (leftovers.length > LISTED) names.push(`… y ${leftovers.length - LISTED} más`);
+  const one = leftovers.length === 1;
+  const what = one ? "una copia temporal" : `${leftovers.length} copias temporales`;
+  const names = leftovers.map((l) => `• ${l.db}.${l.collection}`);
   return {
     title: "Colecciones provisionales abandonadas",
     message:
       `En ${server} hay ${what} de un sync, un restore o una copia que no terminó (la app se cerró a mitad). ` +
-      `No son datos válidos y ocupan espacio. ¿Borrarlas?\n\n${names.join("\n")}`,
+      `${one ? "Es una colección aparte" : "Son colecciones aparte"} (su nombre termina en .sharkdb-staging-… o empieza por sharkdb-copy-): ` +
+      `borrar${one ? "la" : "las"} no afecta a tus colecciones reales, que siguen como estaban. ` +
+      `Solo ocupa${one ? "" : "n"} espacio. ¿Borrar${one ? "la" : "las"}?\n\n${names.join("\n")}`,
     confirmLabel: "Borrar",
     dismissLabel: "Ahora no",
   };

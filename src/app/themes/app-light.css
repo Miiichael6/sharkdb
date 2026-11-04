@@ -50,13 +50,13 @@
   --icon-collection: #4f8a4a;
   --icon-index: #8a5aa8;
   --icon-other: #73726c;
-  --bson-id: #b5562f;
-  --bson-date: #2f7487;
-  --bson-number: #7a4fb0;
-  --bson-string: #7d6a12;
-  --bson-constant: #b8325e;
-  --bson-code: #4f7f1f;
-  --bson-array: #b0602a;
+  --bson-id: #c2410c;
+  --bson-date: #0b7894;
+  --bson-number: #7c3aed;
+  --bson-string: #a86f00;
+  --bson-constant: #d1206a;
+  --bson-code: #2b8a0e;
+  --bson-array: #d9480f;
 
   color-scheme: light;
 }

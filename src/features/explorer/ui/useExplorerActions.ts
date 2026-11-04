@@ -25,6 +25,11 @@ import {
   type ValidationWindowResult,
 } from "./ValidationWindow";
 import { VIEW_DEFINITION_VIEW, type ViewDefinitionWindowData } from "./ViewDefinitionWindow";
+import {
+  RENAME_COLLECTION_VIEW,
+  type RenameCollectionWindowData,
+  type RenameCollectionWindowResult,
+} from "./RenameCollectionWindow";
 
 export type ExplorerDialog =
   | null
@@ -44,6 +49,8 @@ export type ExplorerDialog =
 const VALIDATION_WINDOW = { width: 760, height: 820 };
 /** Size the view definition window opens at; it can be maximized. */
 const VIEW_DEFINITION_WINDOW = { width: 640, height: 560 };
+/** Size of the rename window; its height is fitted to its content once drawn. */
+const RENAME_COLLECTION_WINDOW = { width: 560, height: 210 };
 
 const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbStats", "collStats"];
 
@@ -202,6 +209,26 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     });
   };
 
+  /** Renames collection `n` in its own window, which shows connection (host:port), database and collection. */
+  const renameCollection = async (n: TreeNode) => {
+    const collection = { sid: n.sid, db: n.db!, coll: n.coll! };
+    const data: RenameCollectionWindowData = {
+      collection,
+      where: { server: serverOf(n.sid), db: collection.db, coll: collection.coll },
+    };
+    const result = await openModalWindow<RenameCollectionWindowResult>(RENAME_COLLECTION_VIEW, data, {
+      title: "Renombrar colección",
+      width: RENAME_COLLECTION_WINDOW.width,
+      height: RENAME_COLLECTION_WINDOW.height,
+      resizable: false,
+      fitContent: true,
+    });
+    if (!result) return;
+    tree.select(parentKey(n.key));
+    refreshKey(collectionsFolderKey(n));
+    notify(`Colección renombrada a “${result.name}”`);
+  };
+
   const onAction = (action: Action, n: TreeNode) => {
     if (PANEL_ACTIONS.includes(action)) {
       tree.select(n.key);
@@ -274,19 +301,7 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         }, fail);
         break;
       case "renameCollection":
-        setDialog({
-          kind: "prompt",
-          title: "Renombrar colección",
-          fields: [{ name: "name", label: "Nuevo nombre", initial: n.coll }],
-          confirmLabel: "Renombrar",
-          submit: async ({ name }) => {
-            await explorer.renameCollection(n.sid, n.db!, n.coll!, name);
-            setDialog(null);
-            tree.select(parentKey(n.key));
-            refreshKey(collectionsFolderKey(n));
-            notify(`Colección renombrada a “${name}”`);
-          },
-        });
+        renameCollection(n).catch(fail);
         break;
       case "dropCollection":
         confirmRemoval(

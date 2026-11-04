@@ -1,6 +1,6 @@
 // What a window opened with `openModalWindow` renders instead of the app.
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BackupWindow } from "../features/backup/ui/BackupWindow";
 import { BACKUP_VIEW, RESTORE_VIEW, type BackupWindowData, type RestoreWindowData } from "../features/backup/ui/backupViews";
 import { RestoreWindow } from "../features/backup/ui/RestoreWindow";
@@ -19,6 +19,11 @@ import {
   DocumentEditorWindow,
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
+import {
+  RENAME_COLLECTION_VIEW,
+  RenameCollectionWindow,
+  type RenameCollectionWindowData,
+} from "../features/explorer/ui/RenameCollectionWindow";
 import { VALIDATION_VIEW, ValidationWindow, type ValidationWindowData } from "../features/explorer/ui/ValidationWindow";
 import {
   VIEW_DEFINITION_VIEW,
@@ -44,11 +49,13 @@ import { ModalTitleBar } from "../shared/ui/ModalTitleBar";
 import {
   askOpener,
   currentModalClosable,
+  currentModalFitsContent,
   currentModalMaximizable,
   currentModalTitle,
   finishModalWindow,
   receiveModalData,
   releaseOpener,
+  setModalHeight,
   showModalWindow,
 } from "../shared/ui/modalWindow";
 import { PREFERENCES_VIEW } from "../shared/ui/preferencesWindow";
@@ -74,20 +81,44 @@ export function ModalWindow({ view }: { view: string }) {
     const timer = setTimeout(() => void showModalWindow(), SHOW_ANYWAY_MS);
     return () => clearTimeout(timer);
   }, []);
+  const root = useRef<HTMLDivElement>(null);
+  const fit = currentModalFitsContent();
   useEffect(() => {
     if (data === undefined) return;
+    if (fit) return fitToContent(root.current!);
     // After the browser has painted the view, so the window appears already laid out.
     let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => void showModalWindow())));
     return () => cancelAnimationFrame(frame);
-  }, [data]);
+  }, [data, fit]);
   const done = useCallback((result: unknown) => void finishModalWindow(view, result), [view]);
 
   return (
-    <div className="modal-window">
+    <div ref={root} className={`modal-window${fit ? " fit" : ""}`}>
       <ModalTitleBar title={currentModalTitle()} closable={currentModalClosable()} maximizable={currentModalMaximizable()} />
       <div className="modal-window-body">{data !== undefined && <ModalView view={view} data={data} done={done} />}</div>
     </div>
   );
+}
+
+/**
+ * Keeps the window as tall as `el` (title bar plus view at their natural height) and shows it once
+ * it first fits, so it never appears with empty space under its buttons. Returns the cleanup.
+ */
+function fitToContent(el: HTMLElement): () => void {
+  let shown = false;
+  let last = 0;
+  const observer = new ResizeObserver(() => {
+    const height = el.offsetHeight;
+    if (height === last) return;
+    last = height;
+    void setModalHeight(height).then(() => {
+      if (shown) return;
+      shown = true;
+      requestAnimationFrame(() => void showModalWindow());
+    });
+  });
+  observer.observe(el);
+  return () => observer.disconnect();
 }
 
 function ModalView({ view, data, done }: { view: string; data: unknown; done: (result: unknown) => void }) {
@@ -173,6 +204,12 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
       return (
         <ServicesProvider services={createServices()}>
           <ValidationWindow data={data as ValidationWindowData} onDone={done} />
+        </ServicesProvider>
+      );
+    case RENAME_COLLECTION_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <RenameCollectionWindow data={data as RenameCollectionWindowData} onDone={done} />
         </ServicesProvider>
       );
     case VIEW_DEFINITION_VIEW:

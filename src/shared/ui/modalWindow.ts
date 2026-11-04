@@ -1,4 +1,5 @@
 import { emit, listen } from "@tauri-apps/api/event";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { errorMessage } from "../errors";
@@ -13,6 +14,8 @@ const MODAL_UNCLOSABLE_PARAM = "unclosable";
 const MODAL_MAXIMIZABLE_PARAM = "maximizable";
 /** Query parameter with the label of the window that opened the modal (see `releaseOpener`). */
 const MODAL_OPENER_PARAM = "opener";
+/** Query parameter set when the modal takes the height of its content (see `currentModalFitsContent`). */
+const MODAL_FIT_PARAM = "fit";
 
 // One modal window per view at a time (the opener is disabled meanwhile), so the view names its events.
 const readyEvent = (view: string) => `modal-ready:${view}`;
@@ -38,6 +41,11 @@ interface Options {
   resizable?: boolean;
   /** Shows the close button of its title bar (default); without it, only the view's own buttons close it. */
   closable?: boolean;
+  /**
+   * Takes the height of its content once drawn, and follows it (e.g. an error line that appears), so
+   * no empty space is left under the buttons; `height` is only the first guess. For short fixed forms.
+   */
+  fitContent?: boolean;
   /** Answers what the child asks with `askOpener` while it's open (e.g. connecting a connection). */
   onRequest?: (body: unknown) => Promise<unknown>;
 }
@@ -48,7 +56,7 @@ interface Options {
  * what it sent through `finishModalWindow`, or null when it was closed without an answer.
  */
 export async function openModalWindow<T>(view: string, data: unknown, options: Options): Promise<T | null> {
-  const { title, width, height, maximizable = false, resizable = true, closable = true, onRequest } = options;
+  const { title, width, height, maximizable = false, resizable = true, closable = true, fitContent = false, onRequest } = options;
   const parent = getCurrentWindow();
   const scale = await parent.scaleFactor();
   const pos = (await parent.outerPosition()).toLogical(scale);
@@ -70,7 +78,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
   try {
     await parent.setEnabled(false);
     const child = new WebviewWindow(`modal-${view}`, {
-      url: `index.html?${modalQuery(view, title, parent.label, closable, maximizable)}`,
+      url: `index.html?${modalQuery(view, title, parent.label, closable, maximizable, fitContent)}`,
       title,
       width,
       height,
@@ -102,11 +110,29 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
 /** The page background of the current theme, so the new window is never white underneath. */
 const themeBackground = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || undefined;
 
-function modalQuery(view: string, title: string, opener: string, closable: boolean, maximizable: boolean): URLSearchParams {
+function modalQuery(
+  view: string,
+  title: string,
+  opener: string,
+  closable: boolean,
+  maximizable: boolean,
+  fitContent: boolean,
+): URLSearchParams {
   const query = new URLSearchParams({ [MODAL_VIEW_PARAM]: view, [MODAL_TITLE_PARAM]: title, [MODAL_OPENER_PARAM]: opener });
   if (!closable) query.set(MODAL_UNCLOSABLE_PARAM, "1");
   if (maximizable) query.set(MODAL_MAXIMIZABLE_PARAM, "1");
+  if (fitContent) query.set(MODAL_FIT_PARAM, "1");
   return query;
+}
+
+/** Whether this modal window takes the height of its content. */
+export function currentModalFitsContent(): boolean {
+  return new URLSearchParams(window.location.search).has(MODAL_FIT_PARAM);
+}
+
+/** From inside a modal window: sets its height (logical px), keeping its width. */
+export async function setModalHeight(height: number) {
+  await getCurrentWindow().setSize(new LogicalSize(window.innerWidth, Math.ceil(height)));
 }
 
 /**
