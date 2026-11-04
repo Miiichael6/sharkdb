@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src/features/documents/application/documentService.ts, src/features/documents/infrastructure/commandDocumentStore.ts
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Al guardar una edición se reemplaza con filtro `{_id}` y se parte del documento mostrado, sin volver a leerlo ni comprobar si cambió.

@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src/features/explorer/infrastructure/commandMongoAdmin.ts (`replaceIndex`)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Reemplazar un índice primero lo borra y luego crea el nuevo; si la creación falla, el error se ignora (`.catch(() => {})`).

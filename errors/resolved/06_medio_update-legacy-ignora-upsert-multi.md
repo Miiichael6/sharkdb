@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/shell/prelude/collection.js (`update(filter, update, options = {})`)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Se ignoran los argumentos booleanos de la sintaxis antigua `update(q, u, upsert, multi)`.

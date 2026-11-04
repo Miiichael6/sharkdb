@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/sync/commands.rs:313, src-tauri/src/backup/commands.rs:83, src-tauri/src/store.rs
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Que el destino esté protegido depende de cómo esté registrada la conexión, no del servidor al que apunta.

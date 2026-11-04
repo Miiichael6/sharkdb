@@ -2,7 +2,7 @@
 
 - **Severidad:** BAJO
 - **Dónde:** src/shared/domain/destructiveActions.ts
-- **Estado:** pendiente
+- **Estado:** resuelto — se mantiene la confirmación simple a propósito (decisión de diseño)
 
 ## Problema
 Eliminar documentos seleccionados pide solo una confirmación simple.

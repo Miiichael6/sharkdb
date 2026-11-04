@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/shell/convert/to_bson.rs (undefined → Bson::Null)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Un valor `undefined` dentro de un filtro se convierte en `null`, y en MongoDB `{f:null}` también coincide con los documentos que no tienen el campo.

@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/shell/prelude/collection.js (deleteOne/deleteMany/findOneAndUpdate/findOneAndReplace)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Se descartan opciones: `deleteOne` y `deleteMany` no pasan `collation` ni `hint`; `findOneAndUpdate` solo pasa `sort`, `projection`, `upsert` y `returnNewDocument`, y descarta `arrayFilters`, `collation`, `hint` y `returnDocument:'after'`.

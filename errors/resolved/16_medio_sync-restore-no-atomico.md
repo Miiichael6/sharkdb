@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/sync/copy.rs, src-tauri/src/backup/restore.rs, src-tauri/src/backup/staging.rs:58
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Cada colección se reemplaza por separado, así que el trabajo completo no es 'todo o nada'.

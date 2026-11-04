@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/safe_mode/policy.rs
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 El safe mode funciona con una lista de comandos bloqueados, y le faltan comandos.

@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/mongo.rs (`hold_detached`)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Se reutiliza el cliente apartado ya existente sin tener en cuenta el safe mode de la nueva sesión.

@@ -2,7 +2,7 @@
 
 - **Severidad:** MEDIO
 - **Dónde:** src-tauri/src/shell/native/mod.rs (`wait()`, tokio::select con watchdog)
-- **Estado:** pendiente
+- **Estado:** resuelto
 
 ## Problema
 Cancelar o que salte el timeout corta la espera en la app, pero la operación sigue en el servidor (no se envía `maxTimeMS` ni `killOp`).
