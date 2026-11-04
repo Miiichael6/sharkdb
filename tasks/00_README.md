@@ -92,6 +92,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D20** Edición en línea → **el tipo no puede cambiar**: un valor de otro tipo se marca como error y no se guarda. No aplica al editor de documentos (06), que sigue libre salvo la validación de la colección (2026-11-04) → afecta 38
 - [x] **D21** Edición en línea → **solo en la vista árbol** (2026-11-04) → afecta 38
 - [x] **D22** Edición en línea → **Esc cancela** y deja el valor original. Clic fuera (otro documento, el explorador, otra pestaña o fuera de la ventana) → sub-ventana "Estás editando un campo" con **Seguir editando** (devuelve el foco) y **Descartar cambios** (2026-11-04) → afecta 38
+- [x] **D23** Detalle de operaciones: estados y colores de cada colección → **aceptada la propuesta**: ○ gris `Pendiente` (en cola, 0 %) · ● azul con pulso `En curso` · ● ámbar `Copiada, se aplica al final` (solo sync/restore: el destino se reemplaza cuando terminan todas) · ● verde `Aplicada` / `Guardada` (100 %) · ● rojo `Error` (con el motivo) · ○ gris hueco con % tachado `Descartada` (cancelada o fallida: el destino quedó como estaba). Restore con `_id` duplicados: verde con "⚠ N duplicados" (2026-11-04) → afecta 40, 41
+- [ ] **D24** Detalle de operaciones: ¿cómo se abre? **Propuesta:** el clic en la fila cambia el panel a la vista de detalle con "← Operaciones" para volver (con 60+ colecciones, desplegarlo dentro de la lista la hace inmanejable). Alternativa: desplegarlo bajo la fila → afecta 41
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -139,6 +141,8 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 37 | [Actualizador](done/37_actualizador.md) | 22 Actualizador | 08 | ✅ Terminada |
 | 38 | [Edición en línea de valores primitivos](done/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ✅ Terminada (prueba GUI pendiente) |
 | 39 | [Franja de color de la conexión en las pestañas](pending/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ⬜ Pendiente |
+| 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
+| 41 | [Detalle de una operación: origen → destino y colecciones por BD](pending/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ⛔ Bloqueada (D24) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -235,6 +239,14 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R86 Pestaña dividida entre dos conexiones: franja en dos tramos | 39 |
 | R87 Producción y conexiones protegidas: candado además del color | 39 |
 | R88 El tooltip de la pestaña nombra la conexión (el color no es la única pista) | 39 |
+| R89 Clic en una operación del panel (sync, restore, backup) muestra su detalle | 41 |
+| R90 Detalle: origen → destino con entorno, host y puerto (SSH incluido) o carpeta | 41 |
+| R91 Colecciones agrupadas por BD en secciones plegables, la BD como título con su resumen | 41 |
+| R92 Cada colección: punto de color, nombre y % de 0 a 100 | 41 |
+| R93 Estados y colores de cada colección (D23) | 41 |
+| R94 El backend informa estado y avance de cada colección, también con varias en paralelo | 40 |
+| R95 Al cancelar o fallar, lo no aplicado queda como descartado (el destino no cambió) | 40 |
+| R96 El estado de una colección no depende solo del color (tooltip / texto accesible) | 41 |
 | Pendiente: abrir una base escribiendo su nombre cuando el usuario no puede listar bases | sin tarea (pospuesto por el usuario) |
 
 ## Diagrama de dependencias
@@ -266,4 +278,5 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 06, 18 → 38
 12 ────────────────────┘
 26 → 39
+20, 22 → 40 → 41
 ```

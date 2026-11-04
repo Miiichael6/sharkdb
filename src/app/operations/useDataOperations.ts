@@ -21,10 +21,16 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
   const connection = (sid: string): OperationEndpoint => connectionEndpoint(connections, sid);
   const refreshAtEnd = (started: StartedOperation | null) => started?.settled.then(onTargetChanged);
   const startBackup = (request: BackupRequest) => {
-    const spec = { kind: "backup", title: "Backup", source: connection(request.sid), target: folderEndpoint(request.dir) } as const;
+    const spec = {
+      kind: "backup",
+      title: "Backup",
+      source: connection(request.sid),
+      target: folderEndpoint(request.dir),
+      databases: request.databases,
+    } as const;
     return start(
       spec,
-      (onProgress) => backup.backup(request, onProgress),
+      (listener) => backup.backup(request, listener),
       (results) => backupSummary(request.dir, request.databases.length, results),
     );
   };
@@ -41,9 +47,16 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
     busyElsewhere: () => operations.busyElsewhere(),
     sync(request: SyncRequest) {
       const target = connection(request.targetSid);
-      const spec = { kind: "sync", title: "Sincronizar", source: connection(request.sourceSid), target, writesTo: request.targetSid } as const;
+      const spec = {
+        kind: "sync",
+        title: "Sincronizar",
+        source: connection(request.sourceSid),
+        target,
+        writesTo: request.targetSid,
+        databases: request.databases,
+      } as const;
       return refreshAtEnd(
-        start(spec, (onProgress) => sync.sync(request, onProgress), (results) => syncSummary(target.name, request.databases.length, results)),
+        start(spec, (listener) => sync.sync(request, listener), (results) => syncSummary(target.name, request.databases.length, results)),
       );
     },
     /** The backup as an operation, to follow or cancel it; null when it didn't start. */
@@ -56,11 +69,18 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
     },
     restore(request: RestoreRequest) {
       const target = connection(request.targetSid);
-      const spec = { kind: "restore", title: "Restaurar", source: folderEndpoint(request.dir), target, writesTo: request.targetSid } as const;
+      const spec = {
+        kind: "restore",
+        title: "Restaurar",
+        source: folderEndpoint(request.dir),
+        target,
+        writesTo: request.targetSid,
+        databases: request.databases,
+      } as const;
       return refreshAtEnd(
         start(
           spec,
-          (onProgress) => backup.restore(request, onProgress),
+          (listener) => backup.restore(request, listener),
           (results) => restoreSummary(target.name, request.databases.length, results),
         ),
       );

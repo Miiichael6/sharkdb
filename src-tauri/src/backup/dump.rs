@@ -13,8 +13,9 @@ use mongodb::options::FindOptions;
 use super::folder;
 use super::format;
 use super::source::read_metadata;
+use crate::jobs::collections::CollectionTracker;
 use crate::jobs::CancelFlag;
-use crate::jobs::report::{CollectionResult, Progress};
+use crate::jobs::report::{CollectionResult, CollectionState, Progress, Report};
 use crate::jobs::selection::{DatabaseSelection, collection_label};
 use crate::mongo::describe;
 
@@ -34,12 +35,13 @@ struct Target<'a> {
 
 /// Vuelca las colecciones elegidas de cada BD de `client` en `dir/<bd>` (que se crean si no existen).
 /// Mientras dura, `dir` lleva la marca de backup sin terminar; si falla o se cancela, se queda.
+/// Cada colección se avisa como aplicada en cuanto su archivo queda escrito.
 pub async fn dump_databases(
     client: &Client,
     databases: &[DatabaseSelection],
     dir: &Path,
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &impl Report,
 ) -> Result<Vec<CollectionResult>, String> {
     folder::mark_incomplete(dir)?;
     let results = dump_all(client, databases, dir, cancel, report).await?;
@@ -52,8 +54,9 @@ async fn dump_all(
     databases: &[DatabaseSelection],
     dir: &Path,
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &impl Report,
 ) -> Result<Vec<CollectionResult>, String> {
+    let tracker = CollectionTracker::new(report);
     let targets = targets(databases, dir)?;
     let count = targets.len();
     let mut results = Vec::with_capacity(count);
@@ -62,10 +65,14 @@ async fn dump_all(
         let (database, collection) = (&target.database.db, target.collection);
         folder::create_database_dir(&target.db_dir, database)?;
         let label = collection_label(database, collection);
-        let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
+        let progress = |done, total| {
+            report.progress(Progress { collection: label.clone(), index, count, done, total });
+            tracker.running(database, collection, done, total);
+        };
         let db = client.database(database);
-        let result = dump_collection(&db, collection, &target.db_dir, &target.stem, cancel, progress).await?;
-        results.push(CollectionResult { collection: label, ..result });
+        let result = dump_collection(&db, collection, &target.db_dir, &target.stem, cancel, progress).await;
+        tracker.ended(database, collection, &result, CollectionState::Applied);
+        results.push(CollectionResult { collection: label, ..result? });
     }
     Ok(results)
 }

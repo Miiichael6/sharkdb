@@ -1,5 +1,5 @@
 // Runs background operations for the whole app: one list of them, their progress and their cancellation.
-import type { CollectionResult, JobProgress } from "../domain/jobs";
+import type { CollectionResult } from "../domain/jobs";
 import {
   busyTargetMessage,
   operationsReducer,
@@ -9,10 +9,10 @@ import {
   type OperationSpec,
 } from "../domain/operations";
 import { errorMessage } from "../errors";
-import type { RunningJob } from "./jobRunner";
+import type { JobListener, RunningJob } from "./jobRunner";
 
 /** Starts the job behind an operation (a feature service's `sync`, `backup`, `restore`). */
-export type LaunchJob = (onProgress: (progress: JobProgress) => void) => RunningJob;
+export type LaunchJob = (listener: JobListener) => RunningJob;
 
 export interface StartedOperation {
   id: string;
@@ -84,7 +84,10 @@ export function createOperationsService(
       if (spec.writesTo && runningOn(operations, spec.writesTo)) throw busyTargetMessage(spec.target.name);
       const id = newId();
       dispatch({ type: "started", id, spec, at: clock() });
-      const job = launch((progress) => dispatch({ type: "progress", id, progress }));
+      const job = launch({
+        progress: (progress) => dispatch({ type: "progress", id, progress }),
+        collection: (update) => dispatch({ type: "collection", id, update }),
+      });
       jobs.set(id, job);
       return { id, settled: follow(id, job, summarize) };
     },

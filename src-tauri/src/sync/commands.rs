@@ -63,5 +63,5 @@ pub async fn sync_databases(
         })
         .collect();
     let destination = Destination { client: &target_client, safe_mode: &safe_mode };
-    sync(&destination, &copies, running.cancel_flag(), emitter(&app, &job)).await
+    sync(&destination, &copies, running.cancel_flag(), &emitter(&app, &job)).await
 }

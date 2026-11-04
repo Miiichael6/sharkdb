@@ -14,8 +14,9 @@ use super::folder::{self, BackupEntry};
 use super::format::DocumentReader;
 use super::staging::{Destination, Replacements, new_run, staging_name};
 use super::writer::{self, BatchWriter};
+use crate::jobs::collections::CollectionTracker;
 use crate::jobs::CancelFlag;
-use crate::jobs::report::{CollectionResult, Progress};
+use crate::jobs::report::{CollectionResult, CollectionState, Progress, Report};
 use crate::jobs::selection::{collection_label, each_collection};
 
 /// Colecciones de la carpeta de una BD del backup que reemplazan a las de una BD del destino.
@@ -26,24 +27,26 @@ pub struct DatabaseRestore {
 }
 
 /// Restaura las colecciones de cada `restores` en el destino, en un solo trabajo: no se reemplaza
-/// ninguna hasta que todas se escribieron.
+/// ninguna hasta que todas se escribieron (cada una se avisa como copiada y, al reemplazarla, aplicada).
 pub async fn restore_databases(
     destination: &Destination<'_>,
     restores: &[DatabaseRestore],
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &impl Report,
 ) -> Result<Vec<CollectionResult>, String> {
+    let tracker = CollectionTracker::new(report);
     let mut replacements = Replacements::new(destination);
-    let restored = restore_all(&mut replacements, destination, restores, cancel, report).await;
-    replacements.finish(restored).await
+    let restored = restore_all(&mut replacements, destination, restores, cancel, report, &tracker).await;
+    replacements.finish(restored, &tracker).await
 }
 
-async fn restore_all(
+async fn restore_all<R: Report>(
     replacements: &mut Replacements<'_>,
     destination: &Destination<'_>,
     restores: &[DatabaseRestore],
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &R,
+    tracker: &CollectionTracker<'_, R>,
 ) -> Result<Vec<CollectionResult>, String> {
     let run = new_run();
     let collections = each_collection(restores, |r| &r.collections);
@@ -62,12 +65,17 @@ async fn restore_all(
     for (index, ((restore, collection), entry)) in collections.into_iter().zip(entries).enumerate() {
         cancel.check()?;
         destination.safe_mode.ensure_writable()?;
-        let label = collection_label(restore.target.name(), collection);
-        let progress = |done, total| report(Progress { collection: label.clone(), index, count, done, total });
+        let db = restore.target.name();
+        let label = collection_label(db, collection);
+        let progress = |done, total| {
+            report.progress(Progress { collection: label.clone(), index, count, done, total });
+            tracker.running(db, collection, done, total);
+        };
         let staging = staging_name(collection, &run);
         let fill = restore_into(destination, &restore.dir, &restore.target, entry, &staging, cancel, progress);
-        let result = replacements.stage(&restore.target, collection, &staging, fill).await?;
-        results.push(CollectionResult { collection: label, ..result });
+        let result = replacements.stage(&restore.target, collection, &staging, fill).await;
+        tracker.ended(db, collection, &result, CollectionState::Copied);
+        results.push(CollectionResult { collection: label, ..result? });
     }
     cancel.check()?;
     Ok(results)

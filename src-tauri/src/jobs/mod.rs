@@ -1,11 +1,13 @@
 //! Trabajos largos (backup, restore, sync) en marcha y su cancelación: como en el shell (03), una
 //! bandera atómica que el trabajo mira entre lote y lote y que otro comando pone a `true`.
 //!
-//! - `report`: el progreso y el resultado por colección.
-//! - `events`: el progreso como evento Tauri y el comando `cancel_job`.
+//! - `report`: el progreso, el estado de cada colección y el resultado por colección.
+//! - `collections`: recuerda el avance de cada colección para avisar sus cambios de estado.
+//! - `events`: el progreso como eventos Tauri y el comando `cancel_job`.
 //! - `selection`: las colecciones de varias BDs que elige un trabajo.
 //! - `shared`: lo que tienen en marcha las otras instancias de SharkDB (error 60).
 
+pub mod collections;
 pub mod events;
 pub mod report;
 pub mod selection;

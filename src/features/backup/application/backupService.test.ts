@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StartJob } from "../../../shared/application/jobRunner";
+import type { JobListener, StartJob } from "../../../shared/application/jobRunner";
 import { FOLDER_REQUIRED, type BackupRequest } from "../domain/backupSpec";
 import { createBackupService } from "./backupService";
 import type { BackupGateway, FolderPicker } from "./ports";
@@ -21,18 +21,19 @@ function fakeGateway() {
 
 const picker: FolderPicker = { pickFolder: async () => null };
 const start: StartJob = (run) => ({ result: run("job-1"), cancel: () => {} });
+const IGNORED: JobListener = { progress: () => {}, collection: () => {} };
 
 describe("backupService", () => {
   it("sends the validated request under the job's id", async () => {
     const { gateway, sent } = fakeGateway();
-    const running = createBackupService(gateway, picker, start).backup(REQUEST, () => {});
+    const running = createBackupService(gateway, picker, start).backup(REQUEST, IGNORED);
     expect(await running.result).toEqual(RESULT);
     expect(sent).toEqual([{ job: "job-1", request: { ...REQUEST, dir: "C:\\b" } }]);
   });
 
   it("rejects an invalid request without calling the backend", async () => {
     const { gateway, sent } = fakeGateway();
-    const running = createBackupService(gateway, picker, start).backup({ ...REQUEST, dir: "" }, () => {});
+    const running = createBackupService(gateway, picker, start).backup({ ...REQUEST, dir: "" }, IGNORED);
     await expect(running.result).rejects.toBe(FOLDER_REQUIRED);
     expect(sent).toEqual([]);
   });

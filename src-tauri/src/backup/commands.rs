@@ -54,7 +54,7 @@ pub async fn backup_databases(
     let databases = non_empty(databases)?;
     // Un backup solo lee: se permite con safe mode activo y sobre conexiones protegidas.
     let (client, _) = mongo::session_with_safe_mode(&sessions, &sid).await?;
-    dump::dump_databases(&client, &databases, &dir, running.cancel_flag(), emitter(&app, &job)).await
+    dump::dump_databases(&client, &databases, &dir, running.cancel_flag(), &emitter(&app, &job)).await
 }
 
 /// Bases de datos y colecciones que se pueden restaurar de una carpeta de backup.
@@ -90,7 +90,7 @@ pub async fn restore_databases(
     safe_mode.ensure_writable()?;
     let restores = restores_from(&client, &dir, databases)?;
     let destination = Destination { client: &client, safe_mode: &safe_mode };
-    restore::restore_databases(&destination, &restores, running.cancel_flag(), emitter(&app, &job)).await
+    restore::restore_databases(&destination, &restores, running.cancel_flag(), &emitter(&app, &job)).await
 }
 
 /// Provisionales que dejaron en la conexión trabajos cortados a mitad, para ofrecer borrarlas.

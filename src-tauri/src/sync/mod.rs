@@ -22,6 +22,8 @@ mod tests {
     use super::copy::{DatabaseCopy, sync};
     use super::target::SAME_COLLECTION;
     use crate::backup::staging::Destination;
+    use crate::jobs::report::testing::Recorder;
+    use crate::jobs::report::{CollectionProgress, CollectionState};
     use crate::jobs::{CANCELLED, CancelFlag};
     use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
 
@@ -60,6 +62,11 @@ mod tests {
         }
     }
 
+    /// Lo que fue avanzando una colección (`done` de cada aviso).
+    fn progress_of(updates: &[CollectionProgress], db: &str, collection: &str) -> Vec<u64> {
+        updates.iter().filter(|u| u.db == db && u.collection == collection).map(|u| u.done).collect()
+    }
+
     /// Prueba real de la tarea 15 contra un mongod local: "prod" y "QA" son pares de BDs locales.
     #[tokio::test]
     #[ignore = "needs a mongod on 127.0.0.1:27017"]
@@ -83,9 +90,17 @@ mod tests {
         let safe_mode = SafeMode::new(false);
         let destination = Destination { client: &client, safe_mode: &safe_mode };
         let copies = [copy(&prod_a, &qa_a, &["orders", "users"]), copy(&prod_b, &qa_b, &["orders"])];
-        let results = sync(&destination, &copies, &CancelFlag::default(), |_| {}).await.unwrap();
+        let reports = Recorder::new();
+        let results = sync(&destination, &copies, &CancelFlag::default(), &reports).await.unwrap();
         let labels: Vec<_> = results.iter().map(|r| r.collection.as_str()).collect();
         assert_eq!(labels, [format!("{}.orders", names[2]), format!("{}.users", names[2]), format!("{}.orders", names[3])]);
+        // Las tres se copian a la vez, cada una con su avance; ninguna se aplica antes de que estén todas copiadas.
+        let updates = reports.collections();
+        let orders_a = progress_of(&updates, names[2], "orders");
+        assert!(orders_a.len() > 2 && orders_a.windows(2).all(|w| w[0] <= w[1]));
+        let first_applied = updates.iter().position(|u| u.state == CollectionState::Applied).unwrap();
+        assert_eq!(updates[..first_applied].iter().filter(|u| u.state == CollectionState::Copied).count(), 3);
+        assert_eq!(updates.iter().filter(|u| u.state == CollectionState::Applied).count(), 3);
         assert_eq!((count(&qa_a, "orders").await, count(&qa_b, "orders").await), (3500, 20));
         assert_eq!(index_names(&qa_a, "orders").await.len(), 2);
         // Lo no elegido del destino se conserva y no quedan provisionales.
@@ -95,22 +110,29 @@ mod tests {
 
         // La misma BD vista como destino: se rechaza.
         let same = [copy(&prod_a, &prod_a, &["orders"])];
-        assert_eq!(sync(&destination, &same, &CancelFlag::default(), |_| {}).await, Err(SAME_COLLECTION.into()));
+        assert_eq!(sync(&destination, &same, &CancelFlag::default(), &Recorder::new()).await, Err(SAME_COLLECTION.into()));
 
         // Cancelar o safe mode a mitad no tocan el destino.
         seed(&client, names[2], 10).await;
         let cancel = CancelFlag::default();
-        let cancel_mid_copy = |p: crate::jobs::report::Progress| if p.done > 0 { cancel.cancel() };
-        assert_eq!(sync(&destination, &copies, &cancel, cancel_mid_copy).await, Err(CANCELLED.into()));
+        let cancel_mid_copy = Recorder::reacting(|p: &crate::jobs::report::Progress| if p.done > 0 { cancel.cancel() });
+        assert_eq!(sync(&destination, &copies, &cancel, &cancel_mid_copy).await, Err(CANCELLED.into()));
+        // Cancelada: ni fallida ni aplicada; el frontend la descarta.
+        assert!(cancel_mid_copy.collections().iter().all(|u| matches!(u.state, CollectionState::Running | CollectionState::Copied)));
         safe_mode.set(true);
-        assert_eq!(sync(&destination, &copies, &CancelFlag::default(), |_| {}).await, Err(SAFE_MODE_ERROR.into()));
+        assert_eq!(sync(&destination, &copies, &CancelFlag::default(), &Recorder::new()).await, Err(SAFE_MODE_ERROR.into()));
         assert_eq!(count(&qa_a, "orders").await, 10);
         assert!(!staging_left(&qa_a).await);
 
         // Si falla la última colección, las ya copiadas tampoco se reemplazan.
         safe_mode.set(false);
         let failing_last = [copy(&prod_a, &qa_a, &["orders", "users"]), copy(&prod_b, &prod_b, &["orders"])];
-        assert_eq!(sync(&destination, &failing_last, &CancelFlag::default(), |_| {}).await, Err(SAME_COLLECTION.into()));
+        let reports = Recorder::new();
+        assert_eq!(sync(&destination, &failing_last, &CancelFlag::default(), &reports).await, Err(SAME_COLLECTION.into()));
+        // Solo la que falló queda como fallida.
+        let failed: Vec<_> = reports.collections().into_iter().filter(|u| u.state == CollectionState::Failed).collect();
+        assert_eq!(failed.iter().map(|u| (u.db.as_str(), u.collection.as_str())).collect::<Vec<_>>(), [(names[1], "orders")]);
+        assert!(reports.collections().iter().all(|u| u.state != CollectionState::Applied));
         assert_eq!(count(&qa_a, "orders").await, 10);
         assert!(!staging_left(&qa_a).await && !staging_left(&prod_b).await);
 
@@ -136,7 +158,7 @@ mod tests {
 
         let safe_mode = SafeMode::new(false);
         let destination = Destination { client: &client, safe_mode: &safe_mode };
-        sync(&destination, &[copy(&prod, &qa, &["orders"])], &CancelFlag::default(), |_| {}).await.unwrap();
+        sync(&destination, &[copy(&prod, &qa, &["orders"])], &CancelFlag::default(), &Recorder::new()).await.unwrap();
         assert_eq!(count(&qa, "orders").await, 5);
         let info = qa.run_command(doc! { "listCollections": 1, "filter": { "name": "orders" } }, None).await.unwrap();
         let options = info.get_document("cursor").unwrap().get_array("firstBatch").unwrap()[0]

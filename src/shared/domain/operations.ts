@@ -1,6 +1,14 @@
 // Background operations (sync, backup, restore) that the main window runs and the operations panel shows (R38).
+import {
+  applyCollectionEvent,
+  plannedCollections,
+  settleCollections,
+  type CollectionProgressEntry,
+  type CollectionUpdate,
+} from "./collectionProgress";
 import type { ConfirmRequest } from "./confirmation";
 import { progressPercent, type CollectionResult, type JobProgress } from "./jobs";
+import type { DatabaseSelection } from "./selection";
 
 export type OperationKind = "sync" | "backup" | "restore";
 export type OperationStatus = "running" | "done" | "failed" | "cancelled";
@@ -29,12 +37,16 @@ export interface OperationSpec {
   target: OperationEndpoint;
   /** Connection whose databases it modifies; a backup only reads, so it has none. */
   writesTo?: string;
+  /** What was chosen: the collections it goes through, waiting from the start. */
+  databases: DatabaseSelection[];
 }
 
 export interface Operation extends OperationSpec {
   id: string;
   status: OperationStatus;
   progress: JobProgress | null;
+  /** State and progress of each chosen collection, in the order of the plan. */
+  collections: CollectionProgressEntry[];
   results: CollectionResult[];
   /** Summary of a finished operation, for its row and its notification. */
   summary: string;
@@ -47,6 +59,7 @@ export interface Operation extends OperationSpec {
 export type OperationEvent =
   | { type: "started"; id: string; spec: OperationSpec; at: number }
   | { type: "progress"; id: string; progress: JobProgress }
+  | { type: "collection"; id: string; update: CollectionUpdate }
   | { type: "finished"; id: string; results: CollectionResult[]; summary: string; at: number }
   | { type: "failed"; id: string; error: string; at: number }
   | { type: "cancelled"; id: string; at: number }
@@ -74,6 +87,14 @@ const update = (ops: Operation[], id: string, change: (op: Operation) => Operati
 const whileRunning = (ops: Operation[], id: string, change: (op: Operation) => Operation) =>
   update(ops, id, (op) => (op.status === "running" ? change(op) : op));
 
+/** `op` once it ended as `status`, with its collections settled accordingly (R95). */
+const ended = (op: Operation, status: Exclude<OperationStatus, "running">, at: number): Operation => ({
+  ...op,
+  status,
+  collections: settleCollections(op.collections, status),
+  endedAt: at,
+});
+
 export function operationsReducer(ops: Operation[], event: OperationEvent): Operation[] {
   switch (event.type) {
     case "started":
@@ -84,6 +105,7 @@ export function operationsReducer(ops: Operation[], event: OperationEvent): Oper
           id: event.id,
           status: "running",
           progress: null,
+          collections: plannedCollections(event.spec.databases),
           results: [],
           summary: "",
           error: "",
@@ -93,18 +115,18 @@ export function operationsReducer(ops: Operation[], event: OperationEvent): Oper
       ];
     case "progress":
       return whileRunning(ops, event.id, (op) => ({ ...op, progress: event.progress }));
+    case "collection":
+      return whileRunning(ops, event.id, (op) => ({ ...op, collections: applyCollectionEvent(op.collections, event.update) }));
     case "finished":
       return whileRunning(ops, event.id, (op) => ({
-        ...op,
-        status: "done",
+        ...ended(op, "done", event.at),
         results: event.results,
         summary: event.summary,
-        endedAt: event.at,
       }));
     case "failed":
-      return whileRunning(ops, event.id, (op) => ({ ...op, status: "failed", error: event.error, endedAt: event.at }));
+      return whileRunning(ops, event.id, (op) => ({ ...ended(op, "failed", event.at), error: event.error }));
     case "cancelled":
-      return whileRunning(ops, event.id, (op) => ({ ...op, status: "cancelled", endedAt: event.at }));
+      return whileRunning(ops, event.id, (op) => ended(op, "cancelled", event.at));
     case "cleared":
       return ops.filter((op) => op.status === "running");
     case "dismissed":

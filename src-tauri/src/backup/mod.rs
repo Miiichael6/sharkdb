@@ -22,8 +22,6 @@ pub mod writer;
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-
     use mongodb::Client;
     use mongodb::bson::{Document, doc, oid::ObjectId};
 
@@ -31,6 +29,8 @@ mod tests {
     use super::folder::{INCOMPLETE_ERROR, backup_databases, read_catalog};
     use super::restore::{DatabaseRestore, restore_databases};
     use super::staging::Destination;
+    use crate::jobs::report::testing::Recorder;
+    use crate::jobs::report::{CollectionProgress, CollectionState};
     use crate::jobs::selection::DatabaseSelection;
     use crate::jobs::{CANCELLED, CancelFlag};
     use crate::safe_mode::{SAFE_MODE_ERROR, SafeMode};
@@ -46,6 +46,15 @@ mod tests {
 
     async fn count(client: &Client, db: &str, coll: &str) -> u64 {
         client.database(db).collection::<Document>(coll).count_documents(None, None).await.unwrap()
+    }
+
+    /// `bd.colección` y estado de cada aviso por colección que no sea de avance.
+    fn state_changes(updates: &[CollectionProgress]) -> Vec<(String, CollectionState)> {
+        updates
+            .iter()
+            .filter(|u| u.state != CollectionState::Running)
+            .map(|u| (format!("{}.{}", u.db, u.collection), u.state))
+            .collect()
     }
 
     fn selection(db: &str, collections: &[&str]) -> DatabaseSelection {
@@ -81,13 +90,14 @@ mod tests {
 
         let dir = std::env::temp_dir().join(format!("robo3b-it-backup-{}", std::process::id()));
         let chosen = vec![selection(a, &["orders", "users", "Users"]), selection(b, &["logs"])];
-        let reports = RefCell::new(0);
-        let dumped = dump_databases(&client, &chosen, &dir, &CancelFlag::default(), |_| *reports.borrow_mut() += 1)
-            .await
-            .unwrap();
-        let labels: Vec<_> = dumped.iter().map(|r| r.collection.as_str()).collect();
+        let reports = Recorder::new();
+        let dumped = dump_databases(&client, &chosen, &dir, &CancelFlag::default(), &reports).await.unwrap();
+        let labels: Vec<_> = dumped.iter().map(|r| r.collection.clone()).collect();
         assert_eq!(labels, [format!("{a}.orders"), format!("{a}.users"), format!("{a}.Users"), format!("{b}.logs")]);
-        assert!(*reports.borrow() > 3);
+        assert!(reports.progress.lock().unwrap().len() > 3);
+        // En el backup cada colección pasa directo a guardada: su archivo ya está escrito.
+        let applied: Vec<_> = labels.iter().map(|l| (l.clone(), CollectionState::Applied)).collect();
+        assert_eq!(state_changes(&reports.collections()), applied);
         let catalog = read_catalog(&dir).unwrap();
         assert_eq!(catalog.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), DATABASES);
         assert_eq!(catalog[0].collections, ["Users", "orders", "users"]);
@@ -111,7 +121,12 @@ mod tests {
                 collections: chosen.collections.clone(),
             })
             .collect();
-        let restored = restore_databases(&destination, &restores, &CancelFlag::default(), |_| {}).await.unwrap();
+        let reports = Recorder::new();
+        let restored = restore_databases(&destination, &restores, &CancelFlag::default(), &reports).await.unwrap();
+        // Copiadas todas antes de que se aplique la primera: el destino solo cambia al final.
+        let copied = labels.iter().map(|l| (l.clone(), CollectionState::Copied));
+        let expected: Vec<_> = copied.chain(applied.iter().cloned()).collect();
+        assert_eq!(state_changes(&reports.collections()), expected);
         assert_eq!(restored.iter().map(|r| r.documents).collect::<Vec<_>>(), [2500, 1, 2, 1]);
         assert_eq!((count(&client, a, "orders").await, count(&client, b, "logs").await), (2500, 1));
         assert_eq!((count(&client, a, "users").await, count(&client, a, "Users").await), (1, 2));
@@ -125,14 +140,25 @@ mod tests {
 
         let cancel = CancelFlag::default();
         cancel.cancel();
-        assert_eq!(dump_databases(&client, &chosen, &dir, &cancel, |_| {}).await, Err(CANCELLED.into()));
+        assert_eq!(dump_databases(&client, &chosen, &dir, &cancel, &Recorder::new()).await, Err(CANCELLED.into()));
         // Un backup cancelado queda marcado: ya no se ofrece para restaurar (error 46).
         assert_eq!(read_catalog(&dir), Err(INCOMPLETE_ERROR.into()));
         safe_mode.set(true);
         assert_eq!(
-            restore_databases(&destination, &restores, &CancelFlag::default(), |_| {}).await,
+            restore_databases(&destination, &restores, &CancelFlag::default(), &Recorder::new()).await,
             Err(SAFE_MODE_ERROR.into())
         );
+
+        // Un archivo roto: solo esa colección falla; las ya copiadas no llegan a aplicarse.
+        safe_mode.set(false);
+        std::fs::write(restores[1].dir.join("logs.bson"), [0xFF, 0, 0, 0, 1]).unwrap();
+        let reports = Recorder::new();
+        assert!(restore_databases(&destination, &restores, &CancelFlag::default(), &reports).await.is_err());
+        let changes = state_changes(&reports.collections());
+        let failed: Vec<_> = changes.iter().filter(|(_, state)| *state == CollectionState::Failed).collect();
+        assert_eq!(failed, [&(format!("{b}.logs"), CollectionState::Failed)]);
+        assert!(changes.iter().all(|(_, state)| *state != CollectionState::Applied));
+        assert_eq!(count(&client, b, "logs").await, 1);
 
         for db in DATABASES {
             client.database(db).drop(None).await.unwrap();

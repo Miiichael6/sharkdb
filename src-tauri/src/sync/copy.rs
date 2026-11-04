@@ -17,7 +17,8 @@ use crate::backup::source::{collection_uuid, read_metadata};
 use crate::backup::staging::{Destination, Replacements, new_run, staging_name};
 use crate::backup::writer::{self, BatchWriter};
 use crate::jobs::{CANCELLED, CancelFlag};
-use crate::jobs::report::{CollectionResult, Progress};
+use crate::jobs::collections::CollectionTracker;
+use crate::jobs::report::{CollectionResult, CollectionState, Progress, Report};
 use crate::jobs::selection::{collection_label, each_collection};
 use crate::mongo::describe;
 
@@ -36,24 +37,27 @@ pub struct DatabaseCopy {
 }
 
 /// Reemplaza las colecciones de cada `copies` en el destino, en un solo trabajo: se copian varias a
-/// la vez (`PARALLEL_COLLECTIONS`) y no se reemplaza ninguna hasta que todas se copiaron.
+/// la vez (`PARALLEL_COLLECTIONS`) y no se reemplaza ninguna hasta que todas se copiaron: cada
+/// una se avisa como copiada al llenar su provisional y como aplicada al reemplazar la original.
 pub async fn sync(
     destination: &Destination<'_>,
     copies: &[DatabaseCopy],
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &impl Report,
 ) -> Result<Vec<CollectionResult>, String> {
+    let tracker = CollectionTracker::new(report);
     let mut replacements = Replacements::new(destination);
-    let copied = copy_all(&mut replacements, destination, copies, cancel, report).await;
-    replacements.finish(copied).await
+    let copied = copy_all(&mut replacements, destination, copies, cancel, report, &tracker).await;
+    replacements.finish(copied, &tracker).await
 }
 
-async fn copy_all(
+async fn copy_all<R: Report>(
     replacements: &mut Replacements<'_>,
     destination: &Destination<'_>,
     copies: &[DatabaseCopy],
     cancel: &CancelFlag,
-    report: impl Fn(Progress),
+    report: &R,
+    tracker: &CollectionTracker<'_, R>,
 ) -> Result<Vec<CollectionResult>, String> {
     let run = new_run();
     // Reunidas antes del bucle: un iterador de closures vivo entre `await`s no es `Send`.
@@ -70,15 +74,20 @@ async fn copy_all(
         })
         .collect();
     let overall = OverallProgress::new(count);
-    let (overall, report) = (&overall, &report);
+    let overall = &overall;
     // Los futuros se arman fuera del `stream` (son perezosos): un closure que los cree dentro del
     // `map` del stream no prueba ser `Send` para cualquier lifetime y el comando Tauri no compila.
     let copying: Vec<_> = pending
         .iter()
         .map(|(index, copy, collection, staging)| async move {
-            let label = collection_label(copy.target.name(), collection);
-            let progress = |done, total| report(overall.update(*index, &label, done, total));
+            let db = copy.target.name();
+            let label = collection_label(db, collection);
+            let progress = |done, total| {
+                report.progress(overall.update(*index, &label, done, total));
+                tracker.running(db, collection, done, total);
+            };
             let result = sync_collection(destination, copy, collection, staging, cancel, progress).await;
+            tracker.ended(db, collection, &result, CollectionState::Copied);
             // Un fallo para a las demás; se las espera (no se sueltan a medio lote) para que
             // ningún insert en vuelo llegue después de que `finish` borre las provisionales.
             if matches!(&result, Err(e) if e != CANCELLED) {

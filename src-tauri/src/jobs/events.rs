@@ -5,24 +5,45 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::Jobs;
-use super::report::Progress;
+use super::report::{CollectionProgress, Progress, Report};
 
-/// Evento con el avance de un trabajo; el frontend filtra por `job`.
+/// Eventos con el avance de un trabajo; el frontend filtra por `job`. `job-progress` es el agregado
+/// (la barra de la fila) y `job-collection`, el de cada colección.
 const PROGRESS_EVENT: &str = "job-progress";
+const COLLECTION_EVENT: &str = "job-collection";
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct ProgressEvent<'a> {
+struct JobEvent<'a, T> {
     job: &'a str,
     #[serde(flatten)]
-    progress: Progress,
+    payload: T,
 }
 
-/// Emite el progreso del trabajo `job`.
-pub fn emitter<'a>(app: &'a AppHandle, job: &'a str) -> impl Fn(Progress) + 'a {
-    move |progress| {
+/// Emite como eventos lo que cuenta el trabajo `job`.
+pub struct JobEvents<'a> {
+    app: &'a AppHandle,
+    job: &'a str,
+}
+
+pub fn emitter<'a>(app: &'a AppHandle, job: &'a str) -> JobEvents<'a> {
+    JobEvents { app, job }
+}
+
+impl JobEvents<'_> {
+    fn emit<T: Serialize + Clone>(&self, event: &str, payload: T) {
         // Perder un aviso de progreso no debe tumbar el trabajo.
-        let _ = app.emit(PROGRESS_EVENT, ProgressEvent { job, progress });
+        let _ = self.app.emit(event, JobEvent { job: self.job, payload });
+    }
+}
+
+impl Report for JobEvents<'_> {
+    fn progress(&self, progress: Progress) {
+        self.emit(PROGRESS_EVENT, progress);
+    }
+
+    fn collection(&self, update: CollectionProgress) {
+        self.emit(COLLECTION_EVENT, update);
     }
 }
 

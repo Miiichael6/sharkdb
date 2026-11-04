@@ -8,7 +8,8 @@ use std::time::SystemTime;
 use mongodb::bson::{RawDocumentBuf, doc, oid::ObjectId};
 use mongodb::{Client, Database};
 
-use crate::jobs::report::CollectionResult;
+use crate::jobs::collections::CollectionTracker;
+use crate::jobs::report::{CollectionResult, Report};
 use crate::mongo::describe;
 use crate::safe_mode::SafeMode;
 
@@ -90,11 +91,11 @@ impl<'a> Replacements<'a> {
         self.staged.push(Staged { db: db.clone(), collection: collection.into(), staging: staging.into() });
     }
 
-    /// Si todo se llenó (`filled`), pone cada provisional en el lugar de su colección; si no, las
-    /// borra todas y el destino queda como estaba.
-    pub async fn finish<T>(self, filled: Result<T, String>) -> Result<T, String> {
+    /// Si todo se llenó (`filled`), pone cada provisional en el lugar de su colección y avisa cada
+    /// una como aplicada; si no, las borra todas y el destino queda como estaba.
+    pub async fn finish<T>(self, filled: Result<T, String>, tracker: &CollectionTracker<'_, impl Report>) -> Result<T, String> {
         match filled {
-            Ok(value) => self.commit().await.map(|()| value),
+            Ok(value) => self.commit(tracker).await.map(|()| value),
             Err(e) => {
                 drop_all(&self.staged).await;
                 Err(e)
@@ -104,12 +105,15 @@ impl<'a> Replacements<'a> {
 
     /// Cada renombrado es atómico, pero no el conjunto: si uno falla (o se activa el safe mode a
     /// mitad), los anteriores ya están hechos y el error lo dice.
-    async fn commit(self) -> Result<(), String> {
+    async fn commit(self, tracker: &CollectionTracker<'_, impl Report>) -> Result<(), String> {
         for (done, staged) in self.staged.iter().enumerate() {
-            if let Err(e) = replace_with(self.destination, staged.db.name(), &staged.collection, &staged.staging).await {
+            let db = staged.db.name();
+            if let Err(e) = replace_with(self.destination, db, &staged.collection, &staged.staging).await {
+                tracker.failed(db, &staged.collection, &e);
                 drop_all(&self.staged[done..]).await;
                 return Err(partial_replace_error(e, &self.staged[..done]));
             }
+            tracker.applied(db, &staged.collection);
         }
         Ok(())
     }

@@ -23,8 +23,9 @@ const SYNC: OperationSpec = {
   source: { name: "QA", tag: "testing" },
   target: { name: "local", tag: "local" },
   writesTo: "local-sid",
+  databases: [{ db: "shop", collections: ["orders", "users"] }],
 };
-const BACKUP: OperationSpec = { kind: "backup", title: "Backup", source: { name: "QA" }, target: { name: "C:/bk" } };
+const BACKUP: OperationSpec = { kind: "backup", title: "Backup", source: { name: "QA" }, target: { name: "C:/bk" }, databases: [] };
 const RESULTS = [{ collection: "shop.orders", documents: 3, duplicates: 0, indexes: 1 }];
 const progress = (index: number, done: number): JobProgress => ({ job: "j", collection: "shop.orders", index, count: 2, done, total: 10 });
 
@@ -55,6 +56,25 @@ describe("operationsReducer", () => {
     expect(operationOutcome(ops[1])).toBe("Sync QA → local falló: sin red");
     expect(operationOutcome(ops[2])).toBe("Sync QA → local cancelado");
     expect(ops.map(operationDetail)).toEqual(["Sincronizado local", "sin red", ""]);
+  });
+
+  it("follows each collection from the plan and settles them when it ends (R95)", () => {
+    const collection = (id: string, name: string, state: "copied" | "applied"): OperationEvent => ({
+      type: "collection",
+      id,
+      update: { job: "j", db: "shop", collection: name, state, done: 10, total: 10 },
+    });
+    const [planned] = run([started("a")]);
+    expect(planned.collections.map((c) => `${c.collection}:${c.status}`)).toEqual(["orders:pending", "users:pending"]);
+
+    const [cancelled] = run([started("a"), collection("a", "orders", "copied"), { type: "cancelled", id: "a", at: 2000 }]);
+    expect(cancelled.collections.map((c) => c.status)).toEqual(["discarded", "discarded"]);
+    // An event of an operation that already ended changes nothing.
+    const [late] = run([collection("a", "orders", "applied")], [cancelled]);
+    expect(late.collections).toBe(cancelled.collections);
+
+    const [done] = run([started("a"), { type: "finished", id: "a", results: RESULTS, summary: "", at: 3000 }]);
+    expect(done.collections.map((c) => c.status)).toEqual(["applied", "applied"]);
   });
 
   it("clearing keeps only the running ones", () => {
