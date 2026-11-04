@@ -287,6 +287,74 @@ fn delete_without_filter_is_rejected() {
     assert_eq!(write_batches(&mut session), batches(&["delete:1", "delete:1"]));
 }
 
+/// Sin `query`, findAndModify actúa sobre el primer documento en orden natural: un filtro que
+/// llega `undefined` por error borraría o pisaría uno cualquiera. Se pide con `{}`.
+#[test]
+fn find_and_modify_without_filter_is_rejected() {
+    let commands = "__calls.filter(c => c.op === 'runCommand').map(c => Object.keys(c.command)[0])";
+    for code in [
+        "db.x.findOneAndDelete()",
+        "var f; db.x.findOneAndDelete(f)",
+        "db.x.findOneAndDelete(null)",
+        "db.x.findOneAndUpdate(undefined, { $set: { a: 1 } })",
+        "db.x.findOneAndReplace(undefined, { a: 1 })",
+        "db.x.findAndModify({ remove: true })",
+        "db.x.findAndModify({ query: null, update: { $set: { a: 1 } } })",
+    ] {
+        let (mut session, _) = session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains("falta el filtro"), "{code}: {}", error.message);
+        assert!(!error.message.contains("borrar todos"), "{code}: {}", error.message);
+        assert_eq!(value(&run_ok(&mut session, commands)), Some(Bson::Array(vec![])), "{code}");
+    }
+    let (mut session, _) = session();
+    run_ok(
+        &mut session,
+        "db.x.findOneAndDelete({}); db.x.findOneAndUpdate({}, { $set: { a: 1 } }); db.x.findAndModify({ query: {}, remove: true })",
+    );
+    let sent = value(&run_ok(&mut session, commands)).expect("comandos");
+    assert_eq!(sent.as_array().map(Vec::len), Some(3), "{sent}");
+}
+
+/// `_id: undefined` se guardaría como `_id: null`: se rechaza en vez de generar un ObjectId.
+#[test]
+fn insert_with_undefined_id_is_rejected() {
+    for code in [
+        "var id; db.x.insertOne({ _id: id, a: 1 })",
+        "db.x.insertMany([{ a: 1 }, { _id: ({}).id }])",
+        "db.x.insert({ _id: undefined })",
+        "var b = db.x.initializeOrderedBulkOp(); b.insert({ _id: undefined }); b.execute()",
+        "db.x.bulkWrite([{ insertOne: { document: { _id: undefined } } }])",
+    ] {
+        let (mut session, _) = session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains("_id undefined"), "{code}: {}", error.message);
+        assert_eq!(write_batches(&mut session), batches(&[]), "{code}");
+    }
+    let (mut many, _) = session();
+    let error = run_err(&mut many, "db.x.insertMany([{ a: 1 }, { _id: undefined }])");
+    assert!(error.message.contains("insertMany (documento 1): "), "{}", error.message);
+
+    let (mut ok, _) = session();
+    run_ok(&mut ok, "db.x.insertOne({ a: 1 }); db.x.insertOne({ _id: null }); db.x.insertOne({ _id: 5 })");
+    assert_eq!(write_batches(&mut ok), batches(&["insert:1", "insert:1", "insert:1"]));
+}
+
+/// Como mongosh: `dropIndex('*')` borraría todos los índices, unique incluidos.
+#[test]
+fn drop_index_rejects_all_indexes() {
+    let commands = "__calls.filter(c => c.op === 'runCommand').length";
+    for code in ["db.x.dropIndex('*')", "db.x.dropIndex(['a_1', 'b_1'])"] {
+        let (mut session, _) = session();
+        let error = run_err(&mut session, code);
+        assert!(error.message.contains("dropIndexes()"), "{code}: {}", error.message);
+        assert_eq!(value(&run_ok(&mut session, commands)), Some(Bson::Int32(0)), "{code}");
+    }
+    let (mut session, _) = session();
+    run_ok(&mut session, "db.x.dropIndex('a_1'); db.x.dropIndex({ a: 1 })");
+    assert_eq!(value(&run_ok(&mut session, commands)), Some(Bson::Int32(2)));
+}
+
 /// Comando que recibió el servidor en la primera llamada.
 fn first_command(session: &mut ShellSession) -> Document {
     super::prelude::first_call(session)
@@ -338,6 +406,21 @@ fn delete_options_reach_the_statement() {
     assert_eq!(statement.get_i32("limit"), Ok(1));
     assert!(statement.contains_key("collation"));
     assert!(!statement.contains_key("justOne"));
+}
+
+#[test]
+fn delete_options_cannot_change_limit_or_filter() {
+    for (script, limit) in [
+        ("db.x.deleteOne({ a: 1 }, { limit: 0, q: {} })", 1),
+        ("db.x.deleteMany({ a: 1 }, { limit: 1, q: {} })", 0),
+        ("db.x.bulkWrite([{ deleteOne: { filter: { a: 1 }, limit: 0, q: {} } }])", 1),
+    ] {
+        let (mut session, _) = super::prelude::session();
+        run_ok(&mut session, script);
+        let statement = first_statement(&first_command(&mut session), "deletes");
+        assert_eq!(statement.get_i32("limit"), Ok(limit), "script: {script}");
+        assert_eq!(statement.get_document("q"), Ok(&doc! { "a": 1 }), "script: {script}");
+    }
 }
 
 #[test]

@@ -25,14 +25,17 @@ function free(pagers: Iterable<CursorPager>, keep = new Set<number | null>()) {
 
 /**
  * Runs scripts in a tab's shell, recording each run in the history and the log. `origin` is where the
- * code starts in the editor, so a selection's results and error carry the editor's lines.
+ * code starts in the editor, so a selection's results and error carry the editor's lines. When a run
+ * leaves `db` on another database (`use`), `onDbChange` moves the tab there, as mongosh keeps it.
  */
-export function useShellRun(tab: ShellTab) {
+export function useShellRun(tab: ShellTab, onDbChange: (db: string) => void) {
   const { shell, history } = useServices();
   const log = useLog();
   const [state, setState] = useState(IDLE);
   const pagers = useRef(state.pagers);
   pagers.current = state.pagers;
+  const dbChanged = useRef(onDbChange);
+  dbChanged.current = onDbChange;
   const ref = { sid: tab.sid, tab: tab.id };
 
   const freeCursors = () => free(pagers.current.values());
@@ -52,6 +55,7 @@ export function useShellRun(tab: ShellTab) {
         outcome.results.forEach((r, i) => r.kind === "cursor" && next.set(i, shell.pager(ref, r)));
         free(previous, new Set([...next.values()].map((p) => p.cursorId)));
         setState({ running: false, outcome, pagers: next, failure: null });
+        if (outcome.db && outcome.db !== tab.db) dbChanged.current(outcome.db);
         if (outcome.error) {
           const at = outcome.error.line ? ` (línea ${outcome.error.line})` : "";
           log.error(`Error en ${where}${at}: ${outcome.error.message}`);

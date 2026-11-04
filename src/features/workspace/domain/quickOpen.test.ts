@@ -3,7 +3,6 @@ import {
   NO_CONNECTION,
   actionItems,
   connectionItems,
-  databaseItems,
   fuzzyRank,
   fuzzyScore,
   type QuickItem,
@@ -38,10 +37,10 @@ describe("fuzzyRank", () => {
   });
 
   it("also searches the detail", () => {
-    const list = databaseItems([
-      { key: "k1", db: "admin", connection: "Producción" },
-      { key: "k2", db: "admin", connection: "Local" },
-    ]);
+    const list = [
+      { id: "k1", label: "admin", detail: "Producción" },
+      { id: "k2", label: "admin", detail: "Local" },
+    ];
     expect(fuzzyRank("admin loc", list).map((i) => i.id)).toEqual(["k2"]);
   });
 });

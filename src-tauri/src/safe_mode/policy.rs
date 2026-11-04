@@ -27,6 +27,7 @@ const WRITE_COMMANDS: &[&str] = &[
     // índices
     "createindexes",
     "dropindexes",
+    "deleteindexes", // alias histórico de dropIndexes
     // usuarios y roles
     "createuser",
     "updateuser",
@@ -70,6 +71,11 @@ const WRITE_COMMANDS: &[&str] = &[
     "plancacheclear",
     "plancacheclearfilters",
     "plancachesetfilter",
+    "setquerysettings",
+    "removequerysettings",
+    "configurequeryanalyzer",
+    "setchangestreamstate",
+    "appendoplognote",
     // replica set
     "replsetinitiate",
     "replsetreconfig",
@@ -93,6 +99,8 @@ const WRITE_COMMANDS: &[&str] = &[
     "moverange",
     "moveprimary",
     "movecollection",
+    "abortmovecollection",
+    "abortunshardcollection",
     "split",
     "mergechunks",
     "mergeallchunksonshard",
@@ -102,6 +110,11 @@ const WRITE_COMMANDS: &[&str] = &[
     "balancerstop",
     "configurecollectionbalancing",
     "setallowmigrations",
+    "addshardtozone",
+    "removeshardfromzone",
+    "updatezonekeyrange",
+    "transitiontodedicatedconfigserver",
+    "transitionfromdedicatedconfigserver",
     // ejecución de código arbitrario en el servidor
     "eval",
     "$eval",
@@ -213,6 +226,34 @@ mod tests {
         ] {
             assert!(is_write_command(&command), "{command}");
         }
+    }
+
+    #[test]
+    fn zones_query_settings_and_cluster_transitions_are_writes() {
+        for command in [
+            doc! { "deleteIndexes": "x", "index": "*" },
+            doc! { "deleteindexes": "x", "index": "a_1" },
+            doc! { "addShardToZone": "shard0", "zone": "z" },
+            doc! { "removeShardFromZone": "shard0", "zone": "z" },
+            doc! { "updateZoneKeyRange": "a.x", "min": { "k": 0 }, "max": { "k": 10 }, "zone": null },
+            doc! { "setQuerySettings": { "find": "x", "filter": {}, "$db": "a" }, "settings": {} },
+            doc! { "removeQuerySettings": "hash" },
+            doc! { "configureQueryAnalyzer": "a.x", "mode": "full", "samplesPerSecond": 1 },
+            doc! { "transitionToDedicatedConfigServer": 1 },
+            doc! { "transitionFromDedicatedConfigServer": 1 },
+            doc! { "abortMoveCollection": "a.x" },
+            doc! { "abortUnshardCollection": "a.x" },
+            doc! { "setChangeStreamState": 1, "enabled": false },
+            doc! { "appendOplogNote": 1, "data": {} },
+        ] {
+            assert!(is_write_command(&command), "{command}");
+        }
+    }
+
+    #[test]
+    fn explaining_a_new_write_command_is_a_write() {
+        let command = doc! { "explain": { "deleteIndexes": "x", "index": "*" } };
+        assert!(is_write_command(&command));
     }
 
     #[test]

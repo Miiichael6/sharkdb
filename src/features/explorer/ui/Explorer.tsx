@@ -137,7 +137,7 @@ export function Explorer({ tree, onAction, onRunCollection, onDragCollection }: 
       </ul>
 
       {menu && (
-        <MenuList x={menu.x} y={menu.y}>
+        <MenuList x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
           {menuFor(menu.node).map((item, i, items) => {
             if (item === "sep") return <li key={i} className="sep" />;
             const blocked = isReadOnly(menu.node.sid) && blockedInSafeMode(item.action);

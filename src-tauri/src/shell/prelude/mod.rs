@@ -62,6 +62,11 @@ impl RunHooks for ShellRun<'_> {
         hook(ctx, "beginRun")?.call((self.db,))
     }
 
+    fn final_db(&self, ctx: &Ctx<'_>) -> Option<String> {
+        let shell: Object = ctx.globals().get(SHELL_GLOBAL).ok()?;
+        shell.get::<_, Option<String>>("dbName").ok().flatten()
+    }
+
     fn final_result<'js>(
         &self,
         ctx: &Ctx<'js>,

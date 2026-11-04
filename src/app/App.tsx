@@ -9,7 +9,7 @@ import {
   type MongoConnection,
 } from "../features/connections/domain/connection";
 import type { BorrowedSession, Session } from "../features/connections/domain/session";
-import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
+import { openConnectionFormWindow, type ConnectionFormResult } from "../features/connections/ui/connectionFormWindow";
 import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
 import { TargetServerProvider } from "../features/connections/ui/useTargetServer";
@@ -20,9 +20,11 @@ import { Workspace } from "../features/explorer/ui/Workspace";
 import { ShellTabs } from "../features/shell/ui/ShellTabs";
 import { useScriptFileActions } from "../features/shell/ui/useScriptFileActions";
 import type { MenuScriptKind } from "../features/shell/domain/menuScripts";
+import { editOpenConnectionRequest, unsavedSessionTabsRequest } from "../features/shell/domain/sessionTabs";
 import { tabForNode, useShellTabs } from "../features/shell/ui/useShellTabs";
 import { usePanelLayout } from "../features/workspace/ui/usePanelLayout";
 import { errorMessage } from "../shared/errors";
+import { confirmInWindow } from "../shared/ui/confirmInWindow";
 import { useLog } from "../shared/ui/useLog";
 import { usePreferencesShortcut } from "../shared/ui/usePreferencesShortcut";
 import { useNotify } from "../shared/ui/useNotifications";
@@ -37,8 +39,7 @@ import "./App.css";
 
 type Dialog =
   | { kind: "none" }
-  | { kind: "picker" }
-  | { kind: "form"; conn: MongoConnection; isNew: boolean };
+  | { kind: "picker" };
 
 function App() {
   const { connections: service, explorer } = useServices();
@@ -138,6 +139,55 @@ function App() {
     });
   };
 
+  /** Disconnecting (or deleting) closes the connection's tabs: those with unsaved changes ask first. */
+  const confirmClosingTabs = async (conn: MongoConnection, action: "disconnect" | "delete") => {
+    if (!sessions.some((s) => s.conn.id === conn.id)) return true;
+    const request = unsavedSessionTabsRequest(
+      displayName(conn),
+      tabs.tabs.filter((t) => t.sid === conn.id),
+      action,
+    );
+    return !request || confirmInWindow(request);
+  };
+
+  const confirmDisconnect = async (sid: string) => {
+    const session = sessions.find((s) => s.conn.id === sid);
+    if (!session || (await confirmClosingTabs(session.conn, "disconnect"))) await disconnect(sid);
+  };
+
+  // An open connection disconnects before it's edited: otherwise a tab could keep results read from
+  // the old server while editing or deleting them writes on the new one.
+  const edit = async (conn: MongoConnection) => {
+    if (sessions.some((s) => s.conn.id === conn.id)) {
+      const request = editOpenConnectionRequest(
+        displayName(conn),
+        tabs.tabs.filter((t) => t.sid === conn.id),
+      );
+      if (!(await confirmInWindow(request))) return;
+      await disconnect(conn.id);
+    }
+    await openForm(conn, false);
+  };
+
+  const openForm = async (conn: MongoConnection, isNew: boolean) => {
+    let result: ConnectionFormResult | null;
+    try {
+      result = await openConnectionFormWindow(conn, isNew);
+    } catch (e) {
+      log.error("No se pudo abrir el formulario de conexión", e);
+      return;
+    }
+    if (!result) return;
+    upsert(result.conn);
+    if (result.kind === "connect") await connect(result.conn);
+  };
+
+  const remove = async (conn: MongoConnection) => {
+    if (!(await confirmClosingTabs(conn, "delete"))) return;
+    if (sessions.some((s) => s.conn.id === conn.id)) await disconnect(conn.id);
+    persist(removeConnection(connections, conn.id));
+  };
+
   const setSafeMode = async (sid: string, enabled: boolean) => {
     const session = sessions.find((s) => s.conn.id === sid);
     if (!session) return;
@@ -175,12 +225,9 @@ function App() {
               onBack={sessions.length ? () => setShowWelcome(false) : undefined}
               onNew={() => setDialog({ kind: "picker" })}
               onConnect={connect}
-              onEdit={(conn) => setDialog({ kind: "form", conn, isNew: false })}
+              onEdit={(conn) => void edit(conn)}
               onDuplicate={(conn) => persist([...connections, duplicateConnection(conn)])}
-              onDelete={(conn) => {
-                if (sessions.some((s) => s.conn.id === conn.id)) disconnect(conn.id);
-                persist(removeConnection(connections, conn.id));
-              }}
+              onDelete={(conn) => void remove(conn)}
             />
           ) : (
             <Workspace
@@ -191,7 +238,7 @@ function App() {
               sidebarHidden={layout.sidebarHidden}
               logsOpen={layout.logsOpen}
               onCloseLogs={layout.closeLogs}
-              onDisconnect={disconnect}
+              onDisconnect={(sid) => void confirmDisconnect(sid)}
               onOpenShell={(node, script) => tabs.open(shellTab(node, true, script))}
               onRunCollection={(node) => tabs.runCollection(shellTab(node, true))}
               onDragCollection={setDraggedCollection}
@@ -229,22 +276,9 @@ function App() {
           {dialog.kind === "picker" && (
             <DriverPicker
               onClose={() => setDialog({ kind: "none" })}
-              onPick={() => setDialog({ kind: "form", conn: newConnection(), isNew: true })}
-            />
-          )}
-
-          {dialog.kind === "form" && (
-            <ConnectionForm
-              initial={dialog.conn}
-              isNew={dialog.isNew}
-              onClose={() => setDialog({ kind: "none" })}
-              onSave={(conn) => {
-                upsert(conn);
+              onPick={() => {
                 setDialog({ kind: "none" });
-              }}
-              onConnect={(conn) => {
-                upsert(conn);
-                connect(conn);
+                void openForm(newConnection(), true);
               }}
             />
           )}

@@ -1,11 +1,11 @@
 // Quick open palette: the candidates of each mode and the fuzzy ranking. Pure, no React.
 
-export type QuickOpenMode = "connection" | "database" | "action";
+export type QuickOpenMode = "connection" | "action";
 
 export interface QuickItem {
   id: string;
   label: string;
-  /** Secondary text, also searched (e.g. the connection of a database). */
+  /** Secondary text, also searched. */
   detail?: string;
   /** Shown on the right, e.g. a shortcut or "abierta". */
   hint?: string;
@@ -16,7 +16,6 @@ export interface QuickItem {
 
 export const QUICK_OPEN_PLACEHOLDERS: Record<QuickOpenMode, string> = {
   connection: "Abrir conexión…",
-  database: "Abrir base de datos…",
   action: "Acción…",
 };
 
@@ -65,16 +64,6 @@ export interface ConnectionCandidate {
 
 export const connectionItems = (connections: ConnectionCandidate[]): QuickItem[] =>
   connections.map((c) => ({ id: c.id, label: c.name, hint: c.open ? "abierta" : undefined }));
-
-export interface DatabaseCandidate {
-  /** Unique among the palette's databases. */
-  key: string;
-  db: string;
-  connection: string;
-}
-
-export const databaseItems = (databases: DatabaseCandidate[]): QuickItem[] =>
-  databases.map((d) => ({ id: d.key, label: d.db, detail: d.connection }));
 
 export type QuickActionId = "sync" | "backup" | "restore";
 

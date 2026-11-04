@@ -14,6 +14,12 @@ pub trait ShellModule {
 pub trait RunHooks {
     fn before_run(&self, ctx: &Ctx<'_>) -> rquickjs::Result<()>;
 
+    /// Base de datos a la que apunta `db` al acabar el script, si es una válida. Se pregunta
+    /// también cuando el script falló o se cortó, así que no debe ejecutar JS.
+    fn final_db(&self, _ctx: &Ctx<'_>) -> Option<String> {
+        None
+    }
+
     /// `None` si la sentencia no deja nada que mostrar (`undefined`).
     fn final_result<'js>(
         &self,

@@ -16,6 +16,11 @@ fn shortcuts() -> Vec<(&'static str, &'static str, Document)> {
             doc! { "renameCollection": "test.x", "to": "test.y", "dropTarget": false },
         ),
         (
+            "db.createView('v', 'x', [{ $match: { a: 1 } }], { collation: { locale: 'es' } })",
+            DB,
+            doc! { "create": "v", "viewOn": "x", "pipeline": [{ "$match": { "a": 1 } }], "collation": { "locale": "es" } },
+        ),
+        (
             "db.x.dropIndexes()",
             DB,
             doc! { "dropIndexes": "x", "index": "*" },

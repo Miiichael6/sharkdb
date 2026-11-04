@@ -41,6 +41,9 @@
     stats(scale = undefined) { return this.runCommand({ dbStats: 1, ...scaleOption(scale) }); }
     version() { return this.adminCommand({ buildInfo: 1 }).version; }
     createCollection(name, options = {}) { return this.runCommand({ create: name, ...options }); }
+    createView(name, source, pipeline, options = {}) {
+      return this.createCollection(name, { viewOn: source, pipeline, ...options });
+    }
     dropDatabase() { return this.runCommand({ dropDatabase: 1 }); }
 
     serverStatus(options = {}) { return this.adminCommand({ serverStatus: 1, ...options }); }

@@ -17,7 +17,8 @@
   const hasFields = (spec) => spec != null && typeof spec === 'object' && Object.keys(spec).length > 0;
 
   // `source` dice cómo abrir el cursor en el servidor y, si se puede, cómo contarlo y con qué
-  // comando se explica: { open(options), count(options), command(options), run(command), editable }.
+  // comando se explica: { open(options), count(options), command(options), run(command), editable,
+  // writable() }.
   class Cursor {
     constructor(ns, source) {
       this._ns = ns;
@@ -25,13 +26,25 @@
       this._options = {};
       this._id = null;
       this._buffer = [];
+      // Cursor del que salió `_buffer`: sigue valiendo cuando `_id` pasa a null al agotarse.
+      this._bufferFrom = null;
       this._done = false;
+      this._startedBecause = null;
     }
 
     _modify(name, value) {
-      if (this._id !== null || this._done) failWith('Error', `${name}: el cursor ya se ha empezado a leer`);
+      if (this._id !== null || this._done) {
+        failWith('Error', `${name}: ${this._startedBecause ?? 'el cursor ya se ha empezado a leer'}`);
+      }
       this._options[name] = value;
       return this;
+    }
+
+    // Abre la consulta ya, sin esperar a que se lea; `reason` explica después por qué no admite
+    // modificadores.
+    _start(reason) {
+      this._startedBecause = reason;
+      this._id = this._source.open(this._options);
     }
 
     sort(spec) { return this._modify('sort', spec); }
@@ -58,7 +71,9 @@
     _fetch(size) {
       if (this._done) return;
       if (this._id === null) this._id = this._source.open(this._options);
+      // Solo se lee con el buffer vacío (`hasNext`): lo que haya en él es la cola de este lote.
       const batch = native.cursorNext(this._id, size);
+      this._bufferFrom = this._id;
       this._buffer.push(...batch.documents);
       if (batch.exhausted) {
         this._done = true;
@@ -138,6 +153,9 @@
         ns: this._ns,
         id: this._id,
         documents,
+        // cursor_result.rs toma estos documentos del lote en BSON que guardó el puente, si lo tiene:
+        // pasados por JS, un Double entero volvería como Int32.
+        bufferFrom: documents.length > 0 ? this._bufferFrom : null,
         exhausted: this._done,
         missing: this._done ? 0 : Math.max(0, size - documents.length),
         fresh,
@@ -148,8 +166,12 @@
 
     // Solo los documentos enteros de la colección se pueden editar o eliminar desde el resultado:
     // con proyección, guardar reemplazaría el documento por los campos que se ven; los de un
-    // aggregate (`editable: false` en `source`) no son documentos de la colección.
-    _editable() { return this._source.editable !== false && !hasFields(this._options.projection); }
+    // aggregate (`editable: false` en `source`) no son documentos de la colección. Una vista o una
+    // timeseries (`writable()` en `source`) no admiten reemplazar ni borrar el documento.
+    _editable() {
+      if (this._source.editable === false || hasFields(this._options.projection)) return false;
+      return !this._source.writable || this._source.writable();
+    }
 
     // prelude/mod.rs leyó el cursor hasta el final.
     _exhaust() {

@@ -2,7 +2,7 @@
 
 - **Severidad:** BAJO
 - **Dónde:** src-tauri/src/shell/prelude/bulk.js (`deleteStatement`)
-- **Estado:** pendiente
+- **Estado:** resuelto — `deleteStatement` pone `q` y `limit` después de las opciones: un `limit` o `q` en las opciones de `deleteOne`, `deleteMany`, `remove` o `bulkWrite` ya no cambia qué ni cuántos documentos se borran.
 
 ## Problema
 `compact({q, limit, ...rest})`: las opciones extra (`rest`) pueden sobrescribir `limit`.

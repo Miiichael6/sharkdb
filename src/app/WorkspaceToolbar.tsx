@@ -29,6 +29,7 @@ import { operationsBadge } from "../shared/domain/operations";
 import { useOperations } from "./operations/useOperations";
 import { useCurrentTarget } from "./useCurrentTarget";
 import type { ChooseDatabases } from "./useDatabaseWindow";
+import { useDatabasePicker } from "./useDatabasePicker";
 import { useQuickOpen } from "./useQuickOpen";
 import { useServices } from "./services";
 
@@ -71,6 +72,7 @@ export function WorkspaceToolbar(props: Props) {
     : null;
   useWindowTitle(status ?? undefined);
   const quickOpen = useQuickOpen({ controls, sessions, connections, layout, target, onConnect });
+  const pickDatabase = useDatabasePicker(controls, layout);
 
   const targetDatabase = target ? controls.databases(target.sid).find((n) => n.db === target.db) : undefined;
   // "Bases de datos" only acts on the connection clicked in the tree, never on a guess.
@@ -139,7 +141,8 @@ export function WorkspaceToolbar(props: Props) {
     databases: () => void showDatabases(),
     openMongosh: () => target && controls.openMongosh(target.sid, target.db),
     openConnection: () => quickOpen.open("connection"),
-    openDatabase: () => quickOpen.open("database"),
+    // Like "Bases de datos", only on the connection selected in the tree.
+    openDatabase: () => selectedSession && void pickDatabase(selectedSession),
     quickActions: () => target && quickOpen.open("action"),
     refresh: controls.refreshAll,
     safeMode: toggleSafeMode,
@@ -179,8 +182,8 @@ export function WorkspaceToolbar(props: Props) {
           safeMode: !!session?.safeMode,
           operations: operations.panelOpen,
         }}
-        disabled={{ databases: !selectedSession, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
-        disabledReasons={{ databases: NO_CONNECTION_SELECTED }}
+        disabled={{ databases: !selectedSession, openDatabase: !selectedSession, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
+        disabledReasons={{ databases: NO_CONNECTION_SELECTED, openDatabase: NO_CONNECTION_SELECTED }}
         menuItems={menuItems}
         badges={{ operations: operationsBadge(operations.operations) }}
         status={status}

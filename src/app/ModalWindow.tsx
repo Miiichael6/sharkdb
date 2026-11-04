@@ -5,6 +5,8 @@ import { BackupWindow } from "../features/backup/ui/BackupWindow";
 import { BACKUP_VIEW, RESTORE_VIEW, type BackupWindowData, type RestoreWindowData } from "../features/backup/ui/backupViews";
 import { RestoreWindow } from "../features/backup/ui/RestoreWindow";
 import { TAGS } from "../features/connections/domain/connection";
+import { ConnectionForm } from "../features/connections/ui/ConnectionForm";
+import { CONNECTION_FORM_VIEW, type ConnectionFormData } from "../features/connections/ui/connectionFormWindow";
 import {
   OPEN_CONNECTION_VIEW,
   OpenConnectionDialog,
@@ -18,10 +20,17 @@ import {
   type DocumentEditorData,
 } from "../features/documents/ui/DocumentEditorWindow";
 import { VALIDATION_VIEW, ValidationWindow, type ValidationWindowData } from "../features/explorer/ui/ValidationWindow";
+import {
+  VIEW_DEFINITION_VIEW,
+  ViewDefinitionWindow,
+  type ViewDefinitionWindowData,
+} from "../features/explorer/ui/ViewDefinitionWindow";
 import { SettingsDialog } from "../features/settings/ui/SettingsDialog";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
+import { DATABASE_PICKER_VIEW, type DatabasePickerData } from "../features/workspace/domain/databasePicker";
+import { DatabasePickerWindow } from "../features/workspace/ui/DatabasePickerWindow";
 import { OpenDatabaseDialog } from "../features/workspace/ui/OpenDatabaseDialog";
 import { ThemeDialog } from "../features/workspace/ui/ThemeDialog";
 import type { ConfirmRequest, DangerConfirmRequest } from "../shared/domain/confirmation";
@@ -90,6 +99,20 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
     }
     case OPEN_CONNECTION_VIEW:
       return <OpenConnectionDialog data={data as OpenConnectionData} onDone={done} />;
+    case CONNECTION_FORM_VIEW: {
+      const { conn, isNew } = data as ConnectionFormData;
+      return (
+        <ServicesProvider services={createServices()}>
+          <ConnectionForm
+            initial={conn}
+            isNew={isNew}
+            onSave={(c) => done({ kind: "save", conn: c })}
+            onConnect={(c) => done({ kind: "connect", conn: c })}
+            onClose={() => done(null)}
+          />
+        </ServicesProvider>
+      );
+    }
     case OPEN_DATABASE_VIEW: {
       // Stars and new databases are saved by the opener, which owns the connections and sessions.
       const ask = (request: OpenDatabaseRequest) => askOpener<void>(OPEN_DATABASE_VIEW, request);
@@ -102,6 +125,8 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
         />
       );
     }
+    case DATABASE_PICKER_VIEW:
+      return <DatabasePickerWindow data={data as DatabasePickerData} onDone={done} />;
     case DOCUMENT_EDITOR_VIEW:
       return (
         <ServicesProvider services={createServices()}>
@@ -150,6 +175,8 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <ValidationWindow data={data as ValidationWindowData} onDone={done} />
         </ServicesProvider>
       );
+    case VIEW_DEFINITION_VIEW:
+      return <ViewDefinitionWindow data={data as ViewDefinitionWindowData} onDone={() => done(null)} />;
     default:
       return null;
   }

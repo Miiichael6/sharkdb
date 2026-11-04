@@ -226,7 +226,7 @@ export function Welcome(props: Props) {
       </section>
 
       {menu && (
-        <MenuList x={menu.x} y={menu.y}>
+        <MenuList x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
           <li onClick={() => onConnect(menu.conn)}>Conectar</li>
           <li onClick={() => onEdit(menu.conn)}>Editar</li>
           <li onClick={() => onDuplicate(menu.conn)}>Duplicar</li>

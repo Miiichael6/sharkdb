@@ -118,6 +118,7 @@ export function ShellTabs({ tabs, files, details, newTabTarget, draggedCollectio
               style={pane.style}
               onFocus={() => t.id !== active?.id && tabs.focus(t.id)}
               onCodeChange={(code) => tabs.setCode(t.id, code)}
+              onDbChange={(db) => tabs.switchDb(t.id, db)}
               onOpenFile={openFile}
               onSave={() => files.save(t)}
             />

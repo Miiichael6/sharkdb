@@ -108,6 +108,9 @@ pub struct ScriptOutcome {
     /// Parte de `elapsed_ms` esperando la respuesta del servidor; el resto es traer y convertir
     /// documentos y ejecutar JS. `None` si el script no consultó al servidor.
     pub query_ms: Option<u64>,
+    /// Base de datos a la que apuntaba `db` al acabar (`use`, `db = db.getSiblingDB(...)`), con
+    /// la que sigue la pestaña. `None` si `db` acabó siendo otra cosa.
+    pub db: Option<String>,
 }
 
 impl ScriptOutcome {

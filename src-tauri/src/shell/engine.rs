@@ -89,11 +89,16 @@ impl Engine {
         let started = Instant::now();
         let statements = statements::split(code);
         self.watchdog.arm(self.limits.timeout);
-        let run = self.context.with(|ctx| match hooks.before_run(&ctx) {
-            Ok(()) => run_statements(&ctx, &statements, hooks, &self.output),
-            Err(_) => {
-                StatementsRun::failed(describe_thrown(&ctx, ctx.catch(), ScriptErrorKind::Script))
-            }
+        let (run, db) = self.context.with(|ctx| {
+            let run = match hooks.before_run(&ctx) {
+                Ok(()) => run_statements(&ctx, &statements, hooks, &self.output),
+                Err(_) => StatementsRun::failed(describe_thrown(
+                    &ctx,
+                    ctx.catch(),
+                    ScriptErrorKind::Script,
+                )),
+            };
+            (run, hooks.final_db(&ctx))
         });
         self.watchdog.disarm();
         let outcome = ScriptOutcome {
@@ -102,6 +107,7 @@ impl Engine {
             truncated: run.truncated,
             elapsed_ms: started.elapsed().as_millis() as u64,
             query_ms: None,
+            db,
         };
         if outcome
             .error

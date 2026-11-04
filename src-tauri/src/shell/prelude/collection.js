@@ -14,6 +14,17 @@
     'watch: los change streams no se pueden seguir desde un script (bloquearían la pestaña); ' +
     'consulta los cambios recientes con find sobre tus datos o usa otra herramienta para seguirlos';
 
+  // Tipos de `listCollections` cuyos documentos no se editan desde el resultado de un find.
+  const READ_ONLY_TYPES = new Set(['view', 'timeseries']);
+
+  // Etapas con las que un aggregate escribe su resultado en otra colección.
+  const WRITE_STAGES = ['$out', '$merge'];
+  const writesOutput = (stage) =>
+    stage !== null && typeof stage === 'object' && WRITE_STAGES.some((name) => name in stage);
+  const WRITE_PIPELINE_STARTED =
+    'un aggregate con $out o $merge se ejecuta al llamarlo; pasa la opción en el segundo argumento: ' +
+    'aggregate(pipeline, { allowDiskUse: true, ... })';
+
   const indexName = (keys) => Object.entries(keys).map(([k, v]) => `${k}_${v}`).join('_');
 
   const withIndexNames = (keyPatterns, options) =>
@@ -79,8 +90,15 @@
         count: (options) => this.count(filter, options),
         command: findCommand(this._name, filter),
         run: (command) => this._run(command),
+        writable: () => this._writable(),
       }, ...extra);
       return projection ? cursor.projection(projection) : cursor;
+    }
+
+    // Solo se pregunta al servidor al mostrar el resultado; una colección que no existe cuenta como normal.
+    _writable() {
+      const [info] = this._db.getCollectionInfos({ name: this._name });
+      return !READ_ONLY_TYPES.has(info?.type);
     }
 
     find(filter = {}, projection = undefined) { return this._query(filter, projection); }
@@ -94,13 +112,17 @@
       const stages = Array.isArray(pipeline) ? pipeline : [...arguments];
       const extra = Array.isArray(pipeline) ? options : {};
       const db = this._db.getName();
-      return new Cursor(this.getFullName(), {
+      const cursor = new Cursor(this.getFullName(), {
         open: (cursorOptions) => native.aggregate(db, this._name, stages, { ...extra, ...cursorOptions }),
         count: null,
         command: (cursorOptions) => aggregateCommand(this._name, stages)({ ...extra, ...cursorOptions }),
         run: (command) => this._run(command),
         editable: false,
       });
+      // Como el shell clásico (Robo 3T) y mongosh: un pipeline que escribe se ejecuta al llamarlo,
+      // aunque el script no lo recorra ni se muestre.
+      if (stages.some(writesOutput)) cursor._start(WRITE_PIPELINE_STARTED);
+      return cursor;
     }
 
     _write(type, items, ordered = true) {
@@ -109,20 +131,20 @@
     }
 
     insertOne(doc) {
-      const document = withId(doc);
+      const document = withId(doc, 'insertOne');
       this._write('insert', [document]);
       return new WriteResult({ acknowledged: true, insertedId: document._id });
     }
 
     insertMany(docs, { ordered = true } = {}) {
-      const documents = docs.map(withId);
+      const documents = docs.map((doc, i) => withId(doc, `insertMany (documento ${i})`));
       this._write('insert', documents, ordered);
       return new WriteResult({ acknowledged: true, insertedIds: documents.map((d) => d._id) });
     }
 
     insert(docOrDocs, { ordered = true } = {}) {
       const docs = Array.isArray(docOrDocs) ? docOrDocs : [docOrDocs];
-      const summary = this._write('insert', docs.map(withId), ordered);
+      const summary = this._write('insert', docs.map((doc, i) => withId(doc, `insert (documento ${i})`)), ordered);
       return new WriteResult({ nInserted: summary.counts.insert });
     }
 
@@ -163,13 +185,19 @@
     initializeUnorderedBulkOp() { return new Bulk(this, false); }
     bulkWrite(operations, options = {}) { return bulkWrite(this, operations, options); }
 
+    // Sin filtro el servidor tomaría el primer documento en orden natural: un filtro que llega
+    // `undefined` por error borraría o pisaría uno cualquiera. Para eso hay que pedirlo con `{}`.
     findAndModify(spec) {
-      checkDefined('findAndModify', spec?.query);
+      checkFilter('findAndModify', spec?.query, 'para tomar el primer documento cualquiera pásalo vacío: findAndModify({ query: {}, ... })');
       return this._run({ findAndModify: this._name, ...compact(spec) }).value ?? null;
     }
 
+    _findOneAndFilter(name, filter) {
+      return checkFilter(name, filter, `para tomar el primer documento cualquiera pásalo vacío: ${name}({}, ...)`);
+    }
+
     _findAndUpdate(name, filter, update, options) {
-      return this.findAndModify({ query: checkDefined(name, filter), update, ...findAndModifyOptions(name, options) });
+      return this.findAndModify({ query: this._findOneAndFilter(name, filter), update, ...findAndModifyOptions(name, options) });
     }
 
     findOneAndUpdate(filter, update, options = {}) {
@@ -181,7 +209,7 @@
     }
 
     findOneAndDelete(filter, { projection, ...rest } = {}) {
-      return this.findAndModify({ query: checkDefined('findOneAndDelete', filter), ...rest, fields: projection, remove: true });
+      return this.findAndModify({ query: this._findOneAndFilter('findOneAndDelete', filter), ...rest, fields: projection, remove: true });
     }
 
     count(filter = {}, options = {}) {
@@ -211,7 +239,13 @@
 
     getIndexes() { return this._run({ listIndexes: this._name }).cursor.firstBatch; }
     getIndexKeys() { return this.getIndexes().map((index) => index.key); }
-    dropIndex(name) { return this._run({ dropIndexes: this._name, index: name }); }
+    // Como mongosh: con '*' (o una lista) el servidor borraría todos los índices, unique incluidos.
+    dropIndex(name) {
+      if (name === '*' || Array.isArray(name)) {
+        failWith('Error', "dropIndex: borra un solo índice; para borrar todos (o varios) usa dropIndexes()");
+      }
+      return this._run({ dropIndexes: this._name, index: name });
+    }
     dropIndexes(indexes = '*') { return this._run({ dropIndexes: this._name, index: indexes }); }
 
     stats(scale = undefined) { return this._run({ collStats: this._name, ...scaleOption(scale) }); }

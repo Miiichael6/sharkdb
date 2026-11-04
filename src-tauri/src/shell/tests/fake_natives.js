@@ -3,11 +3,13 @@
 // FAKE_COLLECTION_SIZE si no la hay. No tiene sharding: `config.collections` está vacía.
 // Las escrituras responden como el servidor: una operación con `fail` (en el documento o en
 // el filtro) da un error de clave duplicada en su índice (ordenado, el resto del lote no se
-// aplica) y un update con `upsert` inserta en vez de modificar.
+// aplica) y un update con `upsert` inserta en vez de modificar. `listCollections` da tipo
+// `view` a la colección `vista`, `timeseries` a `serie` y `collection` al resto.
 (() => {
   const FAKE_COLLECTION_SIZE = 120;
   const DUPLICATE_KEY = 11000;
   const OPERATIONS = { insert: 'documents', update: 'updates', delete: 'deletes' };
+  const COLLECTION_TYPES = { vista: 'view', serie: 'timeseries' };
   const calls = [];
   const cursors = new Map();
   let lastId = 0;
@@ -54,6 +56,11 @@
     runCommand(db, command) {
       calls.push({ op: 'runCommand', db, command });
       const [name] = Object.keys(command);
+      if (name === 'listCollections') {
+        const coll = command.filter?.name;
+        const firstBatch = coll === undefined ? [] : [{ name: coll, type: COLLECTION_TYPES[coll] ?? 'collection' }];
+        return { ok: 1, cursor: { firstBatch } };
+      }
       return name in OPERATIONS ? writeReply(name, command) : { ok: 1, n: NumberInt(1) };
     },
     cursorNext(id, size) {

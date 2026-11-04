@@ -23,7 +23,7 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 16 | MEDIO | ✅ [Sync restore no atomico](resolved/16_medio_sync-restore-no-atomico.md) |
 | 17 | BAJO | [Remove documents confirmacion simple](17_bajo_remove-documents-confirmacion-simple.md) |
 | 18 | BAJO | [Reindex en produccion](18_bajo_reindex-en-produccion.md) |
-| 19 | BAJO | [Delete statement limit sobrescribible](19_bajo_delete-statement-limit-sobrescribible.md) |
+| 19 | BAJO | ✅ [Delete statement limit sobrescribible](resolved/19_bajo_delete-statement-limit-sobrescribible.md) |
 | 20 | BAJO | [Numberint desborda](20_bajo_numberint-desborda.md) |
 | 21 | BAJO | [Tipos que no sobreviven edicion](21_bajo_tipos-que-no-sobreviven-edicion.md) |
 | 22 | BAJO | [Sin transacciones en shell](22_bajo_sin-transacciones-en-shell.md) |
@@ -38,8 +38,27 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 | 31 | BAJO | [Editar indice misma clave ventana](31_bajo_editar-indice-misma-clave-ventana.md) |
 | 32 | BAJO | [Nombre staging largo](32_bajo_nombre-staging-largo.md) |
 | 33 | BAJO | [Precision en validador y filtros](33_bajo_precision-en-validador-y-filtros.md) |
-| 34 | BAJO | [Editar en vista o timeseries](34_bajo_editar-en-vista-o-timeseries.md) |
+| 34 | BAJO | ✅ [Editar en vista o timeseries](resolved/34_bajo_editar-en-vista-o-timeseries.md) |
 | 35 | BAJO | [Renombres finales no atomicos](35_bajo_renombres-finales-no-atomicos.md) |
+| 36 | ALTO | [Backup colecciones mayusculas](36_alto_backup-colecciones-mayusculas.md) |
+| 37 | MEDIO | ✅ [FindOneAnd sin filtro](resolved/37_medio_findoneand-sin-filtro.md) |
+| 38 | MEDIO | ✅ [DropIndex asterisco](resolved/38_medio_dropindex-asterisco.md) |
+| 39 | MEDIO | ✅ [Insert id undefined guarda null](resolved/39_medio_insert-id-undefined-guarda-null.md) |
+| 40 | MEDIO | ✅ [Aggregate out merge perezoso](resolved/40_medio_aggregate-out-merge-perezoso.md) |
+| 41 | MEDIO | ✅ [Safe mode comandos faltantes](resolved/41_medio_safe-mode-comandos-faltantes.md) |
+| 42 | MEDIO | ✅ [Cursor leido cambia tipos al editar](resolved/42_medio_cursor-leido-cambia-tipos-al-editar.md) |
+| 43 | MEDIO | ✅ [Use no persiste entre ejecuciones](resolved/43_medio_use-no-persiste-entre-ejecuciones.md) |
+| 44 | MEDIO | ✅ [Resultados abiertos tras reconectar](resolved/44_medio_resultados-abiertos-tras-reconectar.md) |
+| 45 | MEDIO | ✅ [Proteccion destino URI guardada](resolved/45_medio_proteccion-destino-uri-guardada.md) |
+| 46 | MEDIO | ✅ [Retencion borra backups buenos](resolved/46_medio_retencion-borra-backups-buenos.md) |
+| 47 | MEDIO | ✅ [Programacion BD completa lista fija](resolved/47_medio_programacion-bd-completa-lista-fija.md) |
+| 48 | MEDIO | [Backup carpeta existente mezcla](48_medio_backup-carpeta-existente-mezcla.md) |
+| 49 | BAJO | [Staging huerfanas tras caida](49_bajo_staging-huerfanas-tras-caida.md) |
+| 50 | BAJO | [Copiar coleccion borra ajena](50_bajo_copiar-coleccion-borra-ajena.md) |
+| 51 | BAJO | [Reintentar insert duplica](51_bajo_reintentar-insert-duplica.md) |
+| 52 | BAJO | [Menu scripts nombre con barra](52_bajo_menu-scripts-nombre-con-barra.md) |
+| 53 | BAJO | [Redeclaracion ejecuta a medias](53_bajo_redeclaracion-ejecuta-a-medias.md) |
+| 54 | BAJO | [Cancelar antes de registrar job](54_bajo_cancelar-antes-de-registrar-job.md) |
 
 ## Lo que está bien protegido
 - Sync y restore: llenan una colección provisional por cada colección y solo cuando están todas las ponen en lugar de las originales (`renameCollection` con `dropTarget`); si algo falla o se cancela antes, las borran y el destino queda como estaba. Los renombres finales no son atómicos entre sí: si uno falla, el error dice cuáles ya se reemplazaron. Comprueban el safe mode antes de cada lote; no se acepta como destino la misma conexión ni la misma colección física (UUID).
@@ -55,6 +74,7 @@ Prioridad antes de usar en producción: 01, 02 → 03, 04 → 05, 10, 13.
 - El safe mode bloquea también `explain` de escrituras y los comandos de administración del servidor, réplica y sharding; un cliente desacoplado compartido usa el modo más estricto de quienes lo piden.
 - Los enteros se guardan como Int32 (como mongosh), así un validador `bsonType: 'int'` los acepta.
 - Borrar BD, colección, índice o usuario, y vaciar colección, piden confirmación escribiendo el nombre.
+- Una conexión abierta no se puede editar sin desconectarla antes (avisa que se cierran sus pestañas); desconectar o eliminar una conexión con pestañas sin guardar pide confirmación.
 
 ## Al terminar de corregir un error
 mandar dicho archivo.md con el error a la carpeta `errors\resolved`

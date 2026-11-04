@@ -7,6 +7,8 @@
 
   const BYTES_PER_GB = 1024 ** 3;
   const DB_NAME_WIDTH = 20;
+  // Nombre de base de datos que el servidor acepta: lo que no lo sea no se lleva a la pestaña.
+  const VALID_DB_NAME = /^[^/\. "$*<>:|?]{1,63}$/;
 
   function showDatabases() {
     const { databases } = db.adminCommand({ listDatabases: 1, authorizedDatabases: true });
@@ -53,7 +55,23 @@
     return described;
   }
 
+  // `db` es un accesor para saber a qué base de datos apunta al acabar, la cambie `use` o una
+  // asignación (`db = db.getSiblingDB('x')`). El nombre queda en `__shell.dbName`, una propiedad
+  // simple que prelude/mod.rs lee sin ejecutar JS, aunque el script se haya cortado.
+  let currentDb;
+  Object.defineProperty(globalThis, 'db', {
+    configurable: true,
+    enumerable: true,
+    get: () => currentDb,
+    set(value) {
+      currentDb = value;
+      const name = value instanceof DB ? value.getName() : null;
+      shell.dbName = typeof name === 'string' && VALID_DB_NAME.test(name) ? name : null;
+    },
+  });
+
   const shell = {
+    dbName: null,
     beginRun(name) {
       globalThis.db = new DB(name);
     },

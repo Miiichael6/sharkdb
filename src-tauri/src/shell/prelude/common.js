@@ -29,7 +29,15 @@
     throw error;
   }
 
-  const withId = (doc) => ('_id' in doc ? doc : { _id: ObjectId(), ...doc });
+  // Sin `_id` se genera un ObjectId. Con `_id: undefined` (variable sin asignar, propiedad mal
+  // escrita) se guardaría `_id: null` y el siguiente insert igual daría duplicate key: se rechaza.
+  function withId(doc, name) {
+    if (!('_id' in doc)) return { _id: ObjectId(), ...doc };
+    if (doc._id === undefined) {
+      failWith('Error', `${name}: el documento tiene _id undefined; quita la clave para que se genere un ObjectId o dale un valor`);
+    }
+    return doc;
+  }
 
   // `stats(1024)` o `stats({ scale: 1024 })`, como en el shell clásico.
   const scaleOption = (scale) => (typeof scale === 'number' ? { scale } : scale ?? {});

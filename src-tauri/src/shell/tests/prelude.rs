@@ -100,6 +100,116 @@ fn projected_or_aggregate_cursor_is_not_editable() {
     assert!(!editable(&mut session, "db.x.aggregate([])"));
 }
 
+/// Operaciones (`op`) que recibió el servidor falso, en orden.
+fn server_ops(session: &mut ShellSession) -> Vec<String> {
+    let ops = value(&run_ok(session, "__calls.map((call) => call.op)")).expect("llamadas");
+    ops.as_array()
+        .expect("array")
+        .iter()
+        .map(|op| op.as_str().expect("op").to_owned())
+        .collect()
+}
+
+#[test]
+fn write_pipeline_runs_when_called_even_if_not_read() {
+    let (mut assigned, _) = session();
+    run_ok(
+        &mut assigned,
+        "var r = db.x.aggregate([{ $match: {} }, { $merge: 'b' }]); 1",
+    );
+    assert_eq!(server_ops(&mut assigned), ["aggregate"]);
+
+    let (mut looped, _) = session();
+    run_ok(
+        &mut looped,
+        "for (const m of [1, 2, 3]) db.v.aggregate([{ $match: { m } }, { $merge: { into: 'resumen' } }]); 1",
+    );
+    assert_eq!(
+        server_ops(&mut looped),
+        ["aggregate", "aggregate", "aggregate"]
+    );
+
+    // Con las etapas sueltas en vez de en un array, como en el shell clásico.
+    let (mut spread, _) = session();
+    run_ok(
+        &mut spread,
+        "db.x.aggregate({ $match: {} }, { $out: 'y' }); 1",
+    );
+    assert_eq!(server_ops(&mut spread), ["aggregate"]);
+}
+
+#[test]
+fn write_pipeline_runs_in_script_order() {
+    let (mut session, _) = session();
+    run_ok(
+        &mut session,
+        "var r = db.x.aggregate([{ $out: 'y' }]); db.y.find().toArray(); r.toArray(); 1",
+    );
+    // Recorrerlo después lee su resultado: no lo vuelve a ejecutar.
+    assert_eq!(server_ops(&mut session), ["aggregate", "find"]);
+}
+
+#[test]
+fn write_pipeline_shown_as_result_runs_once() {
+    let (mut session, _) = session();
+    let outcome = run_ok(
+        &mut session,
+        "db.x.aggregate([{ $match: {} }, { $out: 'y' }])",
+    );
+    assert!(matches!(
+        &outputs(&outcome)[..],
+        [ScriptOutput::Cursor { .. }]
+    ));
+    assert_eq!(server_ops(&mut session), ["aggregate"]);
+}
+
+#[test]
+fn read_pipeline_stays_lazy() {
+    let (mut session, _) = session();
+    // `$out` dentro de un `$match` es un campo, no una etapa.
+    run_ok(
+        &mut session,
+        "var r = db.x.aggregate([{ $match: { $out: 1 } }]).allowDiskUse().maxTimeMS(5); 1",
+    );
+    assert!(server_ops(&mut session).is_empty());
+}
+
+#[test]
+fn write_pipeline_takes_options_in_the_second_argument() {
+    let (mut session, _) = session();
+    run_ok(
+        &mut session,
+        "db.x.aggregate([{ $out: 'y' }], { allowDiskUse: true }); 1",
+    );
+    let aggregate = first_call(&mut session);
+    assert_eq!(
+        aggregate.get_document("options"),
+        Ok(&doc! { "allowDiskUse": true })
+    );
+
+    let outcome = session.run(DB, "db.x.aggregate([{ $out: 'y' }]).allowDiskUse()", None);
+    let error = outcome.error.expect("modificador tras ejecutarse");
+    assert!(
+        error
+            .message
+            .contains("allowDiskUse: un aggregate con $out o $merge se ejecuta al llamarlo"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn view_or_timeseries_cursor_is_not_editable() {
+    let (mut session, _) = session();
+    let editable = |session: &mut _, script| match &outputs(&run_ok(session, script))[..] {
+        [ScriptOutput::Cursor { editable, .. }] => *editable,
+        other => panic!("se esperaba un cursor: {other:?}"),
+    };
+    assert!(!editable(&mut session, "db.vista.find({})"));
+    assert!(!editable(&mut session, "db.serie.find({})"));
+    assert!(editable(&mut session, "db.x.find({})"));
+}
+
 /// Ids `_id` del cursor que deja la última sentencia.
 fn cursor_ids(outcome: &ScriptOutcome) -> Vec<i32> {
     let [.., ScriptOutput::Cursor { documents, .. }] = &outputs(outcome)[..] else {
@@ -199,6 +309,7 @@ fn use_switches_db_for_the_rest_of_the_script() {
     let (mut session, _) = session();
     let outcome = run_ok(&mut session, "use otra; db.y.count()");
     assert_eq!(prints(&outcome), ["switched to db otra"]);
+    assert_eq!(outcome.db.as_deref(), Some("otra"));
     assert_eq!(value(&outcome), Some(Bson::Int32(1)));
     let count = first_call(&mut session);
     assert_eq!(count.get_str("db"), Ok("otra"));
@@ -212,6 +323,37 @@ fn use_switches_db_for_the_rest_of_the_script() {
         value(&run_ok(&mut session, "db.getName()")),
         Some(Bson::String(DB.into()))
     );
+}
+
+#[test]
+fn outcome_reports_the_db_the_script_ends_on() {
+    let (mut session, _) = session();
+    let db_after = |session: &mut ShellSession, code: &str| session.run(DB, code, None).db;
+
+    assert_eq!(db_after(&mut session, "1").as_deref(), Some(DB));
+    assert_eq!(db_after(&mut session, "use a
+use b").as_deref(), Some("b"));
+    assert_eq!(
+        db_after(&mut session, "db = db.getSiblingDB('otra')").as_deref(),
+        Some("otra")
+    );
+    assert_eq!(
+        db_after(&mut session, "var db = db.getSiblingDB('otra')").as_deref(),
+        Some("otra")
+    );
+    // Usar otra base de datos sin asignarla a `db` no la cambia.
+    assert_eq!(
+        db_after(&mut session, "var o = db.getSiblingDB('otra'); o.getName()").as_deref(),
+        Some(DB)
+    );
+    // `use` cuenta aunque el script falle después.
+    let failed = session.run(DB, "use otra
+throw new Error('x')", None);
+    assert!(failed.error.is_some());
+    assert_eq!(failed.db.as_deref(), Some("otra"));
+    // Si `db` deja de ser una base de datos (o un nombre inválido), la pestaña sigue en la suya.
+    assert_eq!(db_after(&mut session, "db = 5"), None);
+    assert_eq!(db_after(&mut session, "db = db.getSiblingDB('a.b')"), None);
 }
 
 #[test]

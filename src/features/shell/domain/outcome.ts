@@ -48,6 +48,8 @@ export interface ScriptOutcome {
   elapsedMs: number;
   /** Part of `elapsedMs` waiting for the server; null when the script sent no query. */
   queryMs: number | null;
+  /** Database `db` pointed to when the script ended (`use`, `db = db.getSiblingDB(…)`); null if it ended as something else. */
+  db: string | null;
 }
 
 export interface CursorBatch {

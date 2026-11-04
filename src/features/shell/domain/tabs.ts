@@ -167,6 +167,16 @@ export function updateTab(state: TabsState, id: string, patch: Partial<Omit<Shel
   return { ...state, tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)) };
 }
 
+/**
+ * The tab goes on in `db` (the script ran `use` or reassigned `db`). It's no longer on its collection,
+ * so the collection is dropped.
+ */
+export function switchTabDb(state: TabsState, id: string, db: string): TabsState {
+  const tab = state.tabs.find((t) => t.id === id);
+  if (!tab || tab.db === db) return state;
+  return updateTab(state, id, { db, coll: undefined });
+}
+
 export const renameTab = (state: TabsState, id: string, title: string): TabsState =>
   title.trim() ? updateTab(state, id, { title: title.trim() }) : state;
 

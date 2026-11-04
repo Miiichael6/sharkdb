@@ -101,7 +101,7 @@ export function menuFor(n: TreeNode): MenuItem[] {
         { label: "Crear colección…", action: "createCollection" },
         { label: "Refrescar", action: "refresh" },
       ];
-    case "collection":
+    case "collection": {
       if (n.data?.type === "view") {
         return [
           { label: "Abrir shell", action: "openShell" },
@@ -109,6 +109,8 @@ export function menuFor(n: TreeNode): MenuItem[] {
           { label: "Eliminar vista…", action: "dropCollection", danger: true },
         ];
       }
+      // The server can't rename a timeseries collection or set a validator on it.
+      const timeseries = n.data?.type === "timeseries";
       return [
         { label: "Ver documentos", action: "viewDocuments" },
         "sep",
@@ -117,7 +119,7 @@ export function menuFor(n: TreeNode): MenuItem[] {
         { label: "Eliminar documentos…", action: "removeDocuments" },
         { label: "Eliminar todos los documentos…", action: "removeAllDocuments", danger: true },
         "sep",
-        { label: "Renombrar colección…", action: "renameCollection" },
+        ...(timeseries ? [] : [{ label: "Renombrar colección…", action: "renameCollection" } as const]),
         { label: "Duplicar colección…", action: "duplicateCollection" },
         { label: "Copiar colección a base de datos…", action: "copyCollection" },
         { label: "Eliminar colección…", action: "dropCollection", danger: true },
@@ -128,11 +130,12 @@ export function menuFor(n: TreeNode): MenuItem[] {
         "sep",
         { label: "Estadísticas", action: "collStats" },
         { label: "Añadir índice…", action: "addIndex" },
-        { label: "Validación…", action: "editValidation" },
+        ...(timeseries ? [] : [{ label: "Validación…", action: "editValidation" } as const]),
         "sep",
         { label: "Versión de shard", action: "shardVersion" },
         { label: "Distribución de shards", action: "shardDistribution" },
       ];
+    }
     case "indexes":
       return [
         { label: "Ver índices", action: "viewIndexes" },

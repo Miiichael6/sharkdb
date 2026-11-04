@@ -17,6 +17,7 @@ mod options;
 mod query_clock;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::future::Future;
 use std::rc::Rc;
 use std::time::Duration;
@@ -54,6 +55,10 @@ pub struct MongoNatives {
     handle: Handle,
     watchdog: Watchdog,
     cursors: Rc<RefCell<CursorRegistry<Slot>>>,
+    /// Último lote que leyó el script de cada cursor, en BSON: lo que quede en el buffer de
+    /// `cursor.js` al mostrar el cursor sale de aquí. Se suelta al cerrar el cursor o al acabar
+    /// la ejecución (`retain_cursors`).
+    script_batches: Rc<RefCell<HashMap<CursorId, Vec<Bson>>>>,
     query_clock: QueryClock,
 }
 
@@ -65,6 +70,7 @@ impl MongoNatives {
             handle,
             watchdog,
             cursors: Rc::default(),
+            script_batches: Rc::default(),
             query_clock: QueryClock::default(),
         }
     }
@@ -345,7 +351,9 @@ impl MongoBridge for MongoNatives {
         let me = self.clone();
         let cursor_next = move |ctx: Ctx<'js>, id: CursorId, size: usize| {
             let batch = me.read(id, size).map_err(|e| throw(&ctx, &e))?;
-            batch_to_js(&ctx, &batch)
+            let documents = batch_to_js(&ctx, &batch)?;
+            me.script_batches.borrow_mut().insert(id, batch.documents);
+            Ok::<_, rquickjs::Error>(documents)
         };
         natives.set("cursorNext", Function::new(ctx.clone(), cursor_next)?)?;
 
@@ -369,12 +377,20 @@ impl MongoBridge for MongoNatives {
         self.read(cursor, size)
     }
 
+    fn buffered(&self, cursor: CursorId, count: usize) -> Option<Vec<Bson>> {
+        let mut batch = self.script_batches.borrow_mut().remove(&cursor)?;
+        let start = batch.len().checked_sub(count)?;
+        Some(batch.split_off(start))
+    }
+
     fn close_cursor(&self, cursor: CursorId) {
+        self.script_batches.borrow_mut().remove(&cursor);
         let closed = self.cursors.borrow_mut().take(cursor);
         drop(closed);
     }
 
     fn retain_cursors(&self, keep: &[CursorId]) {
+        self.script_batches.borrow_mut().clear();
         self.cursors.borrow_mut().retain(keep);
     }
 

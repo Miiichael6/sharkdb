@@ -2,19 +2,17 @@
 import { useState } from "react";
 import { displayName, type MongoConnection } from "../features/connections/domain/connection";
 import type { Session } from "../features/connections/domain/session";
-import { databaseNode, serverNode, type TreeNode } from "../features/explorer/domain/tree";
+import { serverNode, type TreeNode } from "../features/explorer/domain/tree";
 import type { Action } from "../features/explorer/ui/Explorer";
 import type { WorkspaceControls } from "../features/explorer/ui/Workspace";
 import {
   actionItems,
   connectionItems,
-  databaseItems,
   type QuickActionId,
   type QuickItem,
   type QuickOpenMode,
 } from "../features/workspace/domain/quickOpen";
 import type { PanelLayout } from "../features/workspace/ui/usePanelLayout";
-import { useQuickDatabases } from "./useQuickDatabases";
 
 /** The tree action each quick action runs. */
 const TREE_ACTIONS: Record<QuickActionId, Action> = {
@@ -46,7 +44,6 @@ export interface QuickOpenState {
 export function useQuickOpen({ controls, sessions, connections, layout, target, onConnect }: Options): QuickOpenState {
   const [mode, setMode] = useState<QuickOpenMode | null>(null);
 
-  const quickDatabases = useQuickDatabases(sessions);
   const session = target && sessions.find((s) => s.conn.id === target.sid);
   // Only while the palette is open: the toolbar renders far more often than the palette is used.
   const targetNode =
@@ -63,8 +60,6 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
         return connectionItems(
           connections.map((c) => ({ id: c.id, name: displayName(c), open: sessions.some((s) => s.conn.id === c.id) })),
         );
-      case "database":
-        return databaseItems(quickDatabases.databases);
       case "action":
         return actionItems(!!session);
       default:
@@ -79,16 +74,6 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
     else onConnect(conn);
   };
 
-  /** Opens it as temporary (when it isn't in the list yet) and a shell on it. */
-  const pickDatabase = (key: string) => {
-    const entry = quickDatabases.databases.find((d) => d.key === key);
-    const conn = entry && sessions.find((s) => s.conn.id === entry.sid)?.conn;
-    if (!entry || !conn) return;
-    layout.showSidebar();
-    controls.openDatabases(entry.sid, [entry.db]);
-    controls.runAction("openShell", databaseNode(serverNode(entry.sid, displayName(conn)), entry.db));
-  };
-
   const pickAction = (id: string) => {
     const action = TREE_ACTIONS[id as QuickActionId];
     // Each action chooses its databases in its own window: the connection is enough.
@@ -100,14 +85,10 @@ export function useQuickOpen({ controls, sessions, connections, layout, target, 
 
   const pick = (id: string) => {
     if (mode === "connection") pickConnection(id);
-    else if (mode === "database") pickDatabase(id);
     else if (mode === "action") pickAction(id);
   };
 
-  const open = (next: QuickOpenMode) => {
-    setMode(next);
-    if (next === "database") void quickDatabases.load();
-  };
+  const open = (next: QuickOpenMode) => setMode(next);
 
   const context =
     targetNode && session ? `${targetNode.db} · ${displayName(session.conn)}` : session ? displayName(session.conn) : undefined;

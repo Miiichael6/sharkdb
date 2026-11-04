@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useExclusivePopup } from "./useExclusivePopup";
 import { useFitInWindow } from "./useFitInWindow";
 
 export interface ContextMenuItem {
@@ -57,6 +58,8 @@ export function ContextMenu({ x, y, items, onClose, label, flipX, onBack }: Prop
     };
   }, [onClose]);
 
+  // A submenu (it has `onBack`) belongs to its menu: it must not close it.
+  useExclusivePopup(onClose, !onBack);
   useFitInWindow(listRef, x, y, flipX);
   // One item with an icon keeps a column for icons, so every label lines up.
   const withIcons = items.some((item) => item.icon);

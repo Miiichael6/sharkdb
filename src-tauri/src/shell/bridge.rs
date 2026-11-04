@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 
+use mongodb::bson::Bson;
 use rquickjs::{Ctx, Object};
 
 use super::outcome::{CursorBatch, CursorId};
@@ -23,6 +24,11 @@ pub trait MongoBridge {
         cursor: CursorId,
         size: usize,
     ) -> Result<CursorBatch, String>;
+
+    /// Los últimos `count` documentos del último lote que leyó el script de `cursor`, tal como
+    /// llegaron del servidor: lo que aún tenía en el buffer, sin pasar por JS (que no distingue
+    /// `5.0` de `5`). `None` si no se guardó ese lote.
+    fn buffered(&self, cursor: CursorId, count: usize) -> Option<Vec<Bson>>;
 
     fn close_cursor(&self, cursor: CursorId);
 

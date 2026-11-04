@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
+use mongodb::bson::Bson;
 use rquickjs::{Ctx, Function, Object, Value};
 
 use crate::shell::bridge::MongoBridge;
@@ -43,6 +44,10 @@ impl MongoBridge for FakeBridge {
         size: usize,
     ) -> Result<CursorBatch, String> {
         read_from_js(ctx, cursor, size).map_err(|e| e.to_string())
+    }
+
+    fn buffered(&self, _: CursorId, _: usize) -> Option<Vec<Bson>> {
+        None
     }
 
     fn close_cursor(&self, _: CursorId) {}

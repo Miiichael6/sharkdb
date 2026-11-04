@@ -45,16 +45,38 @@ impl OpenClient {
 /// opened; it closes when the last one that holds it lets it go.
 struct Detached {
     client: OpenClient,
+    /// Where it was opened to: a hold for a connection edited since then must not reuse it.
+    endpoint: Endpoint,
     holders: usize,
+}
+
+/// Where a client leads: its URI and, through a tunnel, the SSH server it goes through.
+#[derive(Clone, Debug, PartialEq)]
+struct Endpoint {
+    uri: String,
+    ssh: Option<(String, u16)>,
+}
+
+impl Endpoint {
+    fn new(uri: &str, ssh: Option<&SshConfig>) -> Self {
+        Self { uri: uri.to_string(), ssh: ssh.map(|s| (s.host.clone(), s.port)) }
+    }
 }
 
 const DETACHED_READ_ONLY: &str =
     "La conexión ya está abierta aparte en solo lectura por otra operación; espera a que termine";
+const DETACHED_EDITED: &str =
+    "La conexión cambió mientras otra operación la usa con sus datos anteriores; espera a que termine";
 
 impl Detached {
-    /// Another hold on this client, in `safe_mode`. The strictest mode wins: asking for read-only
-    /// turns it on for every holder, and asking to write while it is read-only fails.
-    fn join(&mut self, safe_mode: bool) -> Result<Client, String> {
+    /// Another hold on this client, in `safe_mode`, for a connection that now leads to `endpoint`.
+    /// Fails when the connection was edited since the client was opened (it would write on the old
+    /// server while the checks looked at the new one). The strictest mode wins: asking for
+    /// read-only turns it on for every holder, and asking to write while it is read-only fails.
+    fn join(&mut self, safe_mode: bool, endpoint: &Endpoint) -> Result<Client, String> {
+        if *endpoint != self.endpoint {
+            return Err(DETACHED_EDITED.into());
+        }
         let current = &self.client.safe_mode;
         if safe_mode {
             current.set(true);
@@ -253,7 +275,8 @@ pub async fn open_detached(
     safe_mode: bool,
 ) -> Result<ServerInfo, String> {
     let known_hosts = known_hosts_path(&app)?;
-    sessions.hold_detached(&id, safe_mode, || open(&uri, ssh, known_hosts, safe_mode)).await
+    let endpoint = Endpoint::new(&uri, ssh.as_ref());
+    sessions.hold_detached(&id, safe_mode, endpoint, || open(&uri, ssh, known_hosts, safe_mode)).await
 }
 
 /// Lets go of a hold taken by `open_detached`; the last one closes the client.
@@ -265,14 +288,20 @@ pub async fn close_detached(sessions: State<'_, Sessions>, id: String) -> Result
 
 impl Sessions {
     /// Takes a hold on the client opened apart for `id`, opening it with `open_client` (in
-    /// `safe_mode`) when there's none; fails (holding nothing) when the server doesn't answer or
-    /// the client already open can't be used in `safe_mode` (see `Detached::join`).
-    async fn hold_detached<F, Fut>(&self, id: &str, safe_mode: bool, open_client: F) -> Result<ServerInfo, String>
+    /// `safe_mode`, to `endpoint`) when there's none; fails (holding nothing) when the server
+    /// doesn't answer or the client already open can't be used (see `Detached::join`).
+    async fn hold_detached<F, Fut>(
+        &self,
+        id: &str,
+        safe_mode: bool,
+        endpoint: Endpoint,
+        open_client: F,
+    ) -> Result<ServerInfo, String>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<OpenClient, String>>,
     {
-        let held = self.detached.lock().await.get_mut(id).map(|held| held.join(safe_mode));
+        let held = self.detached.lock().await.get_mut(id).map(|held| held.join(safe_mode, &endpoint));
         if let Some(client) = held {
             let client = client?;
             let info = server_info(&client).await;
@@ -293,13 +322,13 @@ impl Sessions {
         match detached.get_mut(id) {
             // Another call opened it meanwhile: this one shares that client.
             Some(held) => {
-                let joined = held.join(safe_mode).map(|_| ());
+                let joined = held.join(safe_mode, &endpoint).map(|_| ());
                 drop(detached);
                 client.shutdown().await;
                 joined?;
             }
             None => {
-                detached.insert(id.to_string(), Detached { client, holders: 1 });
+                detached.insert(id.to_string(), Detached { client, endpoint, holders: 1 });
             }
         }
         Ok(info)
@@ -482,10 +511,14 @@ mod tests {
         OpenClient { client, tunnel: None, uri: String::new(), safe_mode: SafeMode::new(safe_mode) }
     }
 
+    fn endpoint(host: &str) -> Endpoint {
+        Endpoint::new(&format!("mongodb://{host}/"), None)
+    }
+
     #[tokio::test]
     async fn an_open_session_wins_over_the_detached_client() {
         let sessions = Sessions::default();
-        sessions.detached.lock().await.insert("c".into(), Detached { client: idle_client(false).await, holders: 1 });
+        sessions.detached.lock().await.insert("c".into(), Detached { client: idle_client(false).await, endpoint: endpoint("a"), holders: 1 });
         sessions.open.lock().await.insert("c".into(), idle_client(true).await);
         assert!(session_with_safe_mode(&sessions, "c").await.unwrap().1.is_enabled());
 
@@ -510,9 +543,9 @@ mod tests {
             let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
             open("mongodb://127.0.0.1:27017/?serverSelectionTimeoutMS=2000", None, known_hosts, false).await
         };
-        let info = sessions.hold_detached("local", false, open_local).await.unwrap();
+        let info = sessions.hold_detached("local", false, endpoint("local"), open_local).await.unwrap();
         assert!(!info.databases.is_empty());
-        sessions.hold_detached("local", false, open_local).await.unwrap();
+        sessions.hold_detached("local", false, endpoint("local"), open_local).await.unwrap();
         assert_eq!(opened.load(std::sync::atomic::Ordering::SeqCst), 1);
 
         sessions.release_detached("local").await;
@@ -530,22 +563,33 @@ mod tests {
             let known_hosts = std::env::temp_dir().join("robo3b-it-known_hosts");
             open("mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200", None, known_hosts, false).await
         };
-        assert!(sessions.hold_detached("down", false, unreachable).await.is_err());
+        assert!(sessions.hold_detached("down", false, endpoint("down"), unreachable).await.is_err());
         assert!(sessions.detached.lock().await.is_empty());
     }
 
     #[tokio::test]
     async fn a_shared_detached_client_takes_the_strictest_safe_mode() {
-        let mut writable = Detached { client: idle_client(false).await, holders: 1 };
-        writable.join(true).unwrap();
+        let mut writable = Detached { client: idle_client(false).await, endpoint: endpoint("a"), holders: 1 };
+        writable.join(true, &endpoint("a")).unwrap();
         assert!(writable.client.safe_mode.is_enabled());
         assert_eq!(writable.holders, 2);
 
-        let mut read_only = Detached { client: idle_client(true).await, holders: 1 };
-        assert_eq!(read_only.join(false).unwrap_err(), DETACHED_READ_ONLY);
+        let mut read_only = Detached { client: idle_client(true).await, endpoint: endpoint("a"), holders: 1 };
+        assert_eq!(read_only.join(false, &endpoint("a")).unwrap_err(), DETACHED_READ_ONLY);
         assert_eq!(read_only.holders, 1);
-        read_only.join(true).unwrap();
+        read_only.join(true, &endpoint("a")).unwrap();
         assert!(read_only.client.safe_mode.is_enabled());
+    }
+
+    #[tokio::test]
+    async fn a_detached_client_is_not_shared_once_its_connection_leads_elsewhere() {
+        let mut held = Detached { client: idle_client(false).await, endpoint: endpoint("prod"), holders: 1 };
+        assert_eq!(held.join(false, &endpoint("qa")).unwrap_err(), DETACHED_EDITED);
+        let through_ssh = Endpoint { ssh: Some(("bastion".into(), 22)), ..endpoint("prod") };
+        assert_eq!(held.join(false, &through_ssh).unwrap_err(), DETACHED_EDITED);
+        assert_eq!(held.holders, 1);
+        held.join(false, &endpoint("prod")).unwrap();
+        assert_eq!(held.holders, 2);
     }
 
     #[test]

@@ -113,7 +113,7 @@ export function TabBar({ entries, activeId, onActivate, onClose, onDuplicate, on
       </div>
 
       {menu && (
-        <MenuList x={menu.x} y={menu.y}>
+        <MenuList x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
           <li onClick={() => onDuplicate(focusedPane(menu.entry).id)}>Duplicar</li>
           <li onClick={() => setEditing(menu.entry.id)}>Renombrar</li>
           {menu.entry.split && <li onClick={() => onSeparate(menu.entry.id)}>Separar pestaña</li>}

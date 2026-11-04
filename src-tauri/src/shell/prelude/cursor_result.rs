@@ -1,6 +1,7 @@
 //! Cursor que queda como valor de una sentencia → `ScriptOutput::Cursor`. Lo que el script ya
-//! había leído viene de JS; el resto del primer lote se lee del puente en BSON, sin convertir
-//! los documentos a valores de QuickJS y de vuelta.
+//! había leído sale del lote en BSON que guardó el puente (de vuelta de JS, un Double entero
+//! sería Int32, un Symbol String y un Undefined Null); el resto del primer lote se lee del
+//! puente en BSON, sin convertir los documentos a valores de QuickJS y de vuelta.
 
 use mongodb::bson::Bson;
 use rquickjs::function::This;
@@ -26,15 +27,25 @@ struct DescribedCursor<'js> {
 }
 
 impl<'js> DescribedCursor<'js> {
-    fn read(ctx: &Ctx<'js>, described: &Object<'js>) -> rquickjs::Result<Self> {
+    fn read(
+        ctx: &Ctx<'js>,
+        described: &Object<'js>,
+        bridge: &dyn MongoBridge,
+    ) -> rquickjs::Result<Self> {
         let documents: Vec<Value> = described.get("documents")?;
-        Ok(Self {
-            ns: described.get("ns")?,
-            id: described.get("id")?,
-            documents: documents
+        let buffer_from: Option<CursorId> = described.get("bufferFrom")?;
+        let original = buffer_from.and_then(|id| bridge.buffered(id, documents.len()));
+        let documents = match original {
+            Some(original) => original,
+            None => documents
                 .iter()
                 .map(|doc| js_to_bson(ctx, doc))
                 .collect::<rquickjs::Result<_>>()?,
+        };
+        Ok(Self {
+            ns: described.get("ns")?,
+            id: described.get("id")?,
+            documents,
             exhausted: described.get("exhausted")?,
             missing: described.get("missing")?,
             editable: described.get("editable")?,
@@ -58,7 +69,7 @@ pub fn cursor_result<'js>(
     bridge: &dyn MongoBridge,
 ) -> Result<ScriptOutput, ScriptError> {
     let script_error = || describe_thrown(ctx, ctx.catch(), ScriptErrorKind::Script);
-    let mut cursor = DescribedCursor::read(ctx, described).map_err(|_| script_error())?;
+    let mut cursor = DescribedCursor::read(ctx, described, bridge).map_err(|_| script_error())?;
     if let Some(id) = cursor.id.filter(|_| cursor.missing > 0) {
         let batch = bridge
             .result_batch(ctx, id, cursor.missing)

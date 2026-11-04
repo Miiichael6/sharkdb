@@ -12,13 +12,11 @@ import { QuickActionIcon } from "./QuickActionIcon";
 
 const EMPTY_TEXT: Record<QuickOpenMode, string> = {
   connection: "No hay conexiones que coincidan",
-  database: "No hay bases de datos cargadas que coincidan",
   action: "No hay acciones que coincidan",
 };
 
 const ICONS: Record<QuickOpenMode, (item: QuickItem) => ReactNode> = {
   connection: () => <NodeIcon kind="server" />,
-  database: () => <NodeIcon kind="database" />,
   action: (item) => <QuickActionIcon id={item.id as QuickActionId} />,
 };
 
@@ -31,7 +29,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** The quick open palette in one of its modes: open connection, open database or database actions. */
+/** The quick open palette in one of its modes: open connection or database actions. */
 export function QuickOpen({ mode, context, items, onPick, onClose }: Props) {
   const [query, setQuery] = useState("");
   const ranked = useMemo(

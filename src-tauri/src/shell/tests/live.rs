@@ -195,6 +195,12 @@ async fn live_safe_mode_rejects_writes() {
         "db.createUser({ user: 'u', pwd: 'p', roles: [] })",
         "db.grantRolesToUser('u', ['read'])",
         "db.killOp(1)",
+        "db.runCommand({ deleteIndexes: 'x', index: '*' })",
+        "db.adminCommand({ updateZoneKeyRange: 'a.x', min: { k: 0 }, max: { k: 10 }, zone: null })",
+        "db.adminCommand({ addShardToZone: 'shard0', zone: 'z' })",
+        "db.adminCommand({ setQuerySettings: { find: 'x', filter: {}, $db: 'a' }, settings: {} })",
+        "db.adminCommand({ setChangeStreamState: 1, enabled: false })",
+        "db.adminCommand({ appendOplogNote: 1, data: {} })",
     ] {
         let outcome = shell
             .run(SAFE_DB.into(), write.into(), None, RunOptions::default())
@@ -444,6 +450,72 @@ async fn live_cancelled_write_stops_on_the_server() {
     client.database(CUT_DB).drop(None).await.unwrap();
 }
 
+const WRITE_PIPELINE_DB: &str = "robo3b_test_write_pipeline";
+
+/// Como en Robo 3T: un aggregate con `$out`/`$merge` escribe al llamarlo, aunque se guarde en una
+/// variable, vaya en un bucle o llegue cuando ya no caben más resultados.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_write_pipeline_runs_when_called() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let shell = spawn(&client);
+    run_ok_in(
+        &shell,
+        WRITE_PIPELINE_DB,
+        "db.dropDatabase(); db.v.insertMany([{ m: 1, n: 2 }, { m: 1, n: 3 }, { m: 2, n: 5 }])",
+    )
+    .await;
+    let count = |coll: &str| format!("db.{coll}.countDocuments({{}})");
+
+    run_ok_in(
+        &shell,
+        WRITE_PIPELINE_DB,
+        "var r = db.v.aggregate([{ $match: {} }, { $out: 'copia' }]); 1",
+    )
+    .await;
+    assert_eq!(
+        value(&run_ok_in(&shell, WRITE_PIPELINE_DB, &count("copia")).await),
+        Some(Bson::Int32(3))
+    );
+
+    // Cada vuelta escribe antes de la siguiente, y el find de después ya ve lo escrito.
+    let looped = run_ok_in(
+        &shell,
+        WRITE_PIPELINE_DB,
+        "for (const m of [1, 2]) {
+           db.v.aggregate([{ $match: { m } }, { $group: { _id: '$m', total: { $sum: '$n' } } },
+                           { $merge: { into: 'resumen' } }]);
+         }
+         db.resumen.find().sort({ _id: 1 }).toArray()",
+    )
+    .await;
+    assert_eq!(
+        value(&looped),
+        Some(Bson::Array(vec![
+            Bson::Document(doc! { "_id": 1, "total": 5 }),
+            Bson::Document(doc! { "_id": 2, "total": 5 }),
+        ]))
+    );
+
+    // Pasado el límite de resultados la sentencia ya no se muestra, pero escribe igual.
+    run_ok_in(
+        &shell,
+        WRITE_PIPELINE_DB,
+        &format!(
+            "{}db.v.aggregate([{{ $out: 'tarde' }}])",
+            "1;\n".repeat(110)
+        ),
+    )
+    .await;
+    assert_eq!(
+        value(&run_ok_in(&shell, WRITE_PIPELINE_DB, &count("tarde")).await),
+        Some(Bson::Int32(3))
+    );
+
+    drop(shell);
+    client.database(WRITE_PIPELINE_DB).drop(None).await.unwrap();
+}
+
 const CUT_AGGREGATE_DB: &str = "robo3b_test_cut_aggregate";
 
 /// Cancelar una agregación con `$merge` (no muere con su sesión) la mata en el servidor por su
@@ -494,4 +566,65 @@ async fn live_cancelled_write_aggregate_stops_on_the_server() {
 
     drop(shell);
     client.database(CUT_AGGREGATE_DB).drop(None).await.unwrap();
+}
+
+const TYPES_DB: &str = "robo3b_test_tipos";
+
+/// Lo que el script ya leyó de un cursor se muestra con los tipos del servidor: de vuelta de JS,
+/// un Double entero sería Int32, un Symbol String y un Undefined Null (y guardar la edición los
+/// cambiaría en la base de datos).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "necesita MongoDB en 127.0.0.1:27017"]
+async fn live_cursor_read_by_the_script_keeps_bson_types() {
+    let client = Client::with_uri_str(LIVE_URI).await.unwrap();
+    let database = client.database(TYPES_DB);
+    database.drop(None).await.unwrap();
+    let typed = |id: i32| {
+        doc! {
+            "_id": id,
+            "precio": Bson::Double(5.0),
+            "simbolo": Bson::Symbol("s".into()),
+            "nada": Bson::Undefined,
+        }
+    };
+    database
+        .collection("pocos")
+        .insert_many((1..=3).map(typed), None)
+        .await
+        .unwrap();
+    database
+        .collection("muchos")
+        .insert_many((0..250).map(typed), None)
+        .await
+        .unwrap();
+    let shell = spawn(&client);
+    let assert_typed = |documents: &[Bson], code: &str| {
+        for document in documents {
+            let document = document.as_document().unwrap();
+            assert_eq!(document, &typed(document.get_i32("_id").unwrap()), "{code}");
+        }
+    };
+
+    // Agotado en el primer lote: `_id` ya es null, el buffer sigue de ese cursor.
+    let code = "var c = db.pocos.find().sort({ _id: 1 }); var h = c.hasNext(); c";
+    let (_, documents, exhausted) = single_cursor(&run_ok_in(&shell, TYPES_DB, code).await);
+    assert_eq!((ids(&documents), exhausted), (vec![1, 2, 3], true));
+    assert_typed(&documents, code);
+
+    // Lo que queda tras `next()`: la cola del lote.
+    let code = "var c = db.pocos.find().sort({ _id: 1 }); var d = c.next(); c";
+    let (_, documents, _) = single_cursor(&run_ok_in(&shell, TYPES_DB, code).await);
+    assert_eq!(ids(&documents), vec![2, 3]);
+    assert_typed(&documents, code);
+
+    // Cola del segundo lote del script más lo que falta de la página, leído del servidor.
+    let code = "var c = db.muchos.find().sort({ _id: 1 }); for (var i = 0; i < 195; i++) c.next(); c";
+    let (cursor_id, documents, _) = single_cursor(&run_ok_in(&shell, TYPES_DB, code).await);
+    let read = ids(&documents);
+    assert!(read.len() > 5 && cursor_id.is_some(), "{read:?}");
+    assert_eq!(read, (195..195 + read.len() as i32).collect::<Vec<_>>());
+    assert_typed(&documents, code);
+
+    drop(shell);
+    database.drop(None).await.unwrap();
 }

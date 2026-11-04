@@ -13,6 +13,7 @@ import {
   openTab,
   renameTab,
   runCollectionTab,
+  switchTabDb,
   updateTab,
   type TabsState,
 } from "./tabs";
@@ -86,6 +87,12 @@ describe("tabs", () => {
   it("renames, ignoring blank titles", () => {
     expect(renameTab(three("a"), "a", "  mi consulta ").tabs[0].title).toBe("mi consulta");
     expect(renameTab(three("a"), "a", "  ").tabs[0].title).toBe("a");
+  });
+
+  it("moves to the database a run switched to, leaving its collection", () => {
+    const s = openTab(EMPTY_TABS, "a", { ...on("shop"), coll: "orders" });
+    expect(switchTabDb(s, "a", "shop")).toBe(s);
+    expect(switchTabDb(s, "a", "catalog").tabs[0]).toMatchObject({ db: "catalog", coll: undefined, title: "orders" });
   });
 
   it("tracks unsaved changes of file-backed tabs against the last saved code", () => {

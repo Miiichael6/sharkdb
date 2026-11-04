@@ -157,7 +157,7 @@ export function OpenDatabaseDialog({ data, onFavorites, onCreate, onDone }: Prop
 }
 
 /** A monitor on its stand: the server's address. */
-function ComputerIcon() {
+export function ComputerIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
       <rect x="1.8" y="2.5" width="12.4" height="8.5" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.3" />

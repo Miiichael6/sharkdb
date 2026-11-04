@@ -78,6 +78,8 @@ interface Props {
   /** Clicked or focused: it becomes the active pane. */
   onFocus: () => void;
   onCodeChange: (code: string) => void;
+  /** The script left `db` on another database (`use`). */
+  onDbChange: (db: string) => void;
   onOpenFile: () => void;
   onSave: () => void;
 }
@@ -86,10 +88,10 @@ interface Props {
  * A shell tab: where it runs (server · database · last run time), the script editor (as tall as its
  * script, up to MAX_FIT_LINES, and can be hidden) and its results, resizable.
  */
-export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange, onOpenFile, onSave }: Props) {
+export function ShellTab({ tab, shown, activePane, style, onFocus, onCodeChange, onDbChange, onOpenFile, onSave }: Props) {
   const { schema } = useServices();
   const serverOf = useServerOf();
-  const run = useShellRun(tab);
+  const run = useShellRun(tab, onDbChange);
   const settings = useSettings();
   const views = useResultViews({ mode: settings.defaultView, zone: settings.dateZone });
   const history = useHistoryBrowser(tab.sid);

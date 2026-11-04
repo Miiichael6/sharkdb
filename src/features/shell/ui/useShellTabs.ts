@@ -13,6 +13,7 @@ import {
   openTab,
   renameTab,
   runCollectionTab,
+  switchTabDb,
   updateTab,
   splitOf,
   type NewTab,
@@ -95,6 +96,7 @@ export function useShellTabs() {
   const duplicate = useCallback((id: string) => setState((s) => duplicateTab(s, id, crypto.randomUUID())), []);
   const move = useCallback((id: string, to: number) => setState((s) => moveTab(s, id, to)), []);
   const rename = useCallback((id: string, title: string) => setState((s) => renameTab(s, id, title)), []);
+  const switchDb = useCallback((id: string, db: string) => setState((s) => switchTabDb(s, id, db)), []);
   const setCode = useCallback((id: string, code: string) => setState((s) => updateTab(s, id, { code })), []);
   const saved = useCallback(
     (id: string, path: string, code: string) => setState((s) => markSaved(s, id, path, code)),
@@ -127,6 +129,7 @@ export function useShellTabs() {
     move,
     rename,
     setCode,
+    switchDb,
     saved,
   };
 }

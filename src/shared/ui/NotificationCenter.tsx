@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { logTime } from "../domain/log";
 import { newestFirst, type NotificationLevel } from "../domain/notifications";
+import { useExclusivePopup } from "./useExclusivePopup";
 import { useFitInWindow } from "./useFitInWindow";
 import { useNotifications } from "./useNotifications";
 
@@ -17,6 +18,7 @@ export function NotificationCenter({ x, y, onClose }: Props) {
   const { entries, unread, markAllRead, clear } = useNotifications();
   const ref = useRef<HTMLDivElement>(null);
   useFitInWindow(ref, x, y);
+  useExclusivePopup(onClose);
 
   // Closes on a click outside, Escape or leaving the window, like the other popups.
   useEffect(() => {

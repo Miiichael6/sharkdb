@@ -181,7 +181,7 @@ export function Workspace(props: Props) {
     <div className="workspace">
       {props.renderToolbar(controls)}
 
-      <SplitPane sideClassName="ws-sidebar" sideHidden={sidebarHidden} side={<Explorer tree={tree} onAction={onAction} onRunCollection={props.onRunCollection} onDragCollection={props.onDragCollection} />}>
+      <SplitPane sideClassName="ws-sidebar" initialWidth={250} sideHidden={sidebarHidden} side={<Explorer tree={tree} onAction={onAction} onRunCollection={props.onRunCollection} onDragCollection={props.onDragCollection} />}>
         {/* The logs open under the main area only (never under the explorer), at half its height. */}
         <div className="ws-main">
           <StackSplit

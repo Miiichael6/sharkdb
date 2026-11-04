@@ -24,6 +24,7 @@ import {
   type ValidationWindowData,
   type ValidationWindowResult,
 } from "./ValidationWindow";
+import { VIEW_DEFINITION_VIEW, type ViewDefinitionWindowData } from "./ViewDefinitionWindow";
 
 export type ExplorerDialog =
   | null
@@ -41,6 +42,8 @@ export type ExplorerDialog =
 
 /** Size the validation window opens at; it can be maximized. */
 const VALIDATION_WINDOW = { width: 760, height: 820 };
+/** Size the view definition window opens at; it can be maximized. */
+const VIEW_DEFINITION_WINDOW = { width: 640, height: 560 };
 
 const PANEL_ACTIONS: Action[] = ["serverStatus", "hostInfo", "buildInfo", "dbStats", "collStats"];
 
@@ -185,6 +188,20 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
     notify(`Validación ${result.removed ? "quitada de" : "guardada en"} “${collection.coll}”`);
   };
 
+  /** Shows the definition of view `n` (source collection and pipeline) in its own read-only window. */
+  const viewDefinition = (n: TreeNode) => {
+    const data: ViewDefinitionWindowData = {
+      where: { server: serverOf(n.sid), db: n.db!, coll: n.coll! },
+      options: n.data.options,
+    };
+    return openModalWindow<null>(VIEW_DEFINITION_VIEW, data, {
+      title: `Vista ${n.coll}`,
+      width: VIEW_DEFINITION_WINDOW.width,
+      height: VIEW_DEFINITION_WINDOW.height,
+      maximizable: true,
+    });
+  };
+
   const onAction = (action: Action, n: TreeNode) => {
     if (PANEL_ACTIONS.includes(action)) {
       tree.select(n.key);
@@ -196,6 +213,10 @@ export function useExplorerActions({ tree, onDisconnect, onRemoveFromList, showP
         refreshKey(n.key);
         break;
       case "view":
+        if (n.kind === "collection" && n.data?.type === "view") {
+          viewDefinition(n).catch(fail);
+          break;
+        }
         tree.select(n.key);
         showPanel(n.key, null);
         break;

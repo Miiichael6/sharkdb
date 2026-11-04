@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Avatar, Modal, Spinner } from "../../../shared/ui/common";
+import { useEffect, useState } from "react";
+import { Avatar, Spinner } from "../../../shared/ui/common";
 import type { MongoConnection } from "../domain/connection";
 import { AdvancedTab } from "./form/AdvancedTab";
 import { AuthTab } from "./form/AuthTab";
@@ -27,13 +27,21 @@ interface Props {
   onClose: () => void;
 }
 
+/** "Nueva conexión" / "Editar conexión", the content of its own window (`openConnectionFormWindow`). */
 export function ConnectionForm({ initial, isNew, onSave, onConnect, onClose }: Props) {
   const { conn, set, switchMode, modeError, canSubmit, test, runTest } = useConnectionForm(initial);
   const [tab, setTab] = useState<FormTab>("connection");
 
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <Modal onClose={onClose} className="conn-form">
-      <header className="form-header">
+    <div className="conn-form">
+      {/* It sits over the window's title bar, so it drags the window too. */}
+      <header className="form-header" data-tauri-drag-region>
         <Avatar color={conn.color} size={40} />
         <div>
           <h2>{isNew ? "Nueva conexión" : "Editar conexión"}</h2>
@@ -92,6 +100,6 @@ export function ConnectionForm({ initial, isNew, onSave, onConnect, onClose }: P
           </button>
         </div>
       </form>
-    </Modal>
+    </div>
   );
 }

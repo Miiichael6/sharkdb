@@ -16,7 +16,7 @@ function fakeGateway() {
   const gateway: ShellGateway = {
     async execute(shell, db, code, scriptPath, options) {
       calls.push(`execute ${shell.tab} ${db} ${code} ${scriptPath} ${options.timeoutSeconds}/${options.pageSize}`);
-      return { results: [PRINTED], error: null, truncated: false, elapsedMs: 3, queryMs: null };
+      return { results: [PRINTED], error: null, truncated: false, elapsedMs: 3, queryMs: null, db: null };
     },
     async nextBatch(shell, cursorId, size) {
       calls.push(`next ${shell.tab} ${cursorId} ${size}`);

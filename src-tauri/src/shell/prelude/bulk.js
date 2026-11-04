@@ -12,8 +12,9 @@
   const updateStatement = (filter, update, { upsert = false, multi = false, ...rest } = {}) =>
     compact({ q: filter, u: update, upsert, multi, ...rest });
 
+  // El filtro y `limit` van después de las opciones: un `limit` o `q` en ellas no los cambia.
   const deleteStatement = (filter, justOne, rest = {}) =>
-    compact({ q: filter, limit: justOne ? 1 : 0, ...rest });
+    compact({ ...rest, q: filter, limit: justOne ? 1 : 0 });
 
   const keysOf = (value) => (value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : null);
 
@@ -59,9 +60,10 @@
   }
 
   // Como mongosh: borrar sin filtro es un error; para vaciar la colección hay que pedirlo con `{}`.
-  function checkFilter(name, filter) {
+  // `hint` dice qué hace el filtro vacío en esa operación.
+  function checkFilter(name, filter, hint = `para borrar todos los documentos pásalo vacío: ${name}({})`) {
     if (filter === undefined || filter === null) {
-      failWith('Error', `${name}: falta el filtro; para borrar todos los documentos pásalo vacío: ${name}({})`);
+      failWith('Error', `${name}: falta el filtro; ${hint}`);
     }
     return checkDefined(name, filter);
   }
@@ -173,7 +175,7 @@
       return this;
     }
 
-    insert(doc) { return this._add('insert', withId(doc)); }
+    insert(doc) { return this._add('insert', withId(doc, 'Bulk insert')); }
     find(filter) { return new BulkFind(this, filter); }
 
     execute() {
@@ -189,7 +191,7 @@
 
   // Una operación de `bulkWrite` ({ insertOne: {...} }, { updateMany: {...} }...) → { type, item }.
   const BULK_WRITE_OPERATIONS = {
-    insertOne: ({ document }) => ({ type: 'insert', item: withId(document) }),
+    insertOne: ({ document }) => ({ type: 'insert', item: withId(document, 'bulkWrite insertOne') }),
     updateOne: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite updateOne', filter), checkUpdate('bulkWrite updateOne', update), { ...options, multi: false }) }),
     updateMany: ({ filter, update, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite updateMany', filter), checkUpdate('bulkWrite updateMany', update), { ...options, multi: true }) }),
     replaceOne: ({ filter, replacement, ...options }) => ({ type: 'update', item: updateStatement(checkDefined('bulkWrite replaceOne', filter), checkReplacement('bulkWrite replaceOne', replacement), { ...options, multi: false }) }),
