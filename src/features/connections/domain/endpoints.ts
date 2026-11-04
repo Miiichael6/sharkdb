@@ -1,5 +1,6 @@
 // Registered connections offered as one end of sync, backup or restore: a closed one is connected when chosen.
-import { displayName, neverModified, neverModifiedAmong, type MongoConnection, type Tag } from "./connection";
+import { displayName, hostLabel, neverModified, neverModifiedAmong, parseUri, type MongoConnection, type Tag } from "./connection";
+import { DEFAULT_SSH_PORT } from "./ssh";
 import type { Session } from "./session";
 
 export interface ConnectionOption {
@@ -63,8 +64,23 @@ export const targetOptions = (connections: MongoConnection[], sessions: Session[
 export const pickTarget = (targets: ConnectionOption[], currentId: string) =>
   (targets.find((t) => t.id === currentId) ?? targets.find((t) => !t.blocked))?.id ?? "";
 
-/** Name and environment tag of a registered connection, for the operation and its confirmation. */
-export function connectionEndpoint(connections: MongoConnection[], id: string): { name: string; tag?: Tag } {
+/**
+ * Where a connection points, without user or password (R90): `host:port`, the hosts of its URI, and
+ * the tunnel when it has one, e.g. `10.0.4.12:27017 (vía SSH bastion:22)`. Empty when it can't tell.
+ */
+export function connectionAddress(conn: MongoConnection): string {
+  // An unreadable URI is never shown: it may carry the password.
+  const hosts = conn.mode === "uri" && !parseUri(conn.uri) ? "" : hostLabel(conn);
+  const { ssh } = conn;
+  if (!ssh.enabled || !ssh.host.trim()) return hosts;
+  const tunnel = `vía SSH ${ssh.host.trim()}:${ssh.port || DEFAULT_SSH_PORT}`;
+  return hosts ? `${hosts} (${tunnel})` : tunnel;
+}
+
+/** Name, environment tag and address of a registered connection, for the operation and its confirmation. */
+export function connectionEndpoint(connections: MongoConnection[], id: string): { name: string; tag?: Tag; address?: string } {
   const conn = connections.find((c) => c.id === id);
-  return conn ? { name: displayName(conn), tag: conn.tag } : { name: id };
+  if (!conn) return { name: id };
+  const address = connectionAddress(conn);
+  return { name: displayName(conn), tag: conn.tag, ...(address ? { address } : {}) };
 }

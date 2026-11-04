@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { newConnection, type MongoConnection, type Tag } from "./connection";
-import { PROTECTED_TARGET, SAFE_MODE_TARGET, connectionEndpoint, pickTarget, sourceOptions, targetOptions, writeBlockReason } from "./endpoints";
+import {
+  PROTECTED_TARGET,
+  SAFE_MODE_TARGET,
+  connectionAddress,
+  connectionEndpoint,
+  pickTarget,
+  sourceOptions,
+  targetOptions,
+  writeBlockReason,
+} from "./endpoints";
 import type { Session } from "./session";
 
 const connection = (id: string, over: { protected?: boolean; tag?: Tag } = {}): MongoConnection => ({
@@ -87,7 +96,7 @@ describe("endpoints", () => {
   });
 
   it("names a connection by its id when it's no longer registered", () => {
-    expect(connectionEndpoint(CONNECTIONS, "local")).toEqual({ name: "local", tag: "local" });
+    expect(connectionEndpoint(CONNECTIONS, "local")).toEqual({ name: "local", tag: "local", address: "local.corp:27017" });
     expect(connectionEndpoint(CONNECTIONS, "gone")).toEqual({ name: "gone" });
   });
 
@@ -95,5 +104,25 @@ describe("endpoints", () => {
     const alias = { ...connection("alias"), mode: "uri" as const, uri: "mongodb://user@PROD.corp:27017/app" };
     const tunnel = { ...connection("tunnel"), host: "prod.corp", ssh: { ...QA.ssh, enabled: true, host: "bastion" } };
     expect(ids(targetOptions([...CONNECTIONS, alias, tunnel], []))).toEqual(["qa", "local", "ro", "tunnel"]);
+  });
+});
+
+describe("connectionAddress", () => {
+  const withSsh = (conn: MongoConnection, port = 22) => ({ ...conn, ssh: { ...conn.ssh, enabled: true, host: "bastion", port } });
+  const byUri = (uri: string) => ({ ...connection("u"), mode: "uri" as const, uri });
+
+  it("shows host and port of the fields, the SRV host alone", () => {
+    expect(connectionAddress({ ...connection("q"), host: "10.0.4.12", port: 27018 })).toBe("10.0.4.12:27018");
+    expect(connectionAddress({ ...connection("q"), host: "cluster.mongodb.net", srv: true })).toBe("cluster.mongodb.net");
+  });
+
+  it("shows every host of a URI, never its user or password", () => {
+    expect(connectionAddress(byUri("mongodb://admin:secret@a:27017,b:27018/app?replicaSet=rs"))).toBe("a:27017,b:27018");
+    expect(connectionAddress(byUri("not a uri admin:secret"))).toBe("");
+  });
+
+  it("adds the SSH tunnel, also when the address is unknown", () => {
+    expect(connectionAddress(withSsh({ ...connection("q"), host: "10.0.4.12" }))).toBe("10.0.4.12:27017 (vía SSH bastion:22)");
+    expect(connectionAddress(withSsh(byUri("garbage"), 2222))).toBe("vía SSH bastion:2222");
   });
 });

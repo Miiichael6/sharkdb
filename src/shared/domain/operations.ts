@@ -17,6 +17,8 @@ export type OperationStatus = "running" | "done" | "failed" | "cancelled";
 export interface OperationEndpoint {
   name: string;
   tag?: string;
+  /** Where a connection points (`host:port`, SSH tunnel), never with user or password (R90). */
+  address?: string;
   path?: string;
 }
 

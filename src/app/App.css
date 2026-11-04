@@ -4072,12 +4072,12 @@ button.ops-section-head:hover:not(:disabled) {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
+  cursor: pointer;
 }
 .ops-row.failed {
   border-color: rgb(240 82 82 / 0.35);
 }
 .ops-row-head,
-.ops-route,
 .ops-endpoint {
   display: flex;
   align-items: center;
@@ -4143,7 +4143,13 @@ button.ops-section-head:hover:not(:disabled) {
   color: var(--danger);
 }
 .ops-status.cancelled {
-  color: var(--warn);
+  color: var(--danger);
+}
+/* Red like a failure, but hollow: it was stopped on purpose, nothing broke. */
+.ops-status.cancelled::before {
+  box-sizing: border-box;
+  border: 1.5px dashed currentColor;
+  background: transparent;
 }
 @keyframes ops-pulse {
   50% {
@@ -4157,8 +4163,16 @@ button.ops-section-head:hover:not(:disabled) {
     animation: none;
   }
 }
-.ops-route .ops-endpoint:last-child {
-  flex: 1;
+/* Origin over destination: each end gets the whole width for its name and address (host:port). */
+.ops-route {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ops-route .ops-arrow {
+  padding-left: 3px;
+  line-height: 1;
 }
 .ops-endpoint > .icon {
   flex-shrink: 0;
@@ -4191,4 +4205,308 @@ button.ops-folder {
 }
 .ops-row.failed .ops-outcome {
   color: var(--danger);
+}
+
+/* A row opens its detail (R89): clickable as a whole, its own buttons apart. */
+.ops-row {
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+.ops-row:hover {
+  background: var(--row-hover);
+  border-color: var(--accent-ring);
+}
+.ops-row.failed:hover {
+  border-color: rgb(240 82 82 / 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ops-row {
+    transition: none;
+  }
+}
+.ops-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ops-endpoint-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ops-address {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Detail of an operation, in its own sub-window (D24). */
+.ops-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  background: var(--surface);
+}
+.ops-detail .modal-footer {
+  margin-top: 0;
+}
+.ops-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ops-detail-head strong {
+  font-size: 15px;
+}
+/* Origin → destination side by side: the window is wide enough for both. */
+.ops-detail-route {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-side);
+}
+.ops-detail-end {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ops-detail-role {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ops-detail-route .ops-arrow {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+/* A narrow window: back to origin over destination, so neither end gets cut. */
+@media (max-width: 520px) {
+  .ops-detail-route {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .ops-detail-end {
+    flex: none;
+    align-items: center;
+    max-width: 100%;
+  }
+  .ops-detail-route .ops-arrow {
+    line-height: 1;
+    rotate: 90deg;
+  }
+}
+.ops-outcome.failed {
+  color: var(--danger);
+}
+.ops-detail-dbs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.ops-detail-filter {
+  flex: none;
+}
+/* Sync and restore: the provisional copy over the replacement, each phase with its own scroll. */
+.ops-detail-phases {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ops-phase {
+  flex: 1 1 0;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ops-phase-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: help;
+}
+.ops-phase-count {
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+.ops-phase.copy .ops-detail-dbs {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.ops-phase.replace .ops-detail-dbs {
+  border-color: color-mix(in srgb, var(--icon-server) 35%, var(--border));
+}
+/* The replacement phase's database headers in blue (every theme's server blue), apart from the copy ones. */
+.ops-phase.replace .ops-db-head {
+  --ops-head-tint: var(--icon-server);
+}
+.ops-detail-empty {
+  margin: 0;
+  padding: 12px;
+}
+.ops-db-name mark,
+.ops-cell-name mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 2px;
+}
+.ops-db + .ops-db {
+  border-top: 1px solid var(--border);
+}
+/* Sticky while its database scrolls by; the next database's header pushes it out. */
+.ops-db-head {
+  --ops-head-tint: var(--accent);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ops-head-tint) 16%, var(--surface));
+  box-shadow:
+    inset 3px 0 0 var(--ops-head-tint),
+    0 1px 0 color-mix(in srgb, var(--ops-head-tint) 45%, var(--border));
+  color: var(--text);
+  text-align: left;
+}
+button.ops-db-head:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ops-head-tint) 24%, var(--surface));
+}
+.ops-db-name {
+  flex: 1;
+  font-weight: 600;
+}
+.ops-db-summary {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/*
+ * One cell per collection in up to 3 columns (2 or 1 as the window narrows), each at least 250px
+ * and as wide as its widest cell: 60+ collections stay readable without scrolling sideways.
+ */
+.ops-cells {
+  /* Each column at least this wide (never wider than the window allows). */
+  --ops-cell-min: min(250px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(var(--ops-cell-min), auto));
+  justify-content: start;
+  gap: 2px 28px;
+  margin: 0;
+  padding: 8px 12px 10px 30px;
+  list-style: none;
+}
+.ops-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 0;
+}
+/* Columns drop as the window narrows, so none is ever under its minimum width. */
+@media (max-width: 879px) {
+  .ops-cells {
+    grid-template-columns: repeat(2, minmax(var(--ops-cell-min), auto));
+  }
+}
+@media (max-width: 599px) {
+  .ops-cells {
+    grid-template-columns: minmax(var(--ops-cell-min), auto);
+  }
+}
+/* The whole name, wrapped over several lines when it doesn't fit. */
+.ops-cell-name {
+  overflow-wrap: anywhere;
+}
+.ops-cell .ops-dot {
+  align-self: start;
+  margin-top: 0.45em;
+}
+.ops-cell-percent {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.ops-cell.applied .ops-cell-percent {
+  color: var(--ok);
+}
+.ops-cell-duplicates {
+  color: var(--warn);
+  white-space: nowrap;
+}
+.ops-cell-error {
+  grid-column: 2 / -1;
+  color: var(--danger);
+  word-break: break-word;
+  user-select: text;
+}
+.ops-cell.discarded .ops-cell-name {
+  color: var(--muted);
+}
+.ops-cell.discarded .ops-cell-percent {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+/* State of a collection (D23); its name is always in the tooltip and for screen readers (R96). */
+.ops-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ops-dot.pending,
+.ops-dot.discarded {
+  border: 1.5px solid var(--muted);
+  background: transparent;
+}
+.ops-dot.running {
+  color: var(--accent);
+  animation: ops-pulse 1.2s ease-in-out infinite;
+}
+.ops-dot.copied {
+  color: var(--warn);
+}
+.ops-dot.applied {
+  color: var(--ok);
+}
+.ops-dot.failed {
+  color: var(--danger);
+}
+/* Cancelled before it was applied: red like an error, but hollow, since nothing went wrong in it. */
+.ops-dot.discarded {
+  border-color: var(--danger);
+  border-style: dashed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ops-dot.running {
+    animation: none;
+  }
 }

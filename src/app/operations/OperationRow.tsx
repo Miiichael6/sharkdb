@@ -1,18 +1,18 @@
-import { TAGS } from "../../features/connections/domain/connection";
-import { TagBadge } from "../../features/connections/ui/TagBadge";
-import { NodeIcon } from "../../features/explorer/ui/NodeIcon";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { progressCount } from "../../shared/domain/jobs";
 import {
   durationLabel,
   isRunning,
+  KIND_LABELS,
   operationDetail,
+  operationRoute,
   STATUS_LABELS,
   type Operation,
-  type OperationEndpoint,
 } from "../../shared/domain/operations";
 import { JobProgressBar } from "../../shared/ui/JobProgressBar";
 import { useNotify } from "../../shared/ui/useNotifications";
 import { useServices } from "../services";
+import { EndpointLabel } from "./EndpointLabel";
 import { useElapsed } from "./useElapsed";
 
 interface Props {
@@ -20,44 +20,33 @@ interface Props {
   onCancel: (op: Operation) => void;
   /** Removes the row once the operation ended. */
   onDismiss: (op: Operation) => void;
+  /** Shows its detail: where it goes and how each collection goes (R89). */
+  onOpen: (op: Operation) => void;
 }
 
-/** A connection (server icon and environment) or a backup folder (folder icon, opened with a click). */
-function Endpoint({ endpoint }: { endpoint: OperationEndpoint }) {
-  const { backup } = useServices();
-  const notify = useNotify();
-  const tag = TAGS.find((t) => t === endpoint.tag);
-  const { path } = endpoint;
-  return (
-    <span className="ops-endpoint">
-      {path ? (
-        <button
-          type="button"
-          className="ghost ops-folder"
-          onClick={() => backup.openFolder(path).catch(notify.fail)}
-          aria-label={`Abrir la carpeta ${endpoint.name}`}
-          title={`Abrir ${path}`}
-        >
-          <NodeIcon kind="collections" />
-        </button>
-      ) : (
-        <NodeIcon kind="server" />
-      )}
-      {tag && <TagBadge tag={tag} />}
-      <span className="ellipsis" title={path ?? endpoint.name}>
-        {endpoint.name}
-      </span>
-    </span>
-  );
-}
+/** A click on the row's own buttons (Cancelar, ×, the folder) does what they say, not open the detail. */
+const fromInnerButton = (e: MouseEvent | KeyboardEvent) => (e.target as HTMLElement).closest("button") !== null;
 
 /** One operation of the panel: its route, its progress while it runs and its outcome once it ends. */
-export function OperationRow({ operation: op, onCancel, onDismiss }: Props) {
+export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Props) {
+  const { backup } = useServices();
+  const notify = useNotify();
+  const openFolder = (path: string) => void backup.openFolder(path).catch(notify.fail);
   const detail = operationDetail(op);
   const running = isRunning(op);
   const elapsed = useElapsed(op.startedAt, op.endedAt);
+  const open = (e: MouseEvent | KeyboardEvent) => {
+    if (!fromInnerButton(e)) onOpen(op);
+  };
   return (
-    <li className={`ops-row ${op.status}`}>
+    <li
+      className={`ops-row ${op.status}`}
+      tabIndex={0}
+      aria-label={`Ver el detalle: ${KIND_LABELS[op.kind]} ${operationRoute(op)}, ${STATUS_LABELS[op.status]}`}
+      title="Ver el detalle"
+      onClick={open}
+      onKeyDown={(e) => e.key === "Enter" && open(e)}
+    >
       <div className="ops-row-head">
         <span className={`ops-status ${op.status}`}>{STATUS_LABELS[op.status]}</span>
         <span className="ops-row-meta">
@@ -79,13 +68,13 @@ export function OperationRow({ operation: op, onCancel, onDismiss }: Props) {
         </span>
       </div>
       <div className="ops-route">
-        <Endpoint endpoint={op.source} />
+        <EndpointLabel endpoint={op.source} onOpenFolder={openFolder} />
         <span className="ops-arrow" aria-hidden>
-          →
+          ↓
         </span>
-        <Endpoint endpoint={op.target} />
+        <EndpointLabel endpoint={op.target} onOpenFolder={openFolder} />
       </div>
-      {isRunning(op) ? (
+      {running ? (
         <div className="ops-running">
           <JobProgressBar progress={op.progress} />
           <button type="button" className="small" onClick={() => onCancel(op)}>

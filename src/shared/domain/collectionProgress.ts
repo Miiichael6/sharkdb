@@ -1,5 +1,6 @@
 // State and progress of each collection of an operation (R94, R95, D23), grouped by database.
 import type { CollectionResult } from "./jobs";
+import type { OperationKind } from "./operations";
 import type { DatabaseSelection } from "./selection";
 
 /**
@@ -30,6 +31,8 @@ export interface CollectionProgressEntry {
   done: number;
   total: number;
   error?: string;
+  /** It reached its staging collection: from then on it's in the replacement phase, even if discarded. */
+  staged?: true;
 }
 
 export interface DatabaseGroup {
@@ -65,13 +68,17 @@ export const plannedCollections = (databases: DatabaseSelection[]): CollectionPr
     collections.map((collection) => ({ db, collection, status: "pending" as const, done: 0, total: 0 })),
   );
 
-const entryFrom = ({ db, collection, state, done, total, error }: CollectionUpdate): CollectionProgressEntry => ({
+const entryFrom = (
+  { db, collection, state, done, total, error }: CollectionUpdate,
+  previous?: CollectionProgressEntry,
+): CollectionProgressEntry => ({
   db,
   collection,
   status: state,
   done,
   total,
   ...(error === undefined ? {} : { error }),
+  ...(previous?.staged || state === "copied" ? { staged: true as const } : {}),
 });
 
 /** `list` with `update` applied; one the plan didn't have is added at the end. */
@@ -79,7 +86,7 @@ export function applyCollectionEvent(list: CollectionProgressEntry[], update: Co
   const index = list.findIndex((entry) => sameCollection(entry, update.db, update.collection));
   if (index < 0) return [...list, entryFrom(update)];
   if (STAGE[update.state] < STAGE[list[index].status]) return list;
-  return list.map((entry, i) => (i === index ? entryFrom(update) : entry));
+  return list.map((entry, i) => (i === index ? entryFrom(update, entry) : entry));
 }
 
 const completed = (entry: CollectionProgressEntry): CollectionProgressEntry => {
@@ -102,6 +109,23 @@ export function collectionPercent(entry: CollectionProgressEntry): number {
   if (entry.total <= 0) return 0;
   return Math.round(Math.min(entry.done / entry.total, 1) * FULL);
 }
+
+/**
+ * The two phases of an operation that writes through staging collections (sync, restore): first each
+ * collection is copied to its provisional one, then all of them replace their targets at the end.
+ */
+export type CollectionPhase = "copy" | "replace";
+
+const STAGING_KINDS: OperationKind[] = ["sync", "restore"];
+
+export const usesStaging = (kind: OperationKind) => STAGING_KINDS.includes(kind);
+
+/** Copied (or applied) collections are in the replacement phase; the rest are still being copied. */
+export const collectionPhase = (entry: CollectionProgressEntry): CollectionPhase =>
+  entry.staged || entry.status === "applied" ? "replace" : "copy";
+
+export const inPhase = (list: CollectionProgressEntry[], phase: CollectionPhase) =>
+  list.filter((entry) => collectionPhase(entry) === phase);
 
 /** The collections by database, in the order of the plan. */
 export function byDatabase(list: CollectionProgressEntry[]): DatabaseGroup[] {
@@ -126,3 +150,47 @@ export function databaseSummary(group: DatabaseGroup): DatabaseSummary {
 /** Documents of `entry` that a restore skipped because their `_id` already existed (D23: "⚠ N duplicados"). */
 export const collectionDuplicates = (entry: CollectionProgressEntry, results: CollectionResult[]): number =>
   results.find((result) => result.collection === `${entry.db}.${entry.collection}`)?.duplicates ?? 0;
+
+/** What each state is called (D23); the CSS class of its dot is the state itself (`.ops-dot.<estado>`). */
+const STATUS_LABELS: Record<CollectionStatus, string> = {
+  pending: "Pendiente",
+  running: "En curso",
+  copied: "Copiada, se aplica al final",
+  applied: "Aplicada",
+  failed: "Error",
+  discarded: "Descartada",
+};
+
+/** A backup writes files, it doesn't apply anything to a target: what it finished is "Guardada". */
+const BACKUP_APPLIED = "Guardada";
+
+export const collectionStatusLabel = (status: CollectionStatus, kind: OperationKind) =>
+  status === "applied" && kind === "backup" ? BACKUP_APPLIED : STATUS_LABELS[status];
+
+/** "⚠ 3 duplicados": documents a restore skipped because their `_id` was already there. */
+export const duplicatesLabel = (count: number) => `⚠ ${count} ${count === 1 ? "duplicado" : "duplicados"}`;
+
+/**
+ * The state of a collection in words, for its tooltip and screen readers (R96): it never depends
+ * on the colour alone. "pedidos · En curso · 47 %", "pedidos · Error: <motivo>".
+ */
+export function collectionDescription(entry: CollectionProgressEntry, kind: OperationKind, duplicates = 0): string {
+  const label = collectionStatusLabel(entry.status, kind);
+  const state = entry.status === "failed" && entry.error ? `${label}: ${entry.error}` : label;
+  const parts = [entry.collection, state, `${collectionPercent(entry)} %`];
+  if (duplicates > 0) parts.push(duplicatesLabel(duplicates));
+  return parts.join(" · ");
+}
+
+/** "12/20 · 64 %": collections finished out of the total and the database's average. */
+export const databaseSummaryLabel = ({ applied, total, percent }: DatabaseSummary) => `${applied}/${total} · ${percent} %`;
+
+/** "3 · 40 %": while copying nothing is finished yet, only how many there are and how far they got. */
+export const copySummaryLabel = ({ total, percent }: DatabaseSummary) => `${total} · ${percent} %`;
+
+/** States that keep a database open: it's being worked on, or something in it went wrong. */
+const OPEN_STATES: CollectionStatus[] = ["running", "copied", "failed"];
+
+/** Whether a database section starts open: the only one, or one in course or with an error (R91). */
+export const opensByDefault = (summary: DatabaseSummary, databaseCount: number) =>
+  databaseCount === 1 || OPEN_STATES.includes(summary.worst);

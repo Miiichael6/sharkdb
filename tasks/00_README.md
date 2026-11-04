@@ -93,7 +93,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D21** Edición en línea → **solo en la vista árbol** (2026-11-04) → afecta 38
 - [x] **D22** Edición en línea → **Esc cancela** y deja el valor original. Clic fuera (otro documento, el explorador, otra pestaña o fuera de la ventana) → sub-ventana "Estás editando un campo" con **Seguir editando** (devuelve el foco) y **Descartar cambios** (2026-11-04) → afecta 38
 - [x] **D23** Detalle de operaciones: estados y colores de cada colección → **aceptada la propuesta**: ○ gris `Pendiente` (en cola, 0 %) · ● azul con pulso `En curso` · ● ámbar `Copiada, se aplica al final` (solo sync/restore: el destino se reemplaza cuando terminan todas) · ● verde `Aplicada` / `Guardada` (100 %) · ● rojo `Error` (con el motivo) · ○ gris hueco con % tachado `Descartada` (cancelada o fallida: el destino quedó como estaba). Restore con `_id` duplicados: verde con "⚠ N duplicados" (2026-11-04) → afecta 40, 41
-- [ ] **D24** Detalle de operaciones: ¿cómo se abre? **Propuesta:** el clic en la fila cambia el panel a la vista de detalle con "← Operaciones" para volver (con 60+ colecciones, desplegarlo dentro de la lista la hace inmanejable). Alternativa: desplegarlo bajo la fila → afecta 41
+- [x] **D24** Detalle de operaciones: ¿cómo se abre? → **en una sub-ventana** al hacer clic (o Enter) en la fila del panel; se actualiza en vivo mientras la operación corre (2026-11-04) → afecta 41
 - [ ] **D8** Servidor MCP: ¿transporte stdio o HTTP local? ¿Solo lectura o también escrituras? **Pospuesta por el usuario** (2026-10-30) → afecta 16
 
 ## Tablero
@@ -142,7 +142,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 38 | [Edición en línea de valores primitivos](done/38_edicion_en_linea.md) | 23 Edición en línea | 06, 18 | ✅ Terminada (prueba GUI pendiente) |
 | 39 | [Franja de color de la conexión en las pestañas](pending/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ⬜ Pendiente |
 | 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
-| 41 | [Detalle de una operación: origen → destino y colecciones por BD](pending/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ⛔ Bloqueada (D24) |
+| 41 | [Detalle de una operación: origen → destino y colecciones por BD](in_progress/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | 🔄 En progreso (falta prueba manual) |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.

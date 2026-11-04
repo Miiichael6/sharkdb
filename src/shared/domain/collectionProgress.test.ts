@@ -2,13 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   applyCollectionEvent,
   byDatabase,
+  collectionDescription,
   collectionDuplicates,
   collectionPercent,
+  collectionPhase,
+  collectionStatusLabel,
+  copySummaryLabel,
   databaseSummary,
+  databaseSummaryLabel,
+  inPhase,
+  opensByDefault,
   plannedCollections,
   settleCollections,
   type CollectionUpdate,
   type ReportedCollectionState,
+  usesStaging,
 } from "./collectionProgress";
 
 const PLAN = plannedCollections([
@@ -90,5 +98,63 @@ describe("collection progress", () => {
     expect(orders.status).toBe("applied");
     expect(collectionDuplicates(orders, results)).toBe(3);
     expect(collectionDuplicates(PLAN[1], results)).toBe(0);
+  });
+});
+
+describe("collection status in words", () => {
+  const entry = (status: ReturnType<typeof apply>[number]["status"], done = 0, error?: string) => ({
+    db: "shop",
+    collection: "orders",
+    status,
+    done,
+    total: 10,
+    ...(error ? { error } : {}),
+  });
+
+  it("calls a finished collection Guardada in a backup and Aplicada elsewhere", () => {
+    expect(collectionStatusLabel("applied", "backup")).toBe("Guardada");
+    expect(collectionStatusLabel("applied", "sync")).toBe("Aplicada");
+    expect(collectionStatusLabel("copied", "restore")).toBe("Copiada, se aplica al final");
+  });
+
+  it("says the state, the percentage, the error and the duplicates, not only the colour", () => {
+    expect(collectionDescription(entry("running", 4), "sync")).toBe("orders · En curso · 40 %");
+    expect(collectionDescription(entry("failed", 2, "disk full"), "restore")).toBe("orders · Error: disk full · 20 %");
+    expect(collectionDescription(entry("applied", 10), "restore", 3)).toBe("orders · Aplicada · 100 % · ⚠ 3 duplicados");
+    expect(collectionDescription(entry("discarded", 5), "sync")).toBe("orders · Descartada · 50 %");
+  });
+
+  it("sums a database up and opens the one in course, with an error or alone", () => {
+    const summary = { applied: 12, total: 20, percent: 64, worst: "running" as const };
+    expect(databaseSummaryLabel(summary)).toBe("12/20 · 64 %");
+    expect(opensByDefault(summary, 3)).toBe(true);
+    expect(opensByDefault({ ...summary, worst: "failed" }, 3)).toBe(true);
+    expect(opensByDefault({ ...summary, worst: "applied" }, 3)).toBe(false);
+    expect(opensByDefault({ ...summary, worst: "pending" }, 3)).toBe(false);
+    expect(opensByDefault({ ...summary, worst: "applied" }, 1)).toBe(true);
+  });
+});
+
+describe("staging phases", () => {
+  const phases = (list: ReturnType<typeof apply>) => list.map((e) => `${e.collection}:${collectionPhase(e)}`);
+
+  it("only sync and restore copy through staging collections", () => {
+    expect(["sync", "restore", "backup"].map((k) => usesStaging(k as "sync"))).toEqual([true, true, false]);
+  });
+
+  it("moves a collection to the replacement phase once it is copied", () => {
+    const list = apply(update("orders", "running", 4), update("users", "copied", 10));
+    expect(phases(list)).toEqual(["orders:copy", "users:replace", "events:copy"]);
+    expect(inPhase(list, "replace").map((e) => e.collection)).toEqual(["users"]);
+  });
+
+  it("keeps a copied collection in the replacement phase when it is applied, fails or is discarded", () => {
+    const list = apply(update("orders", "copied", 10), update("orders", "failed", 10), update("users", "copied", 10));
+    expect(phases(settleCollections(list, "cancelled"))).toEqual(["orders:replace", "users:replace", "events:copy"]);
+    expect(phases(settleCollections(list, "done"))).toEqual(["orders:replace", "users:replace", "events:replace"]);
+  });
+
+  it("labels a database while copying without a finished count", () => {
+    expect(copySummaryLabel({ applied: 0, total: 3, percent: 40, worst: "running" })).toBe("3 · 40 %");
   });
 });

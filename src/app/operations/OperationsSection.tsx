@@ -7,10 +7,11 @@ interface Props {
   operations: Operation[];
   onCancel: (op: Operation) => void;
   onDismiss: (op: Operation) => void;
+  onOpen: (op: Operation) => void;
 }
 
 /** A foldable section of the panel (Sync, Backup or Restore), newest operation first. */
-export function OperationsSection({ kind, operations, onCancel, onDismiss }: Props) {
+export function OperationsSection({ kind, operations, onCancel, onDismiss, onOpen }: Props) {
   const [open, setOpen] = useState(true);
   const running = runningOperations(operations).length;
   const listId = `ops-section-${kind}`;
@@ -28,7 +29,7 @@ export function OperationsSection({ kind, operations, onCancel, onDismiss }: Pro
         (operations.length ? (
           <ul id={listId} className="ops-list">
             {[...operations].reverse().map((op) => (
-              <OperationRow key={op.id} operation={op} onCancel={onCancel} onDismiss={onDismiss} />
+              <OperationRow key={op.id} operation={op} onCancel={onCancel} onDismiss={onDismiss} onOpen={onOpen} />
             ))}
           </ul>
         ) : (

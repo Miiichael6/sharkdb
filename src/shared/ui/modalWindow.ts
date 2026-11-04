@@ -35,6 +35,8 @@ interface Options {
   title: string;
   width: number;
   height: number;
+  /** The least height it can be resized to (logical px). */
+  minHeight?: number;
   /** Lets the window be maximized, with a maximize / restore button in its title bar. */
   maximizable?: boolean;
   /** Lets the window be resized (default). */
@@ -48,6 +50,11 @@ interface Options {
   fitContent?: boolean;
   /** Answers what the child asks with `askOpener` while it's open (e.g. connecting a connection). */
   onRequest?: (body: unknown) => Promise<unknown>;
+  /**
+   * Keeps the child's data live: called once with `send`, which hands the child newer data through
+   * the same `receiveModalData`; returns what stops it, called when the child closes.
+   */
+  updates?: (send: (data: unknown) => void) => () => void;
 }
 
 /**
@@ -56,15 +63,18 @@ interface Options {
  * what it sent through `finishModalWindow`, or null when it was closed without an answer.
  */
 export async function openModalWindow<T>(view: string, data: unknown, options: Options): Promise<T | null> {
-  const { title, width, height, maximizable = false, resizable = true, closable = true, fitContent = false, onRequest } = options;
+  const { title, width, height, minHeight, maximizable = false, resizable = true, closable = true, fitContent = false, onRequest, updates } =
+    options;
   const parent = getCurrentWindow();
   const scale = await parent.scaleFactor();
   const pos = (await parent.outerPosition()).toLogical(scale);
   const size = (await parent.outerSize()).toLogical(scale);
 
   let result: T | null = null;
+  // The newest data: a child that gets ready late still starts from it.
+  let latest = data;
   const unlisten = await Promise.all([
-    listen(readyEvent(view), () => void emit(dataEvent(view), data)),
+    listen(readyEvent(view), () => void emit(dataEvent(view), latest)),
     listen<T>(resultEvent(view), (e) => (result = e.payload)),
     listen<OpenerRequest>(requestEvent(view), ({ payload: { id, body } }) => {
       const answer = onRequest ? onRequest(body) : Promise.reject(new Error(`${view} no admite peticiones`));
@@ -75,6 +85,10 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       );
     }),
   ]);
+  const stopUpdates = updates?.((next) => {
+    latest = next;
+    void emit(dataEvent(view), next);
+  });
   try {
     await parent.setEnabled(false);
     const child = new WebviewWindow(`modal-${view}`, {
@@ -82,6 +96,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       title,
       width,
       height,
+      ...(minHeight ? { minHeight } : {}),
       x: Math.round(pos.x + (size.width - width) / 2),
       y: Math.round(pos.y + (size.height - height) / 2),
       parent,
@@ -100,6 +115,7 @@ export async function openModalWindow<T>(view: string, data: unknown, options: O
       void child.once("tauri://error", () => resolve());
     });
   } finally {
+    stopUpdates?.();
     unlisten.forEach((u) => u());
     await parent.setEnabled(true);
     await parent.setFocus();

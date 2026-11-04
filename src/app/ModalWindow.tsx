@@ -33,6 +33,7 @@ import {
 import { SettingsDialog } from "../features/settings/ui/SettingsDialog";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
+import type { Operation } from "../shared/domain/operations";
 import type { OpenDatabaseData, OpenDatabaseRequest } from "../features/workspace/domain/databaseChoice";
 import { DATABASE_PICKER_VIEW, type DatabasePickerData } from "../features/workspace/domain/databasePicker";
 import { DatabasePickerWindow } from "../features/workspace/ui/DatabasePickerWindow";
@@ -60,6 +61,8 @@ import {
 } from "../shared/ui/modalWindow";
 import { PREFERENCES_VIEW } from "../shared/ui/preferencesWindow";
 import { THEME_VIEW } from "../shared/ui/themeWindow";
+import { OperationDetail } from "./operations/OperationDetail";
+import { OPERATION_DETAIL_VIEW } from "./operations/operationDetailWindow";
 import { createServices, ServicesProvider } from "./services";
 import "./App.css";
 
@@ -83,13 +86,15 @@ export function ModalWindow({ view }: { view: string }) {
   }, []);
   const root = useRef<HTMLDivElement>(null);
   const fit = currentModalFitsContent();
+  // Shown once, when the first data arrives: live data (`updates`) must not show and focus it again.
+  const hasData = data !== undefined;
   useEffect(() => {
-    if (data === undefined) return;
+    if (!hasData) return;
     if (fit) return fitToContent(root.current!);
     // After the browser has painted the view, so the window appears already laid out.
     let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => void showModalWindow())));
     return () => cancelAnimationFrame(frame);
-  }, [data, fit]);
+  }, [hasData, fit]);
   const done = useCallback((result: unknown) => void finishModalWindow(view, result), [view]);
 
   return (
@@ -212,6 +217,8 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <RenameCollectionWindow data={data as RenameCollectionWindowData} onDone={done} />
         </ServicesProvider>
       );
+    case OPERATION_DETAIL_VIEW:
+      return <OperationDetail operation={data as Operation} onClose={() => done(null)} />;
     case VIEW_DEFINITION_VIEW:
       return <ViewDefinitionWindow data={data as ViewDefinitionWindowData} onDone={() => done(null)} />;
     default:

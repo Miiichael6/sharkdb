@@ -1,10 +1,12 @@
 import { isRunning, OPERATION_KINDS, operationsOfKind } from "../../shared/domain/operations";
 import { OperationsSection } from "./OperationsSection";
+import { useOperationDetail } from "./useOperationDetail";
 import { useOperations } from "./useOperations";
 
 /** Right-hand panel of the main window with the background operations; closing it stops nothing. */
 export function OperationsPanel({ width }: { width: number }) {
   const { operations, closePanel, cancel, clearFinished, dismiss } = useOperations();
+  const openDetail = useOperationDetail();
   const anyEnded = operations.some((op) => !isRunning(op));
 
   return (
@@ -26,6 +28,7 @@ export function OperationsPanel({ width }: { width: number }) {
             operations={operationsOfKind(operations, kind)}
             onCancel={(op) => void cancel(op)}
             onDismiss={(op) => dismiss(op.id)}
+            onOpen={openDetail}
           />
         ))}
       </div>
