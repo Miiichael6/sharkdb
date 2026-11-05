@@ -25,7 +25,7 @@ Cada pestaña del shell lleva un punto con el `color` de su conexión en su bord
 - [x] Temas claro y oscuro: el punto se distingue y el texto de la pestaña no pierde contraste
 - [x] Código organizado: una responsabilidad por archivo, lógica pura separada de la integración, sin duplicación ni código muerto
 - [x] `npm test`, typecheck y `vite build` pasan
-- [ ] Commit: `feat(shell): punto con el color de la conexión en cada pestaña` (propuesto, pendiente del usuario)
+- [x] Commit: `feat(shell): punto con el color de la conexión en cada pestaña`
 - **Cierre de Fase 24**
 
 ## Criterios de aceptación
