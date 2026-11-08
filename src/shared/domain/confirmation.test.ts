@@ -52,6 +52,12 @@ describe("confirmationMatches", () => {
     expect(confirmationMatches("con firmo")).toBe(false);
     expect(confirmationMatches("")).toBe(false);
   });
+
+  it("accepts another word when given, and then not the usual one", () => {
+    expect(confirmationMatches(" sigo PROD", "SIGO prod")).toBe(true);
+    expect(confirmationMatches(CONFIRM_WORD, "SIGO prod")).toBe(false);
+    expect(confirmationMatches("SIGO", "SIGO prod")).toBe(false);
+  });
 });
 
 describe("discardChangesRequest", () => {

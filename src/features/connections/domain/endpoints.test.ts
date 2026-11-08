@@ -105,6 +105,27 @@ describe("endpoints", () => {
     const tunnel = { ...connection("tunnel"), host: "prod.corp", ssh: { ...QA.ssh, enabled: true, host: "bastion" } };
     expect(ids(targetOptions([...CONNECTIONS, alias, tunnel], []))).toEqual(["qa", "local", "ro", "tunnel"]);
   });
+
+  it("restore offers production marked, held back only by safe mode, and never picks it for the user", () => {
+    const alias = { ...connection("alias"), mode: "uri" as const, uri: "mongodb://PROD.corp:27017/app" };
+    const all = [...CONNECTIONS, alias];
+    const targets = targetOptions(all, [session(PROD, true), session(PROD2)], "", true);
+    expect(targets.map((t) => [t.id, !!t.production, t.blocked])).toEqual([
+      ["prod", true, SAFE_MODE_TARGET],
+      ["prod2", true, undefined],
+      ["qa", false, undefined],
+      ["local", false, undefined],
+      ["ro", false, undefined],
+      ["alias", true, undefined],
+    ]);
+    expect(writeBlockReason(session(PROD2), true)).toBeUndefined();
+    expect(pickTarget(targets, "prod2")).toBe("prod2");
+    expect(pickTarget(targets, "")).toBe("qa");
+    expect(pickTarget(targetOptions([PROD2], [], "", true), "")).toBe("");
+    // Sync keeps never offering it, and a source carries no mark.
+    expect(targetOptions(all, []).some((t) => t.production)).toBe(false);
+    expect(sourceOptions(all, []).some((s) => "production" in s)).toBe(false);
+  });
 });
 
 describe("connectionAddress", () => {

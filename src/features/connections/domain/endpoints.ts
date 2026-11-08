@@ -10,30 +10,42 @@ export interface ConnectionOption {
   connected: boolean;
   /** Why it can't be written to now (safe mode on), shown next to it. */
   blocked?: string;
+  /** Protected, production, or on the same server as one: only offered by restore, with alerts. */
+  production?: boolean;
 }
 
 export const PROTECTED_TARGET = "Conexión protegida o de producción: nunca se modifica desde aquí";
 export const SAFE_MODE_TARGET = "Safe mode activo: desactívalo para escribir en ella";
 export const NO_TARGET = "No hay ninguna conexión que se pueda modificar";
 
-/** Why a session can't be written to by sync or restore (D5, D7), or undefined when it can. */
-export function writeBlockReason(session: Session): string | undefined {
-  if (neverModified(session.conn)) return PROTECTED_TARGET;
+/**
+ * Why a session can't be written to by sync or restore (D5, D7), or undefined when it can. With
+ * `allowProduction` (restore) a protected or production one is only held back by safe mode.
+ */
+export function writeBlockReason(session: Session, allowProduction = false): string | undefined {
+  if (!allowProduction && neverModified(session.conn)) return PROTECTED_TARGET;
   if (session.safeMode) return SAFE_MODE_TARGET;
   return undefined;
 }
 
-function connectionOptions(connections: MongoConnection[], sessions: Session[], exceptId: string): ConnectionOption[] {
+function connectionOptions(
+  connections: MongoConnection[],
+  sessions: Session[],
+  exceptId: string,
+  allowProduction = false,
+): ConnectionOption[] {
   return connections
     .filter((conn) => conn.id !== exceptId)
     .map((conn) => {
       const session = sessions.find((s) => s.conn.id === conn.id);
+      const production = neverModifiedAmong(conn, connections);
       return {
         id: conn.id,
         name: displayName(conn),
         tag: conn.tag,
         connected: !!session,
-        blocked: session && writeBlockReason(session),
+        blocked: session && writeBlockReason(session, allowProduction),
+        ...(production ? { production } : {}),
       };
     });
 }
@@ -43,26 +55,28 @@ function connectionOptions(connections: MongoConnection[], sessions: Session[], 
  * choosing it as source moves the destination (it never offers the source), so the ends can be swapped.
  */
 export const sourceOptions = (connections: MongoConnection[], sessions: Session[]) =>
-  connectionOptions(connections, sessions, "").map(({ blocked: _, ...source }) => source);
+  connectionOptions(connections, sessions, "").map(({ blocked: _, production: __, ...source }) => source);
 
 /**
- * Connections offered to write to: every registered one but `exceptId`; protected or production ones,
- * and those pointing at the same server, never appear (D7), open or closed, so nothing is ever
- * written into production.
+ * Connections offered to write to: every registered one but `exceptId`. Protected or production ones,
+ * and those pointing at the same server, never appear (D7), open or closed, unless `allowProduction`
+ * (restore): then they appear marked `production`, and writing to them asks for the connection's name.
  */
-export const targetOptions = (connections: MongoConnection[], sessions: Session[], exceptId = "") =>
+export const targetOptions = (connections: MongoConnection[], sessions: Session[], exceptId = "", allowProduction = false) =>
   connectionOptions(
-    connections.filter((conn) => !neverModifiedAmong(conn, connections)),
+    allowProduction ? connections : connections.filter((conn) => !neverModifiedAmong(conn, connections)),
     sessions,
     exceptId,
+    allowProduction,
   );
 
 /**
  * The chosen destination while it's still offered, even when it's blocked (safe mode): it stays chosen
- * with its reason instead of jumping to another environment. Otherwise the first usable one, or "".
+ * with its reason instead of jumping to another environment. Otherwise the first usable one that isn't
+ * production (it's never chosen for the user), or "".
  */
 export const pickTarget = (targets: ConnectionOption[], currentId: string) =>
-  (targets.find((t) => t.id === currentId) ?? targets.find((t) => !t.blocked))?.id ?? "";
+  (targets.find((t) => t.id === currentId) ?? targets.find((t) => !t.blocked && !t.production))?.id ?? "";
 
 /**
  * Where a connection points, without user or password (R90): `host:port`, the hosts of its URI, and

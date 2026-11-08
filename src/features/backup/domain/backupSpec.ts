@@ -26,6 +26,8 @@ export interface RestoreRequest {
   targetSid: string;
   /** Each one goes to the database with its same name in the destination. */
   databases: DatabaseSelection[];
+  /** The destination is protected or production and its name was typed to confirm (the backend requires it). */
+  confirmProtected?: boolean;
 }
 
 export const FOLDER_REQUIRED = "Elige una carpeta";
@@ -107,19 +109,29 @@ export const backupConfirmation = (plan: PlanDatabase[], source: string, dir: st
 });
 
 /** "Se va a MODIFICAR {conexión}": what the destination loses, before typing the confirmation word. */
+/** Alert shown while a protected or production connection is the restore's destination. */
+export const productionRestoreWarning = (name: string) =>
+  `⚠ ${name} es una conexión de PRODUCCIÓN (o protegida). El restore reemplaza en ella las colecciones elegidas y no se puede deshacer: haz antes un backup de lo que vas a pisar.`;
+
+export const PRODUCTION_RESTORE_HEADING = "Se va a MODIFICAR PRODUCCIÓN";
+
 export const restoreConfirmation = (
   plan: PlanDatabase[],
   dir: string,
   target: { name: string; tag?: string },
   blocked?: string,
+  production = false,
 ): DangerConfirmRequest => ({
-  title: "Confirmar restore",
+  title: production ? "Confirmar restore en PRODUCCIÓN" : "Confirmar restore",
   target,
   intro: `con el contenido de ${dir}; cada base de datos va a la de su mismo nombre.`,
   items: planItems(plan),
   note: "Las colecciones del destino que no elegiste se conservan sin tocar.",
-  confirmLabel: "Restaurar",
+  confirmLabel: production ? "Restaurar en producción" : "Restaurar",
   blocked,
+  ...(production
+    ? { heading: PRODUCTION_RESTORE_HEADING, warning: productionRestoreWarning(target.name), confirmWord: target.name }
+    : {}),
 });
 
 const totals = (databases: number, results: CollectionResult[]) =>

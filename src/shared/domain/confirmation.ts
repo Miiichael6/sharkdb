@@ -82,8 +82,8 @@ export function confirmWindowHeight({ message, where, details = [], table }: Pic
 /** Word typed to let an operation modify a destination (D9): the same for sync, backup and restore. */
 export const CONFIRM_WORD = "confirmo";
 
-/** The typed word matches `CONFIRM_WORD`, ignoring case and spaces at the ends. */
-export const confirmationMatches = (typed: string) => typed.trim().toLowerCase() === CONFIRM_WORD;
+/** The typed word matches `word` (`CONFIRM_WORD` by default), ignoring case and spaces at the ends. */
+export const confirmationMatches = (typed: string, word = CONFIRM_WORD) => typed.trim().toLowerCase() === word.trim().toLowerCase();
 
 /** One database of what is going to change: "reemplaza shop · completa · 3 colecciones", with its collections. */
 export interface DangerItem {
@@ -112,6 +112,10 @@ export interface DangerConfirmRequest {
   confirmLabel: string;
   /** Why it can't go ahead now (e.g. another operation writes there); the button stays disabled. */
   blocked?: string;
+  /** Red alert over the confirmation field (e.g. the destination is production). */
+  warning?: string;
+  /** What has to be typed instead of `CONFIRM_WORD` (e.g. the production connection's name). */
+  confirmWord?: string;
 }
 
 /** What the danger window answers: go ahead, or back to the selection; null is "Cancelar". */
@@ -142,10 +146,11 @@ const DANGER_COLLECTION_COLUMNS = 3;
 /** The list scrolls beyond this (`.danger-dbs` max-height, plus its border and margin). */
 const DANGER_LIST_MAX_HEIGHT = 348;
 const DANGER_BLOCKED_HEIGHT = 50;
+const DANGER_WARNING_HEIGHT = 70;
 const DANGER_MIN_HEIGHT = 360;
 
 /** Height of the danger window with its list unscrolled when it fits, so no empty space is left under the field. */
-export function dangerWindowHeight({ items, blocked }: Pick<DangerConfirmRequest, "items" | "blocked">): number {
+export function dangerWindowHeight({ items, blocked, warning }: Pick<DangerConfirmRequest, "items" | "blocked" | "warning">): number {
   const expanded = dangerExpanded(items);
   const list = items.reduce(
     (h, i) =>
@@ -154,6 +159,6 @@ export function dangerWindowHeight({ items, blocked }: Pick<DangerConfirmRequest
       (expanded ? DANGER_COLLECTIONS_PADDING + Math.ceil(i.collections.length / DANGER_COLLECTION_COLUMNS) * DANGER_COLLECTION_ROW : 0),
     8,
   );
-  const height = DANGER_CHROME_HEIGHT + Math.min(list, DANGER_LIST_MAX_HEIGHT) + (blocked ? DANGER_BLOCKED_HEIGHT : 0);
+  const height = DANGER_CHROME_HEIGHT + Math.min(list, DANGER_LIST_MAX_HEIGHT) + (blocked ? DANGER_BLOCKED_HEIGHT : 0) + (warning ? DANGER_WARNING_HEIGHT : 0);
   return Math.max(height, DANGER_MIN_HEIGHT);
 }

@@ -12,7 +12,7 @@ import { useOriginSelection } from "../../../shared/ui/useOriginSelection";
 import { favoritesOf } from "../../connections/domain/connection";
 import { ConnectionField } from "../../connections/ui/ConnectionField";
 import { TagBadge } from "../../connections/ui/TagBadge";
-import { restorePlan, validateRestore } from "../domain/backupSpec";
+import { productionRestoreWarning, restorePlan, validateRestore } from "../domain/backupSpec";
 import type { RestoreChoice, RestoreWindowData } from "./backupViews";
 import { FolderField } from "./FolderField";
 import { useRestoreForm } from "./useRestoreForm";
@@ -67,7 +67,7 @@ export function RestoreWindow({ data, onDone, onClose }: Props) {
           <ConnectionField options={form.targets} value={form.targetId} onChange={form.changeTarget} status={form.targetStatus} />
         </Endpoint>
       }
-      note="Las conexiones protegidas o con etiqueta de producción nunca aparecen como destino."
+      note="Restaurar sobre una conexión protegida o de producción pide desactivar su safe mode y escribir su nombre al confirmar."
       error={submitError || source.error}
       footer={plan.length > 0 ? planLabel(plan) : ""}
       ready={ready}
@@ -84,6 +84,11 @@ export function RestoreWindow({ data, onDone, onClose }: Props) {
         emptyText={form.folder ? "La carpeta no tiene bases de datos de un backup" : "Elige la carpeta del backup"}
         initiallyExpanded={initiallyExpanded(initial?.databases, origin)}
       />
+      {form.target?.production && (
+        <div className="restore-banner blocked" role="alert">
+          {productionRestoreWarning(form.target.name)}
+        </div>
+      )}
       {form.target && form.targetStatus.connected && <EmptySelectionHint plan={plan} />}
     </SelectionWindow>
   );

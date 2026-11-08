@@ -27,11 +27,11 @@ interface Props {
 
 /**
  * Second window of an operation that writes (D9): "Se va a MODIFICAR" (or "GUARDAR") with what changes, and the
- * red button only enabled once `CONFIRM_WORD` is typed. Escape cancels.
+ * red button only enabled once `CONFIRM_WORD` (or the request's `confirmWord`) is typed. Escape cancels.
  */
 export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
   const [typed, setTyped] = useState("");
-  const canConfirm = confirmationMatches(typed) && !request.blocked;
+  const canConfirm = confirmationMatches(typed, request.confirmWord) && !request.blocked;
   const expanded = dangerExpanded(request.items);
 
   useEffect(() => {
@@ -81,9 +81,14 @@ export function DangerConfirmWindow({ request, targetBadge, onDone }: Props) {
           {request.note && <p className="muted small">{request.note}</p>}
         </div>
 
+        {request.warning && (
+          <div className="restore-banner blocked" role="alert">
+            {request.warning}
+          </div>
+        )}
         {request.blocked && <div className="restore-banner blocked">{request.blocked}</div>}
 
-        <ConfirmWordField typed={typed} onChange={setTyped} disabled={!!request.blocked} />
+        <ConfirmWordField typed={typed} onChange={setTyped} disabled={!!request.blocked} word={request.confirmWord} />
       </div>
 
       <div className="modal-footer danger-footer">

@@ -11,6 +11,8 @@ import {
   backupSummary,
   currentDatabases,
   currentSelection,
+  PRODUCTION_RESTORE_HEADING,
+  productionRestoreWarning,
   restoreConfirmation,
   restorePlan,
   restoreSummary,
@@ -97,6 +99,17 @@ describe("backupSpec", () => {
       ["shop", "reemplaza"],
     ]);
     expect(confirm.blocked).toBe("ocupada");
+    expect(confirm.warning).toBeUndefined();
+    expect(confirm.confirmWord).toBeUndefined();
+  });
+
+  it("restoring into production warns and asks for the connection's name", () => {
+    const plan = restorePlan([SHOP], { shop: SHOP.collections }, ["shop"]);
+    const confirm = restoreConfirmation(plan, "C:\b", { name: "SIGO prod", tag: "production" }, undefined, true);
+    expect(confirm.heading).toBe(PRODUCTION_RESTORE_HEADING);
+    expect(confirm.warning).toBe(productionRestoreWarning("SIGO prod"));
+    expect(confirm.confirmWord).toBe("SIGO prod");
+    expect(confirm.confirmLabel).toBe("Restaurar en producción");
   });
 
   it("summarizes the results", () => {

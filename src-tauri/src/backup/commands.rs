@@ -20,7 +20,8 @@ use crate::jobs::selection::{DatabaseCatalog, DatabaseSelection, non_empty};
 use crate::mongo::{self, Sessions};
 use crate::store;
 
-const PROTECTED: &str = "La conexión de destino está protegida, es de producción o apunta al mismo servidor que una que lo es: no se restaura sobre ella";
+const PROTECTED: &str = "La conexión de destino está protegida, es de producción o apunta al mismo servidor que una que lo es: hay que confirmar expresamente el restore sobre producción";
+const PROTECTED_LEFTOVERS: &str = "La conexión está protegida, es de producción o apunta al mismo servidor que una que lo es: no se borran provisionales en ella";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +39,9 @@ pub struct RestoreRequest {
     target_sid: String,
     /// Cada BD del backup va a la de su mismo nombre en el destino.
     databases: Vec<DatabaseSelection>,
+    /// El usuario confirmó (escribiendo el nombre de la conexión) que restaura sobre producción.
+    #[serde(default)]
+    confirm_protected: bool,
 }
 
 #[tauri::command]
@@ -82,10 +86,11 @@ pub async fn restore_databases(
 ) -> Result<Vec<CollectionResult>, String> {
     // Antes de cualquier `await`: si no, un "Cancelar" que llegue mientras se conecta se pierde.
     let running = jobs.start(&job, "un restore")?;
-    let RestoreRequest { dir, target_sid, databases } = request;
+    let RestoreRequest { dir, target_sid, databases, confirm_protected } = request;
     let databases = non_empty(databases)?;
-    // No basta con que la UI no lo ofrezca: se comprueba con lo guardado en disco.
-    ensure_restorable(store::is_protected(&app, &target_sid)?)?;
+    // No basta con la confirmación de la UI: se comprueba con lo guardado en disco. Safe mode
+    // (abajo) sigue frenándolo aunque se haya confirmado.
+    ensure_restorable(store::is_protected(&app, &target_sid)?, confirm_protected)?;
     let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &target_sid).await?;
     safe_mode.ensure_writable()?;
     let restores = restores_from(&client, &dir, databases)?;
@@ -107,15 +112,17 @@ pub async fn drop_leftovers(
     sid: String,
     leftovers: Vec<Leftover>,
 ) -> Result<(), String> {
-    // Como el restore: una conexión protegida o de producción nunca se modifica.
-    ensure_restorable(store::is_protected(&app, &sid)?)?;
+    // Las provisionales de una conexión protegida o de producción no se borran desde aquí.
+    if store::is_protected(&app, &sid)? {
+        return Err(PROTECTED_LEFTOVERS.into());
+    }
     let (client, safe_mode) = mongo::session_with_safe_mode(&sessions, &sid).await?;
     leftovers::drop_all(&Destination { client: &client, safe_mode: &safe_mode }, &leftovers).await
 }
 
-/// Nunca se restaura sobre una conexión protegida o de producción.
-fn ensure_restorable(protected: bool) -> Result<(), String> {
-    if protected { Err(PROTECTED.into()) } else { Ok(()) }
+/// Sobre una conexión protegida o de producción solo se restaura con la confirmación expresa.
+fn ensure_restorable(protected: bool, confirmed: bool) -> Result<(), String> {
+    if protected && !confirmed { Err(PROTECTED.into()) } else { Ok(()) }
 }
 
 /// Cada BD elegida, con su carpeta dentro del backup y la BD del mismo nombre en el destino.
@@ -142,8 +149,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_protected_or_production_target_is_rejected() {
-        assert_eq!(ensure_restorable(true), Err(PROTECTED.into()));
-        assert_eq!(ensure_restorable(false), Ok(()));
+    fn a_protected_or_production_target_needs_the_explicit_confirmation() {
+        assert_eq!(ensure_restorable(true, false), Err(PROTECTED.into()));
+        assert_eq!(ensure_restorable(true, true), Ok(()));
+        assert_eq!(ensure_restorable(false, false), Ok(()));
     }
 }
