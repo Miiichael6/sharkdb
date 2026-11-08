@@ -3,7 +3,8 @@
 (function (native, lib) {
   'use strict';
 
-  // Los enteros del servidor llegan como NumberInt/NumberLong; los contadores se dan como número.
+  // Los Int32 del servidor llegan como número y los Int64 como NumberLong; los contadores se dan
+  // como número.
   const num = (value) => (value !== null && typeof value === 'object' ? Number(value) : value);
 
   // Quita las opciones sin valor: `undefined` llegaría al servidor como null.

@@ -93,7 +93,15 @@
     tojson() { return this.toString(); },
     valueOf() { return Number(this._value); },
     toNumber() { return Number(this._value); },
+    // Shell clásico: -1, 0 o 1 comparando con otro NumberLong o un número.
+    compare(other) {
+      const a = BigInt(this._value);
+      const b = other instanceof NumberLong ? BigInt(other._value) : BigInt(Math.trunc(Number(other)));
+      return a < b ? -1 : a > b ? 1 : 0;
+    },
   });
+  // Shell clásico: `floatApprox` es el valor como número JS (aproximado fuera de 2^53).
+  Object.defineProperty(NumberLong.prototype, 'floatApprox', { get() { return Number(this._value); } });
 
   function NumberInt(value) {
     const instance = construct(this, NumberInt, arguments);
@@ -182,6 +190,9 @@
     getTime() { return this._t; },
     getInc() { return this._i; },
   });
+  // Shell clásico: `ts.t` y `ts.i` (scripts sobre el oplog los usan).
+  Object.defineProperty(Timestamp.prototype, 't', { get() { return this._t; } });
+  Object.defineProperty(Timestamp.prototype, 'i', { get() { return this._i; } });
 
   function Code(code, scope) {
     const instance = construct(this, Code, arguments);

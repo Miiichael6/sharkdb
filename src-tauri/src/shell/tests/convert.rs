@@ -91,6 +91,31 @@ fn whole_double_read_comes_back_as_int32() {
     });
 }
 
+/// Como Robo3T y mongosh: un Int32 leído es un número JS, así `===` entre campos funciona.
+#[test]
+fn int32_read_is_a_plain_js_number() {
+    engine().with_context(|ctx| {
+        let js = bson_to_js(&ctx, &Bson::Document(doc! { "a": 5_i32, "b": 5_i32 })).unwrap();
+        ctx.globals().set("d", js).unwrap();
+        let same: bool = ctx
+            .eval("typeof d.a === 'number' && d.a === d.b && d.a === 5")
+            .unwrap();
+        assert!(same);
+    });
+}
+
+/// Propiedades del shell clásico (Robo 3T): `ts.t`/`ts.i`, `floatApprox` y `compare`.
+#[test]
+fn legacy_shell_properties() {
+    assert_eq!(
+        eval_to_bson(
+            "[Timestamp(5, 7).t, Timestamp(5, 7).i, NumberLong(9).floatApprox, \
+             NumberLong(3).compare(NumberLong(4)), NumberLong(4).compare(4), NumberLong('9007199254740993').compare(NumberLong('9007199254740992'))]"
+        ),
+        Bson::Array(vec![5.into(), 7.into(), 9.into(), (-1).into(), 0.into(), 1.into()])
+    );
+}
+
 #[test]
 fn js_numbers_become_int32_or_double_like_mongosh() {
     assert_eq!(

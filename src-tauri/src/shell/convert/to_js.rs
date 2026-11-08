@@ -36,7 +36,9 @@ pub fn bson_to_js<'js>(ctx: &Ctx<'js>, bson: &Bson) -> rquickjs::Result<Value<'j
             BsonTag::Code,
             (code.code.as_str(), document_to_js(ctx, &code.scope)?),
         )?,
-        Bson::Int32(n) => construct(ctx, BsonTag::NumberInt, (*n,))?,
+        // Número JS, como en Robo3T y mongosh: así `doc.a === doc.b` y `=== 5` funcionan. Al
+        // volver a BSON un entero que cabe en 32 bits sigue siendo Int32 (ver to_bson::number).
+        Bson::Int32(n) => Value::new_int(ctx.clone(), *n),
         Bson::Int64(n) => construct(ctx, BsonTag::NumberLong, (n.to_string(),))?,
         Bson::Timestamp(ts) => construct(ctx, BsonTag::Timestamp, (ts.time, ts.increment))?,
         Bson::Binary(binary) => construct(
