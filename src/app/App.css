@@ -1010,6 +1010,16 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   align-items: center;
   margin-top: 14px;
 }
+/* Dialogs that fill their own window: the action row always sits on the bottom edge, even when the
+   content is short (e.g. "Renombrar colección"). Padding, not margin, keeps the gap above it. */
+.document-window > .modal-footer,
+.confirm-window > .modal-footer,
+.db-dialog > .modal-footer,
+.settings-dialog > .modal-footer,
+.theme-dialog > .modal-footer {
+  margin-top: auto;
+  padding-top: 14px;
+}
 /* Same height and a minimum width for every dialog action, so short labels ("OK") don't shrink
    into chips next to long ones and the row reads as one set. */
 .modal-footer button:not(.ghost):not(.link) {
@@ -4320,7 +4330,8 @@ button.ops-folder {
   background: var(--surface);
 }
 .ops-detail .modal-footer {
-  margin-top: 0;
+  /* The column's gap gives the space above; auto pins it to the bottom edge. */
+  margin-top: auto;
 }
 .ops-detail-head {
   display: flex;
