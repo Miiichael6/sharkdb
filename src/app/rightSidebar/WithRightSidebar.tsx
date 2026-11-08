@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { OperationsPanel } from "./OperationsPanel";
-import { useOperations } from "./useOperations";
+import type { Session } from "../../features/connections/domain/session";
+import { RightSidebar } from "./RightSidebar";
+import { useClaudeConnections } from "./useClaudeConnections";
+import { useRightSidebar } from "./useRightSidebar";
 
 const MIN_WIDTH = 260;
 const MAX_WIDTH = 720;
 /** The main area keeps at least this width however far the splitter is dragged. */
 const MIN_MAIN_WIDTH = 360;
 
-/** The main area with the operations panel on its right while it is open; the splitter resizes it. */
-export function WithOperationsPanel({ children }: { children: ReactNode }) {
-  const { panelOpen } = useOperations();
-  const [width, setWidth] = useState(340);
+/** The main area with the right sidebar while it is open; the splitter resizes it. */
+export function WithRightSidebar({ sessions, children }: { sessions: Session[]; children: ReactNode }) {
+  const { tab } = useRightSidebar();
+  const [width, setWidth] = useState(360);
   const container = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  // Claude may keep answering with the sidebar closed: the exposed connections follow the sessions anyway.
+  useClaudeConnections(sessions);
 
   useEffect(() => {
     const move = (e: MouseEvent) => {
@@ -33,10 +37,10 @@ export function WithOperationsPanel({ children }: { children: ReactNode }) {
   return (
     <div className="with-ops" ref={container}>
       <div className="with-ops-main">{children}</div>
-      {panelOpen && (
+      {tab && (
         <>
           <div className="splitter" onMouseDown={() => (dragging.current = true)} />
-          <OperationsPanel width={width} />
+          <RightSidebar tab={tab} width={width} />
         </>
       )}
     </div>

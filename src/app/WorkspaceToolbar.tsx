@@ -27,6 +27,7 @@ import { NO_CONNECTION_SELECTED } from "../features/workspace/domain/databaseCho
 import { useLog } from "../shared/ui/useLog";
 import { operationsBadge } from "../shared/domain/operations";
 import { useOperations } from "./operations/useOperations";
+import { useRightSidebar } from "./rightSidebar/useRightSidebar";
 import { useCurrentTarget } from "./useCurrentTarget";
 import type { ChooseDatabases } from "./useDatabaseWindow";
 import { useDatabasePicker } from "./useDatabasePicker";
@@ -135,6 +136,7 @@ export function WorkspaceToolbar(props: Props) {
   };
 
   const operations = useOperations();
+  const sidebar = useRightSidebar();
   const handlers: ToolbarHandlers = {
     toggleSidebar: layout.toggleSidebar,
     connections: () => void showConnections(),
@@ -146,7 +148,8 @@ export function WorkspaceToolbar(props: Props) {
     quickActions: () => target && quickOpen.open("action"),
     refresh: controls.refreshAll,
     safeMode: toggleSafeMode,
-    operations: operations.togglePanel,
+    operations: () => sidebar.toggle("operations"),
+    claude: () => sidebar.toggle("claude"),
     logs: layout.toggleLogs,
   };
   useToolbarShortcuts(handlers);
@@ -180,7 +183,8 @@ export function WorkspaceToolbar(props: Props) {
           toggleSidebar: !layout.sidebarHidden,
           logs: layout.logsOpen,
           safeMode: !!session?.safeMode,
-          operations: operations.panelOpen,
+          operations: sidebar.tab === "operations",
+          claude: sidebar.tab === "claude",
         }}
         disabled={{ databases: !selectedSession, openDatabase: !selectedSession, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
         disabledReasons={{ databases: NO_CONNECTION_SELECTED, openDatabase: NO_CONNECTION_SELECTED }}

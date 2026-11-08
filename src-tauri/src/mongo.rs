@@ -287,6 +287,13 @@ pub async fn close_detached(sessions: State<'_, Sessions>, id: String) -> Result
 }
 
 impl Sessions {
+    /// Opens `uri` (no tunnel) as session `id`: for the tests against a real MongoDB.
+    #[cfg(test)]
+    pub(crate) async fn open_for_test(&self, id: &str, uri: &str, safe_mode: bool) {
+        let client = open(uri, None, PathBuf::new(), safe_mode).await.expect("client");
+        self.open.lock().await.insert(id.to_string(), client);
+    }
+
     /// Takes a hold on the client opened apart for `id`, opening it with `open_client` (in
     /// `safe_mode`, to `endpoint`) when there's none; fails (holding nothing) when the server
     /// doesn't answer or the client already open can't be used (see `Detached::join`).

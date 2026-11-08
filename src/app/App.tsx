@@ -29,7 +29,7 @@ import { useLog } from "../shared/ui/useLog";
 import { usePreferencesShortcut } from "../shared/ui/usePreferencesShortcut";
 import { useNotify } from "../shared/ui/useNotifications";
 import { useDataOperations } from "./operations/useDataOperations";
-import { WithOperationsPanel } from "./operations/WithOperationsPanel";
+import { WithRightSidebar } from "./rightSidebar/WithRightSidebar";
 import { useServices } from "./services";
 import { useDatabaseWindow } from "./useDatabaseWindow";
 import { useSavedConnections } from "./useSavedConnections";
@@ -260,7 +260,7 @@ function App() {
                 />
               )}
               renderMain={(details, selected) => (
-                <WithOperationsPanel>
+                <WithRightSidebar sessions={sessions}>
                   <ShellTabs
                     tabs={tabs}
                     files={files}
@@ -269,7 +269,7 @@ function App() {
                     draggedCollection={draggedCollection && shellTab(draggedCollection, true)}
                     connections={connections}
                   />
-                </WithOperationsPanel>
+                </WithRightSidebar>
               )}
             />
           )}

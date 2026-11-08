@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import { ModalWindow } from "./app/ModalWindow";
 import { OperationsProvider } from "./app/operations/useOperations";
+import { RightSidebarProvider } from "./app/rightSidebar/useRightSidebar";
 import "./app/themes/loadThemes";
 import { createServices, ServicesProvider } from "./app/services";
 import { currentModalView } from "./shared/ui/modalWindow";
@@ -29,9 +30,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <ServicesProvider services={services}>
           <NotificationsProvider>
             <LogProvider>
-              <OperationsProvider>
-                <App />
-              </OperationsProvider>
+              <RightSidebarProvider>
+                <OperationsProvider>
+                  <App />
+                </OperationsProvider>
+              </RightSidebarProvider>
             </LogProvider>
           </NotificationsProvider>
         </ServicesProvider>

@@ -1,19 +1,17 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { LaunchJob, StartedOperation } from "../../shared/application/operationsService";
 import type { CollectionResult } from "../../shared/domain/jobs";
 import { cancelConfirmation, operationOutcome, type Operation, type OperationSpec } from "../../shared/domain/operations";
 import { confirmInWindow } from "../../shared/ui/confirmInWindow";
 import { useNotify } from "../../shared/ui/useNotifications";
+import { useRightSidebar } from "../rightSidebar/useRightSidebar";
 import { useServices } from "../services";
 import { useCancelOnClose } from "./useCancelOnClose";
 
 interface OperationsContextValue {
   /** Every operation of the session, oldest first. */
   operations: Operation[];
-  panelOpen: boolean;
-  togglePanel: () => void;
-  closePanel: () => void;
-  /** Starts an operation and opens the panel; null when it can't start (the reason is notified). */
+  /** Starts an operation and shows the Operaciones tab; null when it can't start (the reason is notified). */
   start: (spec: OperationSpec, launch: LaunchJob, summarize: (results: CollectionResult[]) => string) => StartedOperation | null;
   /** Cancels `op` once confirmed in its own window. */
   cancel: (op: Operation) => Promise<void>;
@@ -34,7 +32,7 @@ const ELSEWHERE_POLL_MS = 3000;
 export function OperationsProvider({ children }: { children: ReactNode }) {
   const { operations: service } = useServices();
   const operations = useSyncExternalStore(service.subscribe, service.list);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const { show } = useRightSidebar();
   const notify = useNotify();
   useCancelOnClose(service);
 
@@ -53,7 +51,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
         notify.fail(e);
         return null;
       }
-      setPanelOpen(true);
+      show("operations");
       void started.settled.then((op) => {
         const text = operationOutcome(op);
         if (op.status === "done") notify.ok(text);
@@ -62,7 +60,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       });
       return started;
     },
-    [service, notify],
+    [service, notify, show],
   );
 
   const cancel = useCallback(
@@ -76,15 +74,12 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   const value = useMemo<OperationsContextValue>(
     () => ({
       operations,
-      panelOpen,
-      togglePanel: () => setPanelOpen((open) => !open),
-      closePanel: () => setPanelOpen(false),
       start,
       cancel,
       clearFinished: service.clearFinished,
       dismiss: service.dismiss,
     }),
-    [operations, panelOpen, start, cancel, service],
+    [operations, start, cancel, service],
   );
   return <OperationsContext.Provider value={value}>{children}</OperationsContext.Provider>;
 }
