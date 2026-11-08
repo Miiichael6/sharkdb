@@ -260,7 +260,7 @@ function App() {
                 />
               )}
               renderMain={(details, selected) => (
-                <WithRightSidebar sessions={sessions}>
+                <WithRightSidebar>
                   <ShellTabs
                     tabs={tabs}
                     files={files}

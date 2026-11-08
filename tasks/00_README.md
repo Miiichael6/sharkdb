@@ -94,7 +94,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D22** Edición en línea → **Esc cancela** y deja el valor original. Clic fuera (otro documento, el explorador, otra pestaña o fuera de la ventana) → sub-ventana "Estás editando un campo" con **Seguir editando** (devuelve el foco) y **Descartar cambios** (2026-11-04) → afecta 38
 - [x] **D23** Detalle de operaciones: estados y colores de cada colección → **aceptada la propuesta**: ○ gris `Pendiente` (en cola, 0 %) · ● azul con pulso `En curso` · ● ámbar `Copiada, se aplica al final` (solo sync/restore: el destino se reemplaza cuando terminan todas) · ● verde `Aplicada` / `Guardada` (100 %) · ● rojo `Error` (con el motivo) · ○ gris hueco con % tachado `Descartada` (cancelada o fallida: el destino quedó como estaba). Restore con `_id` duplicados: verde con "⚠ N duplicados" (2026-11-04) → afecta 40, 41
 - [x] **D24** Detalle de operaciones: ¿cómo se abre? → **en una sub-ventana** al hacer clic (o Enter) en la fila del panel; se actualiza en vivo mientras la operación corre (2026-11-04) → afecta 41
-- [x] **D8** Servidor MCP → **HTTP local** dentro de la app y **escrituras permitidas, siempre sujetas al safe mode** de cada conexión; lo usa un **chat con Claude embebido** en una pestaña del sidebar derecho, iniciado con el setup token de `claude setup-token` (2026-11-04) → afecta 16
+- [x] **D8** Servidor MCP → **descartado por el usuario**: se quitó el servidor MCP y el chat con Claude (2026-11-07) → afecta 16
 
 ## Tablero
 
@@ -115,7 +115,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 13 | [Safe mode y centro de notificaciones](done/13_safe_mode_notificaciones.md) | 8 Barra de herramientas | 06, 11 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 14 | [Backup y restore de base de datos](done/14_backup_restore.md) | 9 Operaciones de BD | 12, 13 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 15 | [Sincronizar entre entornos](done/15_sincronizar_bd.md) | 9 Operaciones de BD | 09, 14 | ✅ Terminada (prueba manual pendiente en la UI) |
-| 16 | [Servidor MCP y actividad MCP](in_progress/16_servidor_mcp.md) | 10 MCP | 13 | 🔄 En progreso |
+| 16 | [Servidor MCP y actividad MCP](pending/16_servidor_mcp.md) | 10 MCP | 13 | ❌ Descartada (el usuario ya no quiere el MCP) |
 | 17 | [Menú contextual completo de colección](done/17_menu_coleccion.md) | 7 Administración | 09, 13 | ✅ Terminada (prueba manual pendiente en la UI) |
 | 18 | [Confirmaciones en ventanas modales](done/18_ventanas_confirmacion.md) | 8 Barra de herramientas | 12 | ✅ Terminada (prueba manual pendiente) |
 | 19 | [Menús de índices y conexión como Robo 3T](done/19_menus_indices_conexion.md) | 7 Administración | 17, 18 | ✅ Terminada (prueba manual pendiente) |

@@ -9,9 +9,6 @@ import { tauriRunFolders } from "../features/backup/infrastructure/tauriRunFolde
 import { tauriScheduleStore } from "../features/backup/infrastructure/tauriScheduleStore";
 import { tauriScheduleTurn } from "../features/backup/infrastructure/tauriScheduleTurn";
 import { tauriSystemNotifier } from "../features/backup/infrastructure/tauriSystemNotifier";
-import { createClaudeService, type ClaudeService } from "../features/claude/application/claudeService";
-import { localExposurePrefs } from "../features/claude/infrastructure/localExposurePrefs";
-import { tauriClaudeGateway } from "../features/claude/infrastructure/tauriClaudeGateway";
 import { createConnectionService, type ConnectionService } from "../features/connections/application/connectionService";
 import { tauriConnectionStore } from "../features/connections/infrastructure/tauriConnectionStore";
 import { tauriFilePicker } from "../features/connections/infrastructure/tauriFilePicker";
@@ -61,7 +58,6 @@ export interface Services {
   operations: OperationsService;
   settings: SettingsService;
   updates: UpdateService;
-  claude: ClaudeService;
 }
 
 export function createServices(): Services {
@@ -90,7 +86,6 @@ export function createServices(): Services {
     operations: createOperationsService(undefined, undefined, tauriOtherWindows),
     settings,
     updates: createUpdateService(tauriUpdateGateway),
-    claude: createClaudeService(tauriClaudeGateway, localExposurePrefs),
   };
 }
 

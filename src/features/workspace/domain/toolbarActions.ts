@@ -13,7 +13,6 @@ export type ToolbarActionId =
   | "refresh"
   | "safeMode"
   | "operations"
-  | "claude"
   | "notifications"
   | "logs"
   | "settings";
@@ -63,7 +62,6 @@ export const TOOLBAR_ACTIONS: Record<ToolbarActionId, ToolbarAction> = {
   },
   safeMode: { id: "safeMode", label: "Safe mode: solo lectura en esta conexión", shortcuts: [], toggle: true },
   operations: { id: "operations", label: "Operaciones en segundo plano", shortcuts: [], toggle: true },
-  claude: { id: "claude", label: "Claude: consulta tus bases de datos con IA", shortcuts: [], toggle: true },
   notifications: { id: "notifications", label: "Notificaciones", shortcuts: [] },
   logs: { id: "logs", label: "Logs", shortcuts: [], toggle: true },
   settings: { id: "settings", label: "Ajustes", shortcuts: [] },
@@ -77,7 +75,7 @@ export const TOOLBAR_LAYOUT: { left: ToolbarActionId[][]; right: ToolbarActionId
     ["databases", "openMongosh"],
     ["openConnection", "openDatabase", "quickActions"],
   ],
-  right: [["refresh"], ["safeMode"], ["operations", "claude", "notifications", "logs"]],
+  right: [["refresh"], ["safeMode"], ["operations", "notifications", "logs"]],
 };
 
 export const shortcutLabel = (s: Shortcut) =>

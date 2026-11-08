@@ -1,6 +1,6 @@
 # 16 · Servidor MCP y actividad MCP
 
-**Estado:** ⛔ Bloqueada (D8, pospuesta por el usuario)
+**Estado:** ❌ Descartada (2026-11-07: el usuario ya no quiere el MCP; se quitó el código)
 **Fase:** 10 MCP · **Depende de:** 13 · **Doc:** R31, R32
 
 ## Objetivo

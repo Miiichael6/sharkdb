@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { Session } from "../../features/connections/domain/session";
 import { RightSidebar } from "./RightSidebar";
-import { useClaudeConnections } from "./useClaudeConnections";
 import { useRightSidebar } from "./useRightSidebar";
 
 const MIN_WIDTH = 260;
@@ -10,13 +8,11 @@ const MAX_WIDTH = 720;
 const MIN_MAIN_WIDTH = 360;
 
 /** The main area with the right sidebar while it is open; the splitter resizes it. */
-export function WithRightSidebar({ sessions, children }: { sessions: Session[]; children: ReactNode }) {
+export function WithRightSidebar({ children }: { children: ReactNode }) {
   const { tab } = useRightSidebar();
   const [width, setWidth] = useState(360);
   const container = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
-  // Claude may keep answering with the sidebar closed: the exposed connections follow the sessions anyway.
-  useClaudeConnections(sessions);
 
   useEffect(() => {
     const move = (e: MouseEvent) => {

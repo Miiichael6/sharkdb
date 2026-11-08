@@ -1,9 +1,7 @@
 mod backup;
-mod claude;
 mod documents;
 mod files;
 mod jobs;
-mod mcp;
 mod mongo;
 mod rename;
 mod safe_mode;
@@ -28,8 +26,6 @@ pub fn run() {
         .manage(mongo::Sessions::default())
         .manage(shell::ShellSessions::default())
         .manage(jobs::Jobs::default())
-        .manage(mcp::McpServer::default())
-        .manage(claude::ClaudeChat::default())
         .setup(|app| {
             use tauri::Manager;
             // Cada ventana es un proceso: lo que tiene en marcha cada una se ve en la carpeta común (error 60).
@@ -80,13 +76,6 @@ pub fn run() {
             sync::commands::sync_databases,
             jobs::events::cancel_job,
             jobs::events::busy_elsewhere,
-            mcp::commands::mcp_set_exposed,
-            claude::commands::claude_has_token,
-            claude::commands::claude_save_token,
-            claude::commands::claude_forget_token,
-            claude::commands::claude_send,
-            claude::commands::claude_stop,
-            claude::commands::claude_new_conversation,
         ])
         .run(context)
         .expect("error while running tauri application");

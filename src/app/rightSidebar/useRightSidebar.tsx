@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-export type SidebarTab = "operations" | "claude";
+export type SidebarTab = "operations";
 
 interface RightSidebarValue {
   /** The tab shown, or null while the sidebar is closed. */
@@ -13,7 +13,7 @@ interface RightSidebarValue {
 
 const RightSidebarContext = createContext<RightSidebarValue | null>(null);
 
-/** The main window's right sidebar: background operations and the chat with Claude. */
+/** The main window's right sidebar: background operations. */
 export function RightSidebarProvider({ children }: { children: ReactNode }) {
   const [tab, setTab] = useState<SidebarTab | null>(null);
   const show = useCallback((next: SidebarTab) => setTab(next), []);

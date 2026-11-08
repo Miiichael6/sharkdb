@@ -149,7 +149,6 @@ export function WorkspaceToolbar(props: Props) {
     refresh: controls.refreshAll,
     safeMode: toggleSafeMode,
     operations: () => sidebar.toggle("operations"),
-    claude: () => sidebar.toggle("claude"),
     logs: layout.toggleLogs,
   };
   useToolbarShortcuts(handlers);
@@ -184,7 +183,6 @@ export function WorkspaceToolbar(props: Props) {
           logs: layout.logsOpen,
           safeMode: !!session?.safeMode,
           operations: sidebar.tab === "operations",
-          claude: sidebar.tab === "claude",
         }}
         disabled={{ databases: !selectedSession, openDatabase: !selectedSession, openMongosh: !target || !!session?.safeMode, quickActions: !target, safeMode: !session }}
         disabledReasons={{ databases: NO_CONNECTION_SELECTED, openDatabase: NO_CONNECTION_SELECTED }}

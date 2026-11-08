@@ -1,10 +1,8 @@
-import { ClaudePanel } from "../../features/claude/ui/ClaudePanel";
 import { OperationsPanel } from "../operations/OperationsPanel";
 import { useRightSidebar, type SidebarTab } from "./useRightSidebar";
 
 const TABS: { id: SidebarTab; label: string }[] = [
   { id: "operations", label: "Operaciones" },
-  { id: "claude", label: "Claude" },
 ];
 
 /** The right sidebar: one tab at a time; closing it stops nothing. */
@@ -22,7 +20,7 @@ export function RightSidebar({ tab, width }: { tab: SidebarTab; width: number })
           ×
         </button>
       </header>
-      {tab === "operations" ? <OperationsPanel /> : <ClaudePanel />}
+      {tab === "operations" && <OperationsPanel />}
     </aside>
   );
 }
