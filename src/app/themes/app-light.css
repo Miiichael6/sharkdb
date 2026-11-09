@@ -53,7 +53,9 @@
   --bson-id: #c2410c;
   --bson-date: #0b7894;
   --bson-number: #7c3aed;
-  --bson-string: #a86f00;
+  --bson-string: #946c00;
+  --bson-string-badge: #e3b23c;
+  --bson-string-glyph: #5a4100;
   --bson-constant: #d1206a;
   --bson-code: #2b8a0e;
   --bson-array: #d9480f;

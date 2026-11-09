@@ -1686,10 +1686,137 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   display: flex;
   gap: 6px;
 }
+.panel-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.panel-eyebrow {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.panel-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
 .panel-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  margin: 20px 0 8px;
+  margin: 28px 0 6px;
+}
+.panel-sub .muted {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+/* The headline figures: one band split by hairlines (the 1px gap over the border colour), so it
+   still reads as one block when it wraps. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 4px 0 0;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.metric {
+  background: var(--surface);
+  padding: 12px 16px 13px;
+  min-width: 0;
+}
+.metric dt {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.metric dd {
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric-value {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.metric-hint {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+/* The rest of the stats: key and value in two columns, in "Más detalles". */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0 24px;
+  margin: 0 0 12px;
+}
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.facts dt {
+  color: var(--muted);
+}
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  word-break: break-all;
+}
+.index-table td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.index-table tbody tr:hover {
+  background: var(--row-hover);
+}
+.ix-name {
+  font-weight: 500;
+}
+.ix-keys,
+.ix-props {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ix-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  font: 11.5px/18px "Cascadia Mono", Consolas, monospace;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.ix-dir {
+  color: var(--muted);
+}
+.ix-prop {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.grid .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .json {
   font-family: "Cascadia Mono", Consolas, monospace;
@@ -1702,35 +1829,13 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   overflow: auto;
   white-space: pre;
 }
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-.stats div {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-}
-.stats dt {
-  color: var(--muted);
-  font-size: 11px;
-}
-.stats dd {
-  margin: 2px 0 0;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  word-break: break-all;
-}
 .nested {
-  margin-top: 12px;
+  margin-top: 24px;
 }
 .nested summary {
   cursor: pointer;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 table.grid {
   width: 100%;
@@ -3044,6 +3149,14 @@ button.link.console-more {
 .type-glyph {
   display: inline-flex;
   color: var(--bg);
+}
+/* On a light page a yellow dark enough to read as text turns mustard as a fill: themes may give the
+   string badge a brighter yellow of its own, with a dark glyph as it has in the dark themes. */
+.type-icon.bson-string {
+  color: var(--bson-string-badge, var(--bson-string));
+}
+.type-icon.bson-string .type-glyph {
+  color: var(--bson-string-glyph, var(--bg));
 }
 /* The read-only editor of the text view; it scrolls on its own. */
 .result-text {
