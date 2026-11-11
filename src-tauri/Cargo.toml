@@ -1,6 +1,6 @@
 [package]
 name = "sharkdb"
-version = "0.1.8"
+version = "0.1.9"
 description = "SharkDB"
 authors = ["you"]
 edition = "2024"
