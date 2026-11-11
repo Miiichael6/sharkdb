@@ -31,6 +31,8 @@ import {
   type ViewDefinitionWindowData,
 } from "../features/explorer/ui/ViewDefinitionWindow";
 import { SettingsDialog } from "../features/settings/ui/SettingsDialog";
+import { WHATS_NEW_VIEW, type WhatsNewData } from "../features/whatsNew/ui/whatsNewViews";
+import { WhatsNewWindow } from "../features/whatsNew/ui/WhatsNewWindow";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { Operation } from "../shared/domain/operations";
@@ -203,6 +205,8 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <SettingsDialog onDone={done} />
         </ServicesProvider>
       );
+    case WHATS_NEW_VIEW:
+      return <WhatsNewWindow data={data as WhatsNewData} onDone={() => done(null)} />;
     case THEME_VIEW:
       return <ThemeDialog data={data as ThemeSelection} onDone={done} />;
     case VALIDATION_VIEW:

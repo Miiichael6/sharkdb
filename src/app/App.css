@@ -345,12 +345,25 @@ input[type="checkbox"] {
 }
 
 .welcome-side {
+  position: relative;
   width: 270px;
   flex: none;
   background: var(--bg-side);
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+/* Dev builds only (Welcome.tsx): opens "Novedades" on demand, in the top-right corner of the side. */
+.welcome-side .dev-whats-new {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  border: 1px dashed var(--warn);
+  color: var(--warn);
+  background: transparent;
 }
 .welcome-side h1 {
   font-size: 30px;
@@ -1016,7 +1029,8 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
 .confirm-window > .modal-footer,
 .db-dialog > .modal-footer,
 .settings-dialog > .modal-footer,
-.theme-dialog > .modal-footer {
+.theme-dialog > .modal-footer,
+.whats-new > .modal-footer {
   margin-top: auto;
   padding-top: 14px;
 }
@@ -1037,51 +1051,6 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   display: block;
   margin: 4px auto 0;
 }
-.modal.picker {
-  width: 640px;
-}
-.driver-grid {
-  margin-top: 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
-  min-height: 220px;
-  align-content: start;
-}
-.driver {
-  flex-direction: column;
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 10px 4px;
-  gap: 6px;
-  position: relative;
-}
-.driver.selected {
-  border-color: var(--accent);
-}
-.driver:disabled {
-  opacity: 0.35;
-}
-.driver-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 20px;
-  color: #fff;
-}
-.soon {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 10px;
-  color: var(--muted);
-}
-
 /* The connection form fills its own window (openConnectionFormWindow); only its body scrolls. */
 .conn-form {
   display: flex;
@@ -4705,3 +4674,98 @@ button.ops-db-head:hover:not(:disabled) {
   }
 }
 
+
+/* "Novedades" (features/whatsNew): each version with its changes; only the list scrolls. */
+.whats-new {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 14px;
+  background: var(--surface);
+}
+.whats-new-hero {
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.whats-new-hero h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.whats-new-hero p {
+  margin: 0;
+  font-size: 13px;
+}
+.whats-new-body {
+  flex: 1;
+  min-height: 0;
+  /* The window fits its content (fitContent): long histories scroll here instead of growing it. */
+  max-height: 460px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 4px;
+}
+.whats-new-release + .whats-new-release {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.whats-new-release header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.whats-new-release h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.whats-new-release .muted {
+  font-size: 12px;
+}
+.whats-new-current {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.whats-new-release ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.whats-new-release li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  line-height: 1.45;
+}
+.whats-new-kind {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  padding: 1px 0;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.whats-new-kind.nuevo {
+  color: var(--ok);
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+}
+.whats-new-kind.mejora {
+  color: var(--info-text);
+  border-color: var(--info-border);
+  background: var(--info-bg);
+}
+.whats-new-kind.arreglo {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}

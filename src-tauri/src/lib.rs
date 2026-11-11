@@ -32,6 +32,17 @@ pub fn run() {
             app.state::<jobs::Jobs>().share_between_instances(store::config_dir(app.handle())?.join("en-curso"));
             jobs::events::start_heartbeat(app.handle().clone());
             schedule::start(app.handle().clone());
+            // La ventana principal arranca oculta y la muestra la interfaz al pintar; si la interfaz
+            // no llega a hacerlo (falla al cargar), se muestra igual para que la app no quede invisible.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                if let Some(win) = handle.get_webview_window("main") {
+                    if !win.is_visible().unwrap_or(true) {
+                        let _ = win.show();
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

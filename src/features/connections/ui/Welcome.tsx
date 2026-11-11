@@ -8,6 +8,7 @@ import { MenuList } from "../../../shared/ui/MenuList";
 import { GearIcon, SETTINGS_ITEMS } from "../../../shared/ui/settingsMenu";
 import { WindowControls } from "../../../shared/ui/WindowControls";
 import { UpdateNotice } from "../../updates/ui/UpdateNotice";
+import { openWhatsNewWindow } from "../../whatsNew/ui/whatsNewViews";
 import { ScreenSwitch, type Screen } from "./ScreenSwitch";
 import { TagBadge } from "./TagBadge";
 
@@ -116,6 +117,12 @@ export function Welcome(props: Props) {
           backups.side
         ) : (
           <>
+            {/* Dev builds only (stripped from releases): opens "Novedades" without waiting for a new version. */}
+            {import.meta.env.DEV && (
+              <button className="dev-whats-new" title="Solo en desarrollo: abre la ventana de Novedades" onClick={() => void openWhatsNewWindow()}>
+                DEV · Novedades
+              </button>
+            )}
             <Logo size={190} swimming />
             <h1>SharkDB</h1>
             <span className="muted">Versión {__APP_VERSION__}</span>

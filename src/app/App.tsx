@@ -10,7 +10,6 @@ import {
 } from "../features/connections/domain/connection";
 import type { BorrowedSession, Session } from "../features/connections/domain/session";
 import { openConnectionFormWindow, type ConnectionFormResult } from "../features/connections/ui/connectionFormWindow";
-import { DriverPicker } from "../features/connections/ui/DriverPicker";
 import { ReadOnlyProvider } from "../features/connections/ui/useReadOnly";
 import { TargetServerProvider } from "../features/connections/ui/useTargetServer";
 import { Welcome } from "../features/connections/ui/Welcome";
@@ -37,13 +36,8 @@ import { useWindowSizeForView } from "./useWindowSizeForView";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import "./App.css";
 
-type Dialog =
-  | { kind: "none" }
-  | { kind: "picker" };
-
 function App() {
   const { connections: service, explorer } = useServices();
-  const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
   // Several servers can be open at once, each one a root in the explorer (like Robo 3T).
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -86,7 +80,6 @@ function App() {
   };
 
   const connect = async (conn: MongoConnection) => {
-    setDialog({ kind: "none" });
     setError("");
     setConnectingId(conn.id);
     try {
@@ -223,7 +216,7 @@ function App() {
               error={error}
               onDismissError={() => setError("")}
               onBack={sessions.length ? () => setShowWelcome(false) : undefined}
-              onNew={() => setDialog({ kind: "picker" })}
+              onNew={() => void openForm(newConnection(), true)}
               onConnect={connect}
               onEdit={(conn) => void edit(conn)}
               onDuplicate={(conn) => persist([...connections, duplicateConnection(conn)])}
@@ -252,7 +245,7 @@ function App() {
                   files={files}
                   layout={layout}
                   newTabTarget={tabFor(controls.selected)}
-                  onNewConnection={() => setDialog({ kind: "picker" })}
+                  onNewConnection={() => void openForm(newConnection(), true)}
                   onShowConnections={() => setShowWelcome(true)}
                   onConnect={connect}
                   onSetSafeMode={setSafeMode}
@@ -271,16 +264,6 @@ function App() {
                   />
                 </WithRightSidebar>
               )}
-            />
-          )}
-
-          {dialog.kind === "picker" && (
-            <DriverPicker
-              onClose={() => setDialog({ kind: "none" })}
-              onPick={() => {
-                setDialog({ kind: "none" });
-                void openForm(newConnection(), true);
-              }}
             />
           )}
         </DocumentActionsProvider>

@@ -1,5 +1,6 @@
 import { EditorState, type Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
+import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { codeTheme } from "./codeTheme";
@@ -63,6 +64,8 @@ export function CodeEditor({ value, onChange, extensions = [], onView, readOnly,
         extensions: [
           ...extensions,
           basicSetup,
+          // Tab/Shift+Tab indent instead of moving focus out; after `extensions`, so their Tab (accept suggestion) wins.
+          keymap.of([indentWithTab]),
           shellJavascript(),
           codeTheme,
           fillParent,

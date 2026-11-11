@@ -1,3 +1,4 @@
+import { openWhatsNewWindow } from "../../features/whatsNew/ui/whatsNewViews";
 import type { ContextMenuItem } from "./ContextMenu";
 import { openPreferencesWindow } from "./preferencesWindow";
 import { openThemeWindow } from "./themeWindow";
@@ -6,6 +7,7 @@ import { openThemeWindow } from "./themeWindow";
 export const SETTINGS_ITEMS: ContextMenuItem[] = [
   { label: "Preferencias…", hint: "Ctrl+,", onSelect: () => void openPreferencesWindow() },
   { label: "Tema…", onSelect: () => void openThemeWindow() },
+  { label: "Novedades…", onSelect: () => void openWhatsNewWindow() },
 ];
 
 export function GearIcon() {
