@@ -41,6 +41,9 @@ oxc_allocator = "0.156.0"
 oxc_ast = "0.156.0"
 oxc_span = "0.156.0"
 
+[target.'cfg(windows)'.dependencies]
+windows-version = "0.1.7"
+
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

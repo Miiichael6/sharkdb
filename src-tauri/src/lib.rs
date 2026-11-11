@@ -23,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(old_windows_frame())
         .manage(mongo::Sessions::default())
         .manage(shell::ShellSessions::default())
         .manage(jobs::Jobs::default())
@@ -90,4 +91,29 @@ pub fn run() {
         ])
         .run(context)
         .expect("error while running tauri application");
+}
+
+/// Las ventanas no tienen decoración del sistema y Tauri les pone sombra para que se vean como
+/// ventanas. En Windows 10 y 11 esa sombra es la de DWM. Antes de Windows 10 no existe para ventanas
+/// sin decoración, así que se ve el marco grueso de redimensionar alrededor de la interfaz. En esos
+/// sistemas se quita la sombra y la ventana queda sin marco. Vale para todas las ventanas, también
+/// para los modales que se crean desde la interfaz.
+fn old_windows_frame<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("old-windows-frame")
+        .on_window_ready(|window| {
+            if before_windows_10() {
+                let _ = window.set_shadow(false);
+            }
+        })
+        .build()
+}
+
+#[cfg(windows)]
+fn before_windows_10() -> bool {
+    windows_version::OsVersion::current().major < 10
+}
+
+#[cfg(not(windows))]
+fn before_windows_10() -> bool {
+    false
 }

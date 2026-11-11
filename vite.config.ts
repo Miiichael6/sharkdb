@@ -13,6 +13,8 @@ export default defineConfig(() => ({
   test: {
     include: ["src/**/*.test.ts"],
   },
+  // Tauri embeds the bundle and loads it from disk, so a large single chunk costs nothing over the network.
+  build: { chunkSizeWarningLimit: 1500 },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
