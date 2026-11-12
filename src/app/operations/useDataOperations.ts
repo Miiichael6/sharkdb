@@ -2,6 +2,7 @@
 import { backupSummary, restoreSummary, type BackupRequest, type RestoreRequest } from "../../features/backup/domain/backupSpec";
 import type { MongoConnection } from "../../features/connections/domain/connection";
 import { connectionEndpoint } from "../../features/connections/domain/endpoints";
+import { documentSyncSelection, documentSyncSummary, type DocumentSyncRequest } from "../../features/sync/domain/documentSync";
 import { syncSummary, type SyncRequest } from "../../features/sync/domain/syncPlan";
 import type { StartedOperation } from "../../shared/application/operationsService";
 import { busyTargetMessage, folderEndpoint, runningOn, type OperationEndpoint } from "../../shared/domain/operations";
@@ -57,6 +58,25 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       } as const;
       return refreshAtEnd(
         start(spec, (listener) => sync.sync(request, listener), (results) => syncSummary(target.name, request.databases.length, results)),
+      );
+    },
+    /** Documents picked in the viewer, to a lower environment (R97–R100); listed under Sync in the panel. */
+    syncDocuments(request: DocumentSyncRequest) {
+      const target = connection(request.targetSid);
+      const spec = {
+        kind: "sync",
+        title: "Sincronizar documentos",
+        source: connection(request.sourceSid),
+        target,
+        writesTo: request.targetSid,
+        databases: documentSyncSelection(request),
+      } as const;
+      return refreshAtEnd(
+        start(
+          spec,
+          (listener) => sync.syncDocuments(request, connections, listener),
+          (results) => documentSyncSummary(target.name, request, results),
+        ),
       );
     },
     /** The backup as an operation, to follow or cancel it; null when it didn't start. */

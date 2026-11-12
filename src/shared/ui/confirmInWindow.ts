@@ -54,20 +54,26 @@ export const confirmDangerInWindow = (request: DangerConfirmRequest) =>
   });
 
 /**
- * An operation in two windows: `select` (given what was chosen before "Volver"), then `confirmation`
- * with the confirmation word. Resolves the confirmed choice, or null when cancelled at either step.
+ * An operation in two windows: `select` (given what was chosen before "Volver"), then `ask` for the
+ * confirmation. Resolves the confirmed choice, or null when cancelled at either step.
  */
-export async function selectThenConfirm<T>(
+export async function selectThenAsk<T>(
   select: (previous?: T) => Promise<T | null>,
-  confirmation: (choice: T) => DangerConfirmRequest,
+  ask: (choice: T) => Promise<DangerAnswer | null>,
 ): Promise<T | null> {
   let previous: T | undefined;
   for (;;) {
     const choice = await select(previous);
     if (!choice) return null;
-    const answer = await confirmDangerInWindow(confirmation(choice));
+    const answer = await ask(choice);
     if (answer === "confirm") return choice;
     if (answer !== "back") return null;
     previous = choice;
   }
 }
+
+/** `selectThenAsk` with the danger window built from the choice by `confirmation`. */
+export const selectThenConfirm = <T,>(
+  select: (previous?: T) => Promise<T | null>,
+  confirmation: (choice: T) => DangerConfirmRequest,
+): Promise<T | null> => selectThenAsk(select, (choice) => confirmDangerInWindow(confirmation(choice)));

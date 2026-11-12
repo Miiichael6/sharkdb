@@ -86,6 +86,8 @@ pub fn run() {
             schedule::commands::show_system_notification,
             sync::commands::database_catalog,
             sync::commands::sync_databases,
+            sync::commands::load_full_documents,
+            sync::commands::sync_documents,
             jobs::events::cancel_job,
             jobs::events::busy_elsewhere,
         ])

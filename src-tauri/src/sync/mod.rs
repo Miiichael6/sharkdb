@@ -3,14 +3,16 @@
 //! conexión protegida o en safe mode nunca es destino; el origen solo se lee.
 //!
 //! - `catalog`: las BDs del origen con sus colecciones copiables, para que la UI las ofrezca.
-//! - `target`: reglas puras sobre el destino (no es el origen).
+//! - `target`: reglas puras sobre el destino (no es el origen; para documentos, de menor nivel).
 //! - `copy`: la copia por cursor y lotes, a una colección provisional que se renombra al final
 //!   (`backup::staging`, común con el restore).
-//! - `commands`: comandos Tauri (`database_catalog`, `sync_databases`).
+//! - `documents`: documentos sueltos leídos enteros por `_id` y escritos con upsert (R97–R100, D25).
+//! - `commands`: comandos Tauri (`database_catalog`, `sync_databases`, `load_full_documents`, `sync_documents`).
 
 mod catalog;
 pub mod commands;
 mod copy;
+mod documents;
 mod target;
 
 #[cfg(test)]

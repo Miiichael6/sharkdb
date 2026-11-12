@@ -8,7 +8,7 @@ interface Props {
   /** Line under both ends (e.g. production never appears as destination). */
   note?: ReactNode;
   /** The picker and the plan. */
-  children: ReactNode;
+  children?: ReactNode;
   error?: string;
   /** "2 bases de datos · 35 colecciones" next to the buttons. */
   footer: string;

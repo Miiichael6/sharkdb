@@ -1600,6 +1600,15 @@ button.ghost.schedule-cancel:hover:not(:disabled) {
   color: var(--disabled);
   pointer-events: none;
 }
+/* A disabled item that says why keeps the pointer, to show its tooltip, but never lights up. */
+.context-menu li.disabled[title] {
+  pointer-events: auto;
+  cursor: default;
+}
+.context-menu li.disabled[title]:hover {
+  background: none;
+  color: var(--disabled);
+}
 
 .online {
   width: 8px;
@@ -4768,4 +4777,37 @@ button.ops-db-head:hover:not(:disabled) {
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 45%, transparent);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+/* ---------- Document sync (42): both ends and every document whole ---------- */
+
+.doc-sync-end {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-bottom: 10px;
+}
+.doc-sync-plan {
+  margin-top: 12px;
+}
+.doc-sync-docs {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.doc-sync-docs pre {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 12px;
+  user-select: text;
+  white-space: pre;
 }

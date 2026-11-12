@@ -33,6 +33,14 @@ import {
 import { SettingsDialog } from "../features/settings/ui/SettingsDialog";
 import { WHATS_NEW_VIEW, type WhatsNewData } from "../features/whatsNew/ui/whatsNewViews";
 import { WhatsNewWindow } from "../features/whatsNew/ui/WhatsNewWindow";
+import type { DocumentSyncConfirmation } from "../features/sync/domain/documentSync";
+import { DocumentSyncConfirm } from "../features/sync/ui/DocumentSyncConfirm";
+import { DocumentSyncWindow } from "../features/sync/ui/DocumentSyncWindow";
+import {
+  DOCUMENT_SYNC_CONFIRM_VIEW,
+  DOCUMENT_SYNC_VIEW,
+  type DocumentSyncWindowData,
+} from "../features/sync/ui/documentSyncViews";
 import { SyncSelectWindow } from "../features/sync/ui/SyncSelectWindow";
 import { SYNC_VIEW, type SyncWindowData } from "../features/sync/ui/syncViews";
 import type { Operation } from "../shared/domain/operations";
@@ -187,6 +195,19 @@ function ModalView({ view, data, done }: { view: string; data: unknown; done: (r
           <SyncSelectWindow data={data as SyncWindowData} onDone={done} onClose={() => done(null)} />
         </ServicesProvider>
       );
+    case DOCUMENT_SYNC_VIEW:
+      return (
+        <ServicesProvider services={createServices()}>
+          <DocumentSyncWindow data={data as DocumentSyncWindowData} onDone={done} onClose={() => done(null)} />
+        </ServicesProvider>
+      );
+    case DOCUMENT_SYNC_CONFIRM_VIEW: {
+      const badge = (tag?: string) => {
+        const known = TAGS.find((t) => t === tag);
+        return known && <TagBadge tag={known} />;
+      };
+      return <DocumentSyncConfirm request={data as DocumentSyncConfirmation} badge={badge} onDone={done} />;
+    }
     case BACKUP_VIEW:
       return (
         <ServicesProvider services={createServices()}>
