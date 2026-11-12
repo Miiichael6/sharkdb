@@ -119,6 +119,23 @@ pub(crate) fn is_protected(app: &AppHandle, connection_id: &str) -> Result<bool,
     Ok(connection_is_protected(&connections, connection_id))
 }
 
+/// Environment tag of a saved connection (`production`, `testing`…), as stored; None when it has none
+/// or isn't saved.
+pub(crate) fn connection_tag(app: &AppHandle, connection_id: &str) -> Result<Option<String>, String> {
+    let connections = read_json(&config_dir(app)?.join(CONNECTIONS_FILE), Value::Array(vec![]))?;
+    Ok(tag_of(&connections, connection_id))
+}
+
+fn tag_of(connections: &Value, connection_id: &str) -> Option<String> {
+    connections
+        .as_array()?
+        .iter()
+        .find(|c| c.get("id").and_then(Value::as_str) == Some(connection_id))?
+        .get("tag")?
+        .as_str()
+        .map(str::to_string)
+}
+
 fn connection_is_protected(connections: &Value, connection_id: &str) -> bool {
     let list = connections.as_array().map(Vec::as_slice).unwrap_or_default();
     let Some(target) = list.iter().find(|c| c.get("id").and_then(Value::as_str) == Some(connection_id)) else {
@@ -221,6 +238,14 @@ mod tests {
         for id in ["", "../connections", "a/b", "a\\b", "c:x"] {
             assert!(history_file_name(id).is_err(), "{id}");
         }
+    }
+
+    #[test]
+    fn the_tag_of_a_saved_connection_is_read_as_stored() {
+        let connections = serde_json::json!([{ "id": "qa", "tag": "testing" }, { "id": "old" }]);
+        assert_eq!(tag_of(&connections, "qa").as_deref(), Some("testing"));
+        assert_eq!(tag_of(&connections, "old"), None);
+        assert_eq!(tag_of(&connections, "missing"), None);
     }
 
     #[test]

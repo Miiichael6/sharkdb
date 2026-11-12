@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useDataOperations } from "../../../app/operations/useDataOperations";
 import { useServices } from "../../../app/services";
+import { DocumentSyncContext, type SyncDocuments } from "../../../shared/ui/documentSyncAction";
 import { LogPanel } from "../../../shared/ui/LogPanel";
 import { StackSplit } from "../../../shared/ui/StackSplit";
 import { NoticeToast } from "../../../shared/ui/NoticeToast";
@@ -13,6 +14,7 @@ import { useRestoreFlow } from "../../backup/ui/useRestoreFlow";
 import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { SAFE_MODE_ERROR } from "../../connections/domain/safeMode";
 import { useLeftoverCleanup } from "../../sync/ui/useLeftoverCleanup";
+import { useDocumentSyncFlow } from "../../sync/ui/useDocumentSyncFlow";
 import { useSyncFlow } from "../../sync/ui/useSyncFlow";
 import { useReadOnly } from "../../connections/ui/useReadOnly";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
@@ -110,6 +112,16 @@ export function Workspace(props: Props) {
     backupDatabase: { open: useBackupFlow({ ...flow, busyElsewhere: data.busyElsewhere, run: data.backup }), name: "backup" },
     restoreDatabase: { open: useRestoreFlow({ ...flow, run: data.restore }), name: "restore" },
   };
+  // The documents picked in the viewer (R97); the viewer reaches it through DocumentSyncContext.
+  const openDocumentSync = useDocumentSyncFlow({ ...flow, run: data.syncDocuments });
+  const syncDocuments = useCallback<SyncDocuments>(
+    (target, docs) =>
+      void openDocumentSync(target, docs).catch((e) => {
+        fail(e);
+        log.error("No se pudo abrir la sincronización de documentos", e);
+      }),
+    [openDocumentSync, fail, log],
+  );
 
   const openMongosh = useCallback(
     (sid: string, db?: string) =>
@@ -190,7 +202,7 @@ export function Workspace(props: Props) {
             label="Redimensionar área principal y logs"
             initialRatio={0.5}
             bottomHidden={!logsOpen}
-            top={props.renderMain(details, selected)}
+            top={<DocumentSyncContext.Provider value={syncDocuments}>{props.renderMain(details, selected)}</DocumentSyncContext.Provider>}
             bottom={<LogPanel onClose={onCloseLogs} />}
           />
         </div>

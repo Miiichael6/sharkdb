@@ -150,7 +150,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 39 | [Punto de color de la conexión en las pestañas](done/39_color_conexion_en_pestanas.md) | 24 Pestañas por conexión | 26 | ✅ Terminada |
 | 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
 | 41 | [Detalle de una operación: origen → destino y colecciones por BD](done/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ✅ Terminada |
-| 42 | [Sincronizar documentos sueltos con otro entorno](pending/42_sync_de_documentos.md) | 26 Sync de documentos | 21, 41 | ⬜ Pendiente |
+| 42 | [Sincronizar documentos sueltos con otro entorno](done/42_sync_de_documentos.md) | 26 Sync de documentos | 21, 41 | ✅ Terminada (falta prueba manual en la app) |
 | 43 | [Reintentar operaciones fallidas desde el panel](pending/43_reintentar_operaciones.md) | 27 Reintentar operaciones | 20, 41 | ⬜ Pendiente |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).

@@ -18,6 +18,8 @@ export interface ContextMenuItem {
   /** Draws a separator line above this item. */
   separatorBefore?: boolean;
   danger?: boolean;
+  /** Tooltip of the item, e.g. why it's disabled. */
+  title?: string;
 }
 
 interface Props {
@@ -144,6 +146,7 @@ export function ContextMenu({ x, y, items, onClose, label, flipX, onBack }: Prop
               role={item.checked === undefined ? "menuitem" : "menuitemradio"}
               aria-checked={item.checked}
               aria-disabled={item.disabled}
+              title={item.title}
               aria-haspopup={item.items ? "menu" : undefined}
               aria-expanded={item.items ? submenu?.index === i : undefined}
               data-index={i}
