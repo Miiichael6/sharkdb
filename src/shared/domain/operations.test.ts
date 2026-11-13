@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { JobProgress } from "./jobs";
 import {
   busyTargetMessage,
+  canRetry,
   cancelConfirmation,
   closeWithRunningConfirmation,
   durationLabel,
@@ -11,6 +12,7 @@ import {
   operationOutcome,
   operationsBadge,
   operationsReducer,
+  retryConfirmation,
   runningOn,
   type Operation,
   type OperationEvent,
@@ -134,6 +136,41 @@ describe("texts", () => {
   it("formats durations", () => {
     expect(durationLabel(12_400)).toBe("12 s");
     expect(durationLabel(65_000)).toBe("1 min 05 s");
+  });
+});
+
+describe("retry (R101, D27)", () => {
+  const WITH_REQUEST: OperationSpec = { ...SYNC, request: { type: "sync" } };
+  const ended = (end: OperationEvent) => run([started("a", WITH_REQUEST), end])[0];
+
+  it("only a failed or cancelled operation that knows its request can be retried", () => {
+    expect(canRetry(ended({ type: "failed", id: "a", error: "sin red", at: 2 }))).toBe(true);
+    expect(canRetry(ended({ type: "cancelled", id: "a", at: 2 }))).toBe(true);
+    expect(canRetry(ended({ type: "finished", id: "a", results: RESULTS, summary: "", at: 2 }))).toBe(false);
+    expect(canRetry(run([started("a", WITH_REQUEST)])[0])).toBe(false);
+    expect(canRetry(run([started("a"), { type: "failed", id: "a", error: "x", at: 2 }])[0])).toBe(false);
+  });
+
+  it("marks the retried one, which then can't be retried again; a running one is never marked", () => {
+    const ops = run([
+      started("a", WITH_REQUEST),
+      started("b", WITH_REQUEST),
+      { type: "failed", id: "a", error: "sin red", at: 2 },
+      { type: "retried", id: "a", by: "c" },
+      { type: "retried", id: "b", by: "d" },
+    ]);
+    expect(ops[0]).toMatchObject({ status: "failed", retriedBy: "c" });
+    expect(canRetry(ops[0])).toBe(false);
+    expect(ops[1].retriedBy).toBeUndefined();
+  });
+
+  it("asks with a short window, without the confirmation word", () => {
+    const op = ended({ type: "failed", id: "a", error: "sin red", at: 2 });
+    expect(retryConfirmation(op)).toEqual({
+      title: "Reintentar operación",
+      message: "¿Reintentar la sincronización QA → local? Se lanza de nuevo con el mismo origen, destino y colecciones.",
+      confirmLabel: "Reintentar",
+    });
   });
 });
 

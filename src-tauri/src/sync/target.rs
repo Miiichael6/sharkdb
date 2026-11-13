@@ -8,19 +8,21 @@ pub const SAME_COLLECTION: &str =
     "El destino es la misma colección que el origen (las dos conexiones apuntan al mismo servidor)";
 
 pub const NOT_LOWER_LEVEL: &str =
-    "Solo se sincronizan documentos hacia un entorno de menor nivel: prod → QA o local, QA → local";
+    "Solo se sincronizan documentos hacia un entorno de menor nivel: prod → QA, development o local; QA → development o local; development → local";
 
-const PRODUCTION_LEVEL: u8 = 3;
-const QA_LEVEL: u8 = 2;
+const PRODUCTION_LEVEL: u8 = 4;
+const QA_LEVEL: u8 = 3;
+const DEVELOPMENT_LEVEL: u8 = 2;
 const LOCAL_LEVEL: u8 = 1;
 
-/// Nivel del entorno por su etiqueta, como en el frontend (`environmentLevel.ts`): `production` 3,
-/// `testing`/`staging` 2, `local`/`development` 1. Sin etiqueta conocida, None: no se sincroniza.
+/// Nivel del entorno por su etiqueta, como en el frontend (`environmentLevel.ts`): `production` 4,
+/// `testing`/`staging` 3, `development` 2, `local` 1. Sin etiqueta conocida, None: no se sincroniza.
 pub fn environment_level(tag: Option<&str>) -> Option<u8> {
     match tag? {
         "production" => Some(PRODUCTION_LEVEL),
         "testing" | "staging" => Some(QA_LEVEL),
-        "local" | "development" => Some(LOCAL_LEVEL),
+        "development" => Some(DEVELOPMENT_LEVEL),
+        "local" => Some(LOCAL_LEVEL),
         _ => None,
     }
 }
@@ -63,10 +65,10 @@ mod tests {
 
     #[test]
     fn documents_only_go_to_a_lower_environment() {
-        for (source, target) in [("production", "testing"), ("production", "local"), ("staging", "development"), ("testing", "local")] {
+        for (source, target) in [("production", "testing"), ("production", "local"), ("staging", "development"), ("testing", "local"), ("development", "local")] {
             assert!(ensure_lower_level(Some(source), Some(target)).is_ok(), "{source} → {target}");
         }
-        for (source, target) in [("testing", "production"), ("local", "testing"), ("testing", "staging"), ("local", "local"), ("production", "production")] {
+        for (source, target) in [("testing", "production"), ("local", "testing"), ("testing", "staging"), ("local", "local"), ("local", "development"), ("development", "development"), ("production", "production")] {
             assert_eq!(ensure_lower_level(Some(source), Some(target)), Err(NOT_LOWER_LEVEL.into()), "{source} → {target}");
         }
         assert!(ensure_lower_level(None, Some("local")).is_err());

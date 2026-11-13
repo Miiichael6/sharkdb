@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newConnection, type MongoConnection, type Tag } from "./connection";
-import { LOCAL_LEVEL, PRODUCTION_LEVEL, QA_LEVEL, canSyncDocumentsTo, environmentLevel } from "./environmentLevel";
+import { DEVELOPMENT_LEVEL, LOCAL_LEVEL, PRODUCTION_LEVEL, QA_LEVEL, canSyncDocumentsTo, environmentLevel } from "./environmentLevel";
 
 const connection = (id: string, tag: Tag, over: { protected?: boolean; host?: string } = {}): MongoConnection => ({
   ...newConnection(),
@@ -19,15 +19,15 @@ const DEV = connection("dev", "development");
 const ALL = [PROD, QA, STAGING, LOCAL, DEV];
 
 describe("environmentLevel", () => {
-  it("ranks production over QA over local", () => {
+  it("ranks production over QA over development over local", () => {
     expect(environmentLevel("production")).toBe(PRODUCTION_LEVEL);
     expect([environmentLevel("testing"), environmentLevel("staging")]).toEqual([QA_LEVEL, QA_LEVEL]);
-    expect([environmentLevel("local"), environmentLevel("development")]).toEqual([LOCAL_LEVEL, LOCAL_LEVEL]);
+    expect([environmentLevel("development"), environmentLevel("local")]).toEqual([DEVELOPMENT_LEVEL, LOCAL_LEVEL]);
   });
 
   it("lets documents go only to a lower environment", () => {
-    const allowed = [[PROD, QA], [PROD, STAGING], [PROD, LOCAL], [QA, LOCAL], [STAGING, DEV]];
-    const forbidden = [[QA, PROD], [LOCAL, QA], [QA, STAGING], [LOCAL, DEV], [QA, QA], [LOCAL, PROD]];
+    const allowed = [[PROD, QA], [PROD, STAGING], [PROD, LOCAL], [QA, LOCAL], [STAGING, DEV], [DEV, LOCAL]];
+    const forbidden = [[QA, PROD], [LOCAL, QA], [QA, STAGING], [LOCAL, DEV], [DEV, DEV], [DEV, QA], [QA, QA], [LOCAL, PROD]];
     for (const [source, target] of allowed) expect(canSyncDocumentsTo(source, target, ALL), `${source.id}→${target.id}`).toBe(true);
     for (const [source, target] of forbidden) expect(canSyncDocumentsTo(source, target, ALL), `${source.id}→${target.id}`).toBe(false);
   });

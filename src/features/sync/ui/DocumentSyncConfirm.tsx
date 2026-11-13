@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { BACK_LABEL, DISMISS_LABEL, MODIFY_HEADING, confirmationMatches, type DangerAnswer } from "../../../shared/domain/confirmation";
 import { ConfirmWordField } from "../../../shared/ui/ConfirmWordField";
 import { formatValue } from "../../shell/domain/bsonFormat";
-import { documentsLabel, type DocumentSyncConfirmation, type DocumentSyncEnd } from "../domain/documentSync";
+import { DocumentIdLine } from "./DocumentIdLine";
+import { DocumentSyncPlace } from "./DocumentSyncPlace";
+import { documentsLabel, type DocumentSyncConfirmation, type DocumentSyncEnd, type FullDocument } from "../domain/documentSync";
 
 interface Props {
   request: DocumentSyncConfirmation;
@@ -18,7 +20,6 @@ const ROLES = {
 };
 
 function SyncEnd({ role, end, badge }: { role: keyof typeof ROLES; end: DocumentSyncEnd; badge: ReactNode }) {
-  const namespace = `${end.db}.${end.collection}`;
   return (
     <section className={`selection-endpoint ${role}`}>
       <header>
@@ -27,16 +28,20 @@ function SyncEnd({ role, end, badge }: { role: keyof typeof ROLES; end: Document
         <span className="spacer" />
         {badge}
       </header>
-      <div className="doc-sync-end">
-        <b className="ellipsis" title={end.name}>
-          {end.name}
-        </b>
-        {end.address && <span className="muted small ellipsis">{end.address}</span>}
-        <span className="mono small ellipsis" title={namespace}>
-          {namespace}
-        </span>
-      </div>
+      <DocumentSyncPlace name={end.name} address={end.address} db={end.db} collection={end.collection} />
     </section>
+  );
+}
+
+const fieldsLabel = (n: number) => `${n} ${n === 1 ? "campo" : "campos"}`;
+
+/** One document to sync: its number, `_id` (with its type) and field count above it, whole, read only. */
+function SyncedDocument({ doc, index }: { doc: FullDocument; index: number }) {
+  return (
+    <li>
+      <DocumentIdLine id={doc._id} index={index} extra={<span className="muted small">{fieldsLabel(Object.keys(doc).length)}</span>} />
+      <pre className="mono">{formatValue(doc, "utc")}</pre>
+    </li>
   );
 }
 
@@ -82,9 +87,7 @@ export function DocumentSyncConfirm({ request, badge, onDone }: Props) {
           {request.missing > 0 && <p className="small">{documentsLabel(request.missing)} ya no existen en el origen y no se sincronizan.</p>}
           <ol className="doc-sync-docs">
             {request.documents.map((doc, i) => (
-              <li key={i}>
-                <pre className="mono">{formatValue(doc, "utc")}</pre>
-              </li>
+              <SyncedDocument key={i} doc={doc} index={i} />
             ))}
           </ol>
         </div>

@@ -14,6 +14,8 @@ interface Props {
   footer: string;
   /** "Continuar" is enabled. */
   ready: boolean;
+  /** Text of the button that goes on; "Continuar" by default. */
+  continueLabel?: string;
   onContinue: () => void;
   onClose: () => void;
 }
@@ -22,7 +24,7 @@ interface Props {
  * First window of sync, backup and restore: origin → destination, what to take, and "Continuar". It
  * neither confirms nor runs anything; Escape closes it.
  */
-export function SelectionWindow({ source, target, note, children, error, footer, ready, onContinue, onClose }: Props) {
+export function SelectionWindow({ source, target, note, children, error, footer, ready, continueLabel = "Continuar", onContinue, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -56,7 +58,7 @@ export function SelectionWindow({ source, target, note, children, error, footer,
           Cancelar
         </button>
         <button type="submit" className="primary" disabled={!ready}>
-          Continuar
+          {continueLabel}
         </button>
       </div>
     </form>

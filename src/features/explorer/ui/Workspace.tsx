@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useDataOperations } from "../../../app/operations/useDataOperations";
+import { useRelaunch } from "../../../app/operations/useRelaunch";
 import { useServices } from "../../../app/services";
 import { DocumentSyncContext, type SyncDocuments } from "../../../shared/ui/documentSyncAction";
 import { LogPanel } from "../../../shared/ui/LogPanel";
@@ -103,6 +104,8 @@ export function Workspace(props: Props) {
     fail,
   });
   const data = useDataOperations(connections, actions.refreshAll);
+  // ⟳ in the operations panel launches an operation again with these connections (R101).
+  useRelaunch({ connections, borrowSession: props.onBorrowSession, data });
   useLeftoverCleanup(sessions, actions.refreshAll);
   // Sync, backup and restore are chosen and confirmed in their own windows (this one stays disabled)
   // and run in the operations panel.

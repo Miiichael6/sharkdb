@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
-import type { LaunchJob, StartedOperation } from "../../shared/application/operationsService";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
+import type { LaunchJob, Relaunch, StartedOperation } from "../../shared/application/operationsService";
 import type { CollectionResult } from "../../shared/domain/jobs";
-import { cancelConfirmation, operationOutcome, type Operation, type OperationSpec } from "../../shared/domain/operations";
+import { cancelConfirmation, operationOutcome, retryConfirmation, type Operation, type OperationSpec } from "../../shared/domain/operations";
 import { confirmInWindow } from "../../shared/ui/confirmInWindow";
 import { useNotify } from "../../shared/ui/useNotifications";
 import { useRightSidebar } from "../rightSidebar/useRightSidebar";
@@ -15,12 +15,24 @@ interface OperationsContextValue {
   start: (spec: OperationSpec, launch: LaunchJob, summarize: (results: CollectionResult[]) => string) => StartedOperation | null;
   /** Cancels `op` once confirmed in its own window. */
   cancel: (op: Operation) => Promise<void>;
+  /** Launches ended `op` again once confirmed in a short window, without the confirmation word (D27). */
+  retry: (op: Operation) => Promise<void>;
+  /** Launches ended operation `id` again, already confirmed (the detail asks in its own window). */
+  retryNow: (id: string) => Promise<void>;
+  /**
+   * Sets what launches an operation's request again (the workspace, which knows the connections);
+   * returns what removes it.
+   */
+  setRelaunch: (relaunch: Relaunch) => () => void;
   clearFinished: () => void;
   /** Removes one ended operation from the panel. */
   dismiss: (id: string) => void;
 }
 
 const OperationsContext = createContext<OperationsContextValue | null>(null);
+
+/** Shown when retrying with no workspace to check the connections: it never happens from the panel. */
+const NO_RELAUNCH: Relaunch = () => Promise.reject("Abre una conexión para reintentar la operación");
 
 /** How often the other windows are asked what they have running (error 60). */
 const ELSEWHERE_POLL_MS = 3000;
@@ -35,6 +47,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   const { show } = useRightSidebar();
   const notify = useNotify();
   useCancelOnClose(service);
+  const relaunch = useRef<Relaunch>(NO_RELAUNCH);
 
   useEffect(() => {
     void service.checkElsewhere();
@@ -71,15 +84,40 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
     [service],
   );
 
+  const retryNow = useCallback(
+    async (id: string) => {
+      // Whether it started or why not was already notified by `start`; what's left is why it couldn't.
+      await service.retry(id, (request) => relaunch.current(request)).catch(notify.fail);
+    },
+    [service, notify],
+  );
+
+  const retry = useCallback(
+    async (op: Operation) => {
+      if (await confirmInWindow(retryConfirmation(op))) await retryNow(op.id);
+    },
+    [retryNow],
+  );
+
+  const setRelaunch = useCallback((next: Relaunch) => {
+    relaunch.current = next;
+    return () => {
+      if (relaunch.current === next) relaunch.current = NO_RELAUNCH;
+    };
+  }, []);
+
   const value = useMemo<OperationsContextValue>(
     () => ({
       operations,
       start,
       cancel,
+      retry,
+      retryNow,
+      setRelaunch,
       clearFinished: service.clearFinished,
       dismiss: service.dismiss,
     }),
-    [operations, start, cancel, service],
+    [operations, start, cancel, retry, retryNow, setRelaunch, service],
   );
   return <OperationsContext.Provider value={value}>{children}</OperationsContext.Provider>;
 }

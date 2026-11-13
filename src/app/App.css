@@ -4271,14 +4271,21 @@ button.ops-section-head:hover:not(:disabled) {
 .ops-elapsed {
   font-variant-numeric: tabular-nums;
 }
-.ops-dismiss {
-  margin: -4px -6px -4px 0;
+.ops-dismiss,
+.ops-retry {
   padding: 0 6px;
   font-size: 15px;
   line-height: 20px;
   color: var(--muted);
 }
-.ops-dismiss:hover {
+.ops-dismiss {
+  margin: -4px -6px -4px 0;
+}
+.ops-retry {
+  margin: -4px 0;
+}
+.ops-dismiss:hover,
+.ops-retry:hover {
   color: var(--text);
 }
 .ops-status {
@@ -4781,15 +4788,71 @@ button.ops-db-head:hover:not(:disabled) {
 
 /* ---------- Document sync (42): both ends and every document whole ---------- */
 
-.doc-sync-end {
+/* Both ends as tall as each other, the place at the same height in each. */
+.selection-endpoints:has(.doc-sync-place) {
+  align-items: stretch;
+}
+.selection-endpoint:has(.doc-sync-place) {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+}
+.selection-endpoint:has(.doc-sync-place) .selection-endpoint-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+.selection-endpoints:has(.doc-sync-place) .selection-arrow {
+  align-self: center;
+}
+.selection-endpoint:has(.doc-sync-place) :is(input, select) {
+  height: 32px;
+}
+/* The fixed source: shaped like the destination's selector, but nothing to change. */
+.selection-endpoint:has(.doc-sync-place) input[readonly] {
+  background: var(--surface-2);
+  cursor: default;
+}
+.selection-endpoint:has(.doc-sync-place) input[readonly]:focus {
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+.doc-sync-place {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
   padding-bottom: 10px;
 }
+.doc-sync-host {
+  color: var(--muted);
+}
+.doc-sync-host svg {
+  width: 12px;
+  height: 12px;
+}
+.doc-sync-namespace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
 .doc-sync-plan {
   margin-top: 12px;
+}
+.doc-sync-ids {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  list-style: none;
+  max-height: 112px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.doc-sync-ids .doc-sync-doc-head {
+  padding: 3px 0;
 }
 .doc-sync-docs {
   margin: 8px 0 0;
@@ -4798,6 +4861,21 @@ button.ops-db-head:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.doc-sync-doc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 2px 4px;
+}
+.doc-sync-doc-head b {
+  min-width: 0;
+  font-size: 12px;
+}
+.doc-sync-doc-icon {
+  flex: none;
+  color: var(--muted);
 }
 .doc-sync-docs pre {
   margin: 0;

@@ -12,6 +12,8 @@ import {
   documentSyncSummary,
   documentSyncTargets,
   documentSyncUnavailable,
+  noDocumentTarget,
+  syncDocumentsLabel,
   validateDocumentSync,
   type DocumentSyncRequest,
 } from "./documentSync";
@@ -60,6 +62,12 @@ describe("documentSync", () => {
     expect(documentSyncTargets(CONNECTIONS, [], "local")).toEqual([]);
   });
 
+  it("explains an empty destination list, naming the environment", () => {
+    expect(noDocumentTarget(connection("Local", "local"))).toContain('Local tiene el entorno "local", el más bajo');
+    expect(noDocumentTarget(connection("QA", "development"))).toContain("menor nivel que QA (development)");
+    expect(noDocumentTarget(connection("qa", "testing"))).toContain("ninguna conexión registrada de menor nivel que qa (QA)");
+  });
+
   it("shows both ends, every document whole and how many no longer exist", () => {
     const documents = [{ _id: OID, name: "a", nested: { deep: 1 } }];
     const confirm = documentSyncConfirmation(request(), CONNECTIONS, documents, "ocupado");
@@ -67,6 +75,11 @@ describe("documentSync", () => {
     expect(confirm.target).toMatchObject({ name: "qa", tag: "testing", db: "shop", collection: "orders" });
     expect(confirm.documents).toBe(documents);
     expect(confirm).toMatchObject({ missing: 1, confirmWord: "confirmo", blocked: "ocupado" });
+  });
+
+  it("names the button by how many documents go", () => {
+    expect(syncDocumentsLabel(1)).toBe("Sincronizar documento");
+    expect(syncDocumentsLabel(3)).toBe("Sincronizar 3 documentos");
   });
 
   it("sums what was written for the notice", () => {

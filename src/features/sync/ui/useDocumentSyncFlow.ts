@@ -7,7 +7,15 @@ import { openModalWindow } from "../../../shared/ui/modalWindow";
 import type { MongoConnection } from "../../connections/domain/connection";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
 import { connectOnRequest } from "../../connections/ui/connectOnRequest";
-import { DOCUMENTS_REQUIRED, NO_ID, documentIds, documentSyncConfirmation, type DocumentSyncRequest } from "../domain/documentSync";
+import {
+  DOCUMENTS_REQUIRED,
+  NO_ID,
+  documentIds,
+  documentSyncConfirmation,
+  documentSyncTargets,
+  noDocumentTarget,
+  type DocumentSyncRequest,
+} from "../domain/documentSync";
 import {
   DOCUMENT_SYNC_CONFIRM_VIEW,
   DOCUMENT_SYNC_CONFIRM_WINDOW,
@@ -38,6 +46,9 @@ export function useDocumentSyncFlow({ connections, sessions, borrowSession, busy
       if (!docs.length) throw DOCUMENTS_REQUIRED;
       const ids = documentIds(docs);
       if (!ids) throw NO_ID;
+      // Nothing to choose from: says why instead of opening a window with an empty list.
+      const origin = connections.find((c) => c.id === source.sid);
+      if (origin && !documentSyncTargets(connections, sessions, source.sid).length) throw noDocumentTarget(origin);
       const opened = connectOnRequest(sessions, borrowSession);
       let settled: Promise<unknown> | undefined;
       try {

@@ -6,7 +6,7 @@ import { openModalWindow } from "../../shared/ui/modalWindow";
 export const OPERATION_DETAIL_VIEW = "operation-detail";
 
 /** What the detail asks the main window to do: only it holds the job and the notifications. */
-export type OperationDetailRequest = { kind: "cancel" } | { kind: "open-folder"; path: string };
+export type OperationDetailRequest = { kind: "cancel" } | { kind: "retry" } | { kind: "open-folder"; path: string };
 
 /** What the main window needs to keep the detail of an operation live and do what it asks. */
 export interface OperationDetailSource {
