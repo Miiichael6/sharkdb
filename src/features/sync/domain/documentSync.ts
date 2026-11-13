@@ -2,7 +2,7 @@
 // the source by `_id`, replace (or are inserted as) the ones with their `_id` in the same database and
 // collection of a connection of a lower environment.
 import { CONFIRM_WORD } from "../../../shared/domain/confirmation";
-import type { DocumentTarget } from "../../../shared/domain/documentTarget";
+import type { DocumentTarget, Uneditable } from "../../../shared/domain/documentTarget";
 import type { CollectionResult } from "../../../shared/domain/jobs";
 import type { DatabaseSelection } from "../../../shared/domain/selection";
 import { displayName, type MongoConnection } from "../../connections/domain/connection";
@@ -36,9 +36,23 @@ export function documentIds(docs: unknown[]): unknown[] | null {
   return ids.length && ids.every((id) => id !== undefined) ? ids : null;
 }
 
-/** Why the picked `docs` of a result can't be synced, or undefined when they can (the menu entry shows it). */
-export function documentSyncUnavailable(target: DocumentTarget | null, docs: unknown[]): string | undefined {
+/**
+ * Documents are read whole by `_id` from the cursor's collection, so only a result that shows whole
+ * documents of that collection qualifies (a `find` / `findOne` without projection).
+ */
+export const NOT_WHOLE: Record<Uneditable, string> = {
+  aggregate: "El resultado viene de un aggregate: su _id puede no ser el de la colección y se sincronizarían documentos ajenos",
+  projection: "El resultado lleva proyección: solo se sincronizan documentos que se ven enteros",
+  readOnlyCollection: "La colección es una vista o una timeseries: su _id puede no ser el de ningún documento almacenado",
+};
+
+/**
+ * Why the picked `docs` of a result can't be synced, or undefined when they can (the menu entry shows it).
+ * `uneditable` is why the result isn't whole documents of the collection, if it isn't.
+ */
+export function documentSyncUnavailable(target: DocumentTarget | null, docs: unknown[], uneditable: Uneditable | null = null): string | undefined {
   if (!target) return NO_COLLECTION;
+  if (uneditable) return NOT_WHOLE[uneditable];
   if (!documentIds(docs)) return NO_ID;
   return undefined;
 }
@@ -130,6 +144,9 @@ export const documentSyncConfirmation = (
 export const syncDocumentsLabel = (n: number) => (n === 1 ? "Sincronizar documento" : `Sincronizar ${n.toLocaleString()} documentos`);
 
 export const documentsLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "documento" : "documentos"}`;
+
+/** What cancelling leaves: each document is replaced on its own, so the ones already written stay. */
+export const DOCUMENT_SYNC_CANCEL_EFFECT = "Los documentos ya escritos se quedan en el destino; los que faltan no se sincronizan.";
 
 /** The collection it writes to, as the operations panel lists it. */
 export const documentSyncSelection = (r: DocumentSyncRequest): DatabaseSelection[] => [{ db: r.db, collections: [r.collection] }];

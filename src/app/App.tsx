@@ -28,6 +28,7 @@ import { useLog } from "../shared/ui/useLog";
 import { usePreferencesShortcut } from "../shared/ui/usePreferencesShortcut";
 import { useNotify } from "../shared/ui/useNotifications";
 import { useDataOperations } from "./operations/useDataOperations";
+import type { ConnectionClosing } from "../shared/domain/operations";
 import { WithRightSidebar } from "./rightSidebar/WithRightSidebar";
 import { useServices } from "./services";
 import { useDatabaseWindow } from "./useDatabaseWindow";
@@ -109,6 +110,27 @@ function App() {
     }
   };
 
+  /**
+   * Like `borrowSession`, but always holds a client apart, even for an open connection: if the user
+   * disconnects it from the explorer meanwhile, the backend falls back to that client and the operation
+   * keeps its connection. Returns the open session when there is one (the same the explorer shows).
+   * Only a connection the operation `writes` to mirrors the safe mode of its open session: the client
+   * apart is shared with other operations, and a source that is only read must not turn it read-only
+   * for one that writes there.
+   */
+  const holdSession = async (id: string, writes: boolean): Promise<BorrowedSession> => {
+    const conn = connections.find((c) => c.id === id);
+    if (!conn) throw "La conexión ya no existe";
+    const open = sessions.find((s) => s.conn.id === id);
+    try {
+      const held = await service.borrow(conn, connections, writes && !!open?.safeMode);
+      return { session: open ?? held.session, release: held.release };
+    } catch (e) {
+      log.error(`No se pudo conectar a ${displayName(conn)}`, e);
+      throw e;
+    }
+  };
+
   // A backup only reads its connection: nothing to refresh when it ends.
   const data = useDataOperations(connections, () => {});
   const schedules = useBackupSchedules({
@@ -119,6 +141,13 @@ function App() {
     run: data.startBackup,
     cancel: data.cancel,
   });
+
+  /** A running operation reads from or writes to the connection: closing it would cut it, so it says so instead. */
+  const blockedByOperation = (sid: string, action: ConnectionClosing) => {
+    const reason = data.inUse(sid, action);
+    if (reason) notify.fail(reason);
+    return !!reason;
+  };
 
   const disconnect = async (sid: string) => {
     await service.close(sid).catch(() => {});
@@ -145,6 +174,7 @@ function App() {
 
   const confirmDisconnect = async (sid: string) => {
     const session = sessions.find((s) => s.conn.id === sid);
+    if (session && blockedByOperation(sid, "disconnect")) return;
     if (!session || (await confirmClosingTabs(session.conn, "disconnect"))) await disconnect(sid);
   };
 
@@ -152,6 +182,7 @@ function App() {
   // the old server while editing or deleting them writes on the new one.
   const edit = async (conn: MongoConnection) => {
     if (sessions.some((s) => s.conn.id === conn.id)) {
+      if (blockedByOperation(conn.id, "edit")) return;
       const request = editOpenConnectionRequest(
         displayName(conn),
         tabs.tabs.filter((t) => t.sid === conn.id),
@@ -176,6 +207,7 @@ function App() {
   };
 
   const remove = async (conn: MongoConnection) => {
+    if (blockedByOperation(conn.id, "delete")) return;
     if (!(await confirmClosingTabs(conn, "delete"))) return;
     if (sessions.some((s) => s.conn.id === conn.id)) await disconnect(conn.id);
     persist(removeConnection(connections, conn.id));
@@ -227,6 +259,7 @@ function App() {
               sessions={sessions}
               connections={connections}
               onBorrowSession={borrowSession}
+              onHoldSession={holdSession}
               onRemoveFromList={removeFromList}
               sidebarHidden={layout.sidebarHidden}
               logsOpen={layout.logsOpen}

@@ -4,7 +4,7 @@ use mongodb::bson::{Bson, doc};
 
 use super::fake_bridge::FakeBridge;
 use super::{outputs, prints, test_limits, value};
-use crate::shell::outcome::{ScriptOutcome, ScriptOutput};
+use crate::shell::outcome::{ScriptOutcome, ScriptOutput, Uneditable};
 use crate::shell::session::{FIRST_BATCH_SIZE, ShellSession};
 use crate::shell::watchdog::Watchdog;
 
@@ -60,6 +60,7 @@ fn final_cursor_returns_first_batch_and_stays_open() {
             documents,
             exhausted,
             editable,
+            uneditable,
         },
     ] = &outputs(&outcome)[..]
     else {
@@ -69,6 +70,7 @@ fn final_cursor_returns_first_batch_and_stays_open() {
     assert_eq!(documents.len(), FIRST_BATCH_SIZE);
     assert!(!exhausted);
     assert!(editable);
+    assert_eq!(*uneditable, None);
     assert_eq!(*bridge.retained.borrow(), vec![cursor_id.expect("id")]);
 
     let outcome = run_ok(&mut session, "db.x.find({}).limit(3)");
@@ -98,6 +100,21 @@ fn projected_or_aggregate_cursor_is_not_editable() {
     assert!(!editable(&mut session, "db.x.find({}).projection({ a: 0 })"));
     assert!(editable(&mut session, "db.x.find({}, {})"));
     assert!(!editable(&mut session, "db.x.aggregate([])"));
+}
+
+#[test]
+fn uneditable_cursor_says_why() {
+    let (mut session, _) = session();
+    let why = |session: &mut _, script| match &outputs(&run_ok(session, script))[..] {
+        [ScriptOutput::Cursor { uneditable, .. }] => *uneditable,
+        other => panic!("se esperaba un cursor: {other:?}"),
+    };
+    assert_eq!(why(&mut session, "db.x.find({})"), None);
+    assert_eq!(why(&mut session, "db.x.find({}, {})"), None);
+    assert_eq!(why(&mut session, "db.x.find({}, { a: 1 })"), Some(Uneditable::Projection));
+    assert_eq!(why(&mut session, "db.x.aggregate([])"), Some(Uneditable::Aggregate));
+    assert_eq!(why(&mut session, "db.vista.find({})"), Some(Uneditable::ReadOnlyCollection));
+    assert_eq!(Uneditable::from_prelude("nope"), None);
 }
 
 /// Operaciones (`op`) que recibió el servidor falso, en orden.
@@ -221,6 +238,7 @@ fn untouched_find_one_document_shows_as_editable_cursor() {
             documents,
             exhausted,
             editable,
+            uneditable,
         },
     ] = &outputs(&outcome)[..]
     else {
@@ -229,6 +247,7 @@ fn untouched_find_one_document_shows_as_editable_cursor() {
     assert_eq!(ns, "test.x");
     assert_eq!(documents, &[Bson::Document(doc! { "_id": 0 })]);
     assert!(*exhausted && *editable && cursor_id.is_none());
+    assert_eq!(*uneditable, None);
     assert!(bridge.retained.borrow().is_empty());
 
     let kept = run_ok(&mut session, "var d = db.x.findOne({}); d");

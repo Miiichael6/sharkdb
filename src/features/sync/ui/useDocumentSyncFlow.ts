@@ -6,7 +6,7 @@ import { selectThenAsk } from "../../../shared/ui/confirmInWindow";
 import { openModalWindow } from "../../../shared/ui/modalWindow";
 import type { MongoConnection } from "../../connections/domain/connection";
 import type { BorrowedSession, Session } from "../../connections/domain/session";
-import { connectOnRequest } from "../../connections/ui/connectOnRequest";
+import { connectOnRequest, holdConnections } from "../../connections/ui/connectOnRequest";
 import {
   DOCUMENTS_REQUIRED,
   NO_ID,
@@ -29,6 +29,11 @@ interface Options {
   sessions: Session[];
   /** Lends connection `id`: its session when it's open, otherwise one opened apart. */
   borrowSession: (id: string) => Promise<BorrowedSession>;
+  /**
+   * Holds connection `id` apart even when it's open, so disconnecting it from the explorer doesn't cut
+   * the sync; `writes` only for the destination (the source is only read).
+   */
+  holdSession: (id: string, writes: boolean) => Promise<BorrowedSession>;
   /** Why nothing can be written to `targetId` now (another operation writes there), if so. */
   busyReason: (targetId: string) => string | undefined;
   /** Runs the confirmed sync in the background; settles when it ends. */
@@ -39,7 +44,7 @@ interface Options {
  * The document sync in two windows (R97–R99): the destination, then every document whole, read again
  * from the source, with `confirmo`. "Volver" reopens the destination; only "Sincronizar" starts anything.
  */
-export function useDocumentSyncFlow({ connections, sessions, borrowSession, busyReason, run }: Options) {
+export function useDocumentSyncFlow({ connections, sessions, borrowSession, holdSession, busyReason, run }: Options) {
   const { sync } = useServices();
   return useCallback(
     async (source: DocumentTarget, docs: unknown[]) => {
@@ -50,11 +55,18 @@ export function useDocumentSyncFlow({ connections, sessions, borrowSession, busy
       const origin = connections.find((c) => c.id === source.sid);
       if (origin && !documentSyncTargets(connections, sessions, source.sid).length) throw noDocumentTarget(origin);
       const opened = connectOnRequest(sessions, borrowSession);
+      // Source and destination stay available from here to the end of the operation, even if the user
+      // disconnects them from the explorer meanwhile (the destination chosen on "Volver" too).
+      const heldSource = holdConnections((id) => holdSession(id, false));
+      const heldTarget = holdConnections((id) => holdSession(id, true));
       let settled: Promise<unknown> | undefined;
       try {
-        const select = (previous?: DocumentSyncRequest) => {
+        await heldSource.hold(source.sid);
+        const select = async (previous?: DocumentSyncRequest) => {
           const data: DocumentSyncWindowData = { connections, sessions: opened.sessions(), source, ids, initialTargetSid: previous?.targetSid };
-          return openModalWindow<DocumentSyncRequest>(DOCUMENT_SYNC_VIEW, data, { ...DOCUMENT_SYNC_WINDOW, onRequest: opened.connect });
+          const chosen = await openModalWindow<DocumentSyncRequest>(DOCUMENT_SYNC_VIEW, data, { ...DOCUMENT_SYNC_WINDOW, onRequest: opened.connect });
+          if (chosen) await heldTarget.hold(chosen.targetSid);
+          return chosen;
         };
         const ask = async (request: DocumentSyncRequest) => {
           const confirmation = documentSyncConfirmation(
@@ -72,9 +84,9 @@ export function useDocumentSyncFlow({ connections, sessions, borrowSession, busy
         if (request) settled = run(request);
       } finally {
         // What the windows borrowed is given back once the operation ends (or when nothing runs).
-        void Promise.resolve(settled).finally(opened.release);
+        void Promise.resolve(settled).finally(() => Promise.all([opened.release(), heldSource.release(), heldTarget.release()]));
       }
     },
-    [connections, sessions, borrowSession, busyReason, run, sync],
+    [connections, sessions, borrowSession, holdSession, busyReason, run, sync],
   );
 }

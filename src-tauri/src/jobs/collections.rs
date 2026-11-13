@@ -36,6 +36,18 @@ impl<'r, R: Report> CollectionTracker<'r, R> {
         }
     }
 
+    /// Como `ended`, para quien escribe directo en el destino: lo ya escrito se queda aunque se
+    /// cancele, así que una cancelación tras escribir algo deja la colección aplicada con el avance
+    /// al que llegó (p. ej. 3 de 10), no descartada. Sin nada escrito no cambia.
+    pub fn ended_keeping_written<T>(&self, db: &str, collection: &str, result: &Result<T, String>) {
+        let (done, total) = self.last(db, collection);
+        if matches!(result, Err(e) if e == CANCELLED) && done > 0 {
+            self.send(db, collection, CollectionState::Applied, (done, total), None);
+        } else {
+            self.ended(db, collection, result, CollectionState::Applied);
+        }
+    }
+
     pub fn applied(&self, db: &str, collection: &str) {
         self.complete(db, collection, CollectionState::Applied);
     }
@@ -129,6 +141,19 @@ mod tests {
         assert!(recorder.collections().is_empty());
         tracker.ended::<()>("a", "x", &Err("boom".into()), CollectionState::Copied);
         assert_eq!(recorder.collections()[0].state, CollectionState::Failed);
+    }
+
+    #[test]
+    fn a_cancellation_after_writing_keeps_what_was_written_as_applied() {
+        let recorder = Recorder::new();
+        let tracker = CollectionTracker::new(&recorder);
+        tracker.ended_keeping_written::<()>("a", "x", &Err(CANCELLED.into()));
+        assert!(recorder.collections().is_empty());
+        tracker.running("a", "x", 3, 10);
+        tracker.ended_keeping_written::<()>("a", "x", &Err(CANCELLED.into()));
+        assert_eq!(states(&recorder).last(), Some(&("a.x".into(), CollectionState::Applied, 3, 10)));
+        tracker.ended_keeping_written::<()>("a", "x", &Err("boom".into()));
+        assert_eq!(recorder.collections().last().unwrap().state, CollectionState::Failed);
     }
 
     #[test]

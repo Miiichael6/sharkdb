@@ -12,7 +12,7 @@ use super::target::ensure_distinct_collections;
 use crate::backup::source::collection_uuid;
 use crate::jobs::CancelFlag;
 use crate::jobs::collections::CollectionTracker;
-use crate::jobs::report::{CollectionResult, CollectionState, Progress, Report};
+use crate::jobs::report::{CollectionResult, Progress, Report};
 use crate::jobs::selection::collection_label;
 use crate::mongo::describe;
 use crate::safe_mode::SafeMode;
@@ -75,7 +75,7 @@ pub async fn sync_documents(
         tracker.running(db, &copy.collection, done, total);
     };
     let result = copy_documents(copy, safe_mode, cancel, progress).await;
-    tracker.ended(db, &copy.collection, &result, CollectionState::Applied);
+    tracker.ended_keeping_written(db, &copy.collection, &result);
     result.map(|documents| vec![CollectionResult { collection: label, documents, duplicates: 0, indexes: 0 }])
 }
 
@@ -134,6 +134,7 @@ mod tests {
     #[ignore = "needs a mongod on 127.0.0.1:27017"]
     async fn live_documents_arrive_whole_and_replace_the_existing_ones() {
         use crate::jobs::CANCELLED;
+        use crate::jobs::report::CollectionState;
         use crate::jobs::report::testing::Recorder;
         use crate::safe_mode::SAFE_MODE_ERROR;
         use mongodb::Client;
@@ -172,6 +173,22 @@ mod tests {
         let cancelled = CancelFlag::default();
         cancelled.cancel();
         assert_eq!(sync_documents(&copy, &SafeMode::new(false), &cancelled, &Recorder::new()).await, Err(CANCELLED.into()));
+        // Cancelar a mitad: lo ya escrito se queda y el panel lo ve como aplicado, "2 de 3".
+        let fresh = DocumentCopy { ids: ids_from_json(vec![serde_json::json!(3), serde_json::json!(1), serde_json::json!(2)]).unwrap(), source: prod.clone(), target: qa.clone(), collection: "orders".into() };
+        target.delete_many(doc! { "_id": { "$in": [3, 2] } }, None).await.unwrap();
+        let halfway = CancelFlag::default();
+        let stopper = halfway.clone();
+        let reports = Recorder::reacting(move |p: &crate::jobs::report::Progress| {
+            if p.done == 2 {
+                stopper.cancel();
+            }
+        });
+        assert_eq!(sync_documents(&fresh, &SafeMode::new(false), &halfway, &reports).await, Err(CANCELLED.into()));
+        assert!(target.find_one(doc! { "_id": 3 }, None).await.unwrap().is_some());
+        assert!(target.find_one(doc! { "_id": 1 }, None).await.unwrap().is_some());
+        assert!(target.find_one(doc! { "_id": 2 }, None).await.unwrap().is_none());
+        let last = reports.collections().pop().unwrap();
+        assert_eq!((last.state, last.done, last.total), (CollectionState::Applied, 2, 3));
         let gone = DocumentCopy { ids: vec![Bson::Int32(4)], ..copy };
         assert_eq!(sync_documents(&gone, &SafeMode::new(false), &CancelFlag::default(), &Recorder::new()).await, Err(NOTHING_FOUND.into()));
 

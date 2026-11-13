@@ -19,7 +19,7 @@ const kindsOf = (results: ScriptResult[]) => consoleEntries(outcomeOf(results)).
 
 describe("consoleEntries", () => {
   it("shows a cursor as a cursor whatever it holds: one document, many or none", () => {
-    const cursor = (documents: unknown[]): ScriptResult => ({ ...at(1), kind: "cursor", ns: "t.c", cursorId: null, documents: documents as never, exhausted: true, editable: true });
+    const cursor = (documents: unknown[]): ScriptResult => ({ ...at(1), kind: "cursor", ns: "t.c", cursorId: null, documents: documents as never, exhausted: true, editable: true, uneditable: null });
     expect(kindsOf([cursor([doc]), cursor([doc, doc]), cursor([])])).toEqual(["cursor", "cursor", "cursor"]);
   });
 

@@ -5,6 +5,7 @@ import {
   canRetry,
   cancelConfirmation,
   closeWithRunningConfirmation,
+  connectionInUseMessage,
   durationLabel,
   folderEndpoint,
   folderName,
@@ -14,6 +15,7 @@ import {
   operationsReducer,
   retryConfirmation,
   runningOn,
+  runningWith,
   type Operation,
   type OperationEvent,
   type OperationSpec,
@@ -103,6 +105,25 @@ describe("one writer per destination", () => {
     expect(runningOn(ops, "local-sid")).toBeUndefined();
   });
 
+  it("finds the running operation that reads from or writes to a connection, so it isn't closed under it", () => {
+    const reading = { ...SYNC, readsFrom: "qa-sid" };
+    const ops = run([started("a", reading), started("b", { ...BACKUP, readsFrom: "prod-sid" })]);
+    expect(runningWith(ops, "local-sid")?.id).toBe("a");
+    expect(runningWith(ops, "qa-sid")?.id).toBe("a");
+    expect(runningWith(ops, "prod-sid")?.id).toBe("b");
+    expect(runningWith(ops, "dev-sid")).toBeUndefined();
+    const ended = run([started("a", reading), { type: "failed", id: "a", error: "x", at: 2 }]);
+    expect(runningWith(ended, "qa-sid")).toBeUndefined();
+  });
+
+  it("says which operation keeps the connection open", () => {
+    const [op] = run([started("a")]);
+    expect(connectionInUseMessage("local", op, "disconnect")).toBe(
+      "local tiene una operación en curso («Sincronizar»). Espera a que termine o cancélala desde el panel de Operaciones antes de desconectarla.",
+    );
+    expect(connectionInUseMessage("local", op, "delete")).toContain("antes de eliminarla");
+  });
+
   it("names the destination in the message", () => {
     expect(busyTargetMessage("local")).toBe("Ya hay una operación escribiendo en local");
   });
@@ -122,6 +143,11 @@ describe("texts", () => {
       confirmLabel: "Detener la sincronización",
       dismissLabel: "Seguir",
     });
+  });
+
+  it("says what its own cancel leaves when the operation brings it (a document sync keeps the written ones)", () => {
+    const [op] = run([started("a", { ...SYNC, cancelEffect: "Los ya escritos se quedan." })]);
+    expect(cancelConfirmation(op).message).toBe("¿Cancelar la sincronización QA → local? Los ya escritos se quedan.");
   });
 
   it("asks before closing with operations running", () => {

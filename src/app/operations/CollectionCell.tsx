@@ -3,6 +3,8 @@ import {
   collectionPercent,
   collectionStatusLabel,
   duplicatesLabel,
+  isPartiallyApplied,
+  partialProgressLabel,
   type CollectionProgressEntry,
 } from "../../shared/domain/collectionProgress";
 import type { OperationKind } from "../../shared/domain/operations";
@@ -20,15 +22,16 @@ interface Props {
 
 /** One collection of the detail: dot, name and 0–100 %; the error under it when it failed (R92). */
 export function CollectionCell({ entry, kind, duplicates, query }: Props) {
+  const partial = isPartiallyApplied(entry);
   const failed = entry.status === "failed" && entry.error;
   return (
     <li className={`ops-cell ${entry.status}`} title={collectionDescription(entry, kind, duplicates)}>
-      <CollectionStatusDot status={entry.status} label={collectionStatusLabel(entry.status, kind)} />
+      <CollectionStatusDot status={entry.status} label={collectionStatusLabel(entry.status, kind, partial)} />
       <span className="ops-cell-name">
         <HighlightedLabel label={entry.collection} query={query} />
       </span>
       {duplicates > 0 && <span className="ops-cell-duplicates small">{duplicatesLabel(duplicates)}</span>}
-      <span className="ops-cell-percent small">{collectionPercent(entry)} %</span>
+      <span className="ops-cell-percent small">{partial ? partialProgressLabel(entry) : `${collectionPercent(entry)} %`}</span>
       {failed && <span className="ops-cell-error small">{entry.error}</span>}
     </li>
   );

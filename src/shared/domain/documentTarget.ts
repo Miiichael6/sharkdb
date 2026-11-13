@@ -6,6 +6,12 @@ export interface DocumentTarget {
   coll: string;
 }
 
+/**
+ * Why the documents of a result aren't the whole documents of `DocumentTarget`'s collection:
+ * an aggregate (its `_id` may be another), a projection, or a view / timeseries.
+ */
+export type Uneditable = "aggregate" | "projection" | "readOnlyCollection";
+
 /** The connection a target's `sid` names, as the user knows it: name, address and environment tag. */
 export interface TargetServer {
   name: string;

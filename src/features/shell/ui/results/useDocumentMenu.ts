@@ -19,7 +19,9 @@ const DELETE_DOCUMENT_HINT = "Supr";
  * deletion of the picked documents the Delete key runs. Saved and deleted documents change in place on the page; the script is
  * not run again, since it may write. While the session is in safe mode only "Ver" stays enabled; on a
  * result that isn't whole documents of the collection (projection, aggregate) only "Ver" is offered.
- * "Sincronizar con otro entorno…" is offered on any result: the documents are read whole by `_id` (R97).
+ * "Sincronizar con otro entorno…" is always listed (the documents are read whole by `_id`, R97) but
+ * disabled, with the reason, unless the result is whole documents of the collection: not an aggregate
+ * (its `_id` may be another), a projection or a view.
  */
 export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPager, reload: () => void, zone: DateZone) {
   const actions = useDocumentActions();
@@ -44,7 +46,7 @@ export function useDocumentMenu(target: DocumentTarget | null, pager: CursorPage
   /** Disabled, with the reason as its tooltip, when the collection or an `_id` is unknown. */
   const syncEntries = (docs: unknown[]): ContextMenuItem[] => {
     if (!syncDocuments) return [];
-    const unavailable = documentSyncUnavailable(target, docs);
+    const unavailable = documentSyncUnavailable(target, docs, pager.uneditable);
     const label = docs.length > 1 ? `Sincronizar ${docs.length} documentos con otro entorno…` : "Sincronizar con otro entorno…";
     const sync = () => target && syncDocuments(target, docs);
     return [resultItem("sync", label, sync, unavailable ? { disabled: true, title: unavailable } : {})];

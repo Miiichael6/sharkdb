@@ -22,9 +22,12 @@ export function createConnectionService(store: ConnectionStore, gateway: Session
       return { ...session, safeMode: enabled };
     },
     close: (id: string) => gateway.close(id),
-    /** Opens `conn` apart from the sessions, for an operation; protected ones stay read-only too. */
-    async borrow(conn: MongoConnection, all: MongoConnection[] = []): Promise<BorrowedSession> {
-      const safeMode = protectedAmong(conn, all);
+    /**
+     * Opens `conn` apart from the sessions, for an operation; protected ones stay read-only too, and
+     * so does any when `readOnly` (the open session it shadows is in safe mode).
+     */
+    async borrow(conn: MongoConnection, all: MongoConnection[] = [], readOnly = false): Promise<BorrowedSession> {
+      const safeMode = readOnly || protectedAmong(conn, all);
       const info = await gateway.openDetached(conn.id, buildUri(conn), sshTunnelConfig(conn.ssh), safeMode);
       let released = false;
       const release = async () => {

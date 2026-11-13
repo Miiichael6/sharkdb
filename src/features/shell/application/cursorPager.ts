@@ -41,5 +41,5 @@ export function createCursorPager(gateway: ShellGateway, shell: ShellRef, cursor
     await gateway.closeCursor(shell, cursor.cursorId!);
   }
 
-  return { ns: cursor.ns, cursorId: cursor.cursorId, editable: cursor.editable, page, replace, close };
+  return { ns: cursor.ns, cursorId: cursor.cursorId, editable: cursor.editable, uneditable: cursor.uneditable, page, replace, close };
 }

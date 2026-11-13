@@ -4,6 +4,7 @@ import {
   DOCUMENTS_REQUIRED,
   NO_COLLECTION,
   NO_ID,
+  NOT_WHOLE,
   TARGET_NOT_LOWER,
   documentIds,
   documentSyncConfirmation,
@@ -40,6 +41,15 @@ describe("documentSync", () => {
     expect(documentSyncUnavailable(null, [{ _id: 1 }])).toBe(NO_COLLECTION);
     expect(documentSyncUnavailable(SOURCE, [{ name: "x" }])).toBe(NO_ID);
     expect(documentSyncUnavailable(SOURCE, [{ _id: 1 }])).toBeUndefined();
+    expect(documentSyncUnavailable(SOURCE, [{ _id: 1 }], null)).toBeUndefined();
+  });
+
+  it("refuses results that aren't whole documents of the collection, even with an _id", () => {
+    const docs = [{ _id: 1 }];
+    expect(documentSyncUnavailable(SOURCE, docs, "aggregate")).toBe(NOT_WHOLE.aggregate);
+    expect(documentSyncUnavailable(SOURCE, docs, "projection")).toBe(NOT_WHOLE.projection);
+    expect(documentSyncUnavailable(SOURCE, docs, "readOnlyCollection")).toBe(NOT_WHOLE.readOnlyCollection);
+    expect(documentSyncUnavailable(null, docs, "aggregate")).toBe(NO_COLLECTION);
   });
 
   it("builds the request on the same database and collection", () => {

@@ -39,10 +39,14 @@ export interface OperationSpec {
   target: OperationEndpoint;
   /** Connection whose databases it modifies; a backup only reads, so it has none. */
   writesTo?: string;
+  /** Connection it reads from (the source of a sync or a backup); a restore reads a folder. */
+  readsFrom?: string;
   /** What was chosen: the collections it goes through, waiting from the start. */
   databases: DatabaseSelection[];
   /** What launched it, to launch it again as it was (R102); only the app knows its shape. */
   request?: unknown;
+  /** What cancelling leaves done, when it isn't what its kind usually leaves (e.g. a document sync keeps the ones written). */
+  cancelEffect?: string;
 }
 
 export interface Operation extends OperationSpec {
@@ -156,6 +160,22 @@ export const runningOperations = (ops: Operation[]) => ops.filter(isRunning);
 export const runningOn = (ops: Operation[], targetSid: string) =>
   ops.find((op) => isRunning(op) && op.writesTo === targetSid);
 
+/** The running operation that reads from or writes to connection `sid`, if any: closing it would cut that operation. */
+export const runningWith = (ops: Operation[], sid: string) =>
+  ops.find((op) => isRunning(op) && (op.writesTo === sid || op.readsFrom === sid));
+
+export type ConnectionClosing = "disconnect" | "edit" | "delete";
+
+const CLOSING_VERBS: Record<ConnectionClosing, string> = {
+  disconnect: "desconectarla",
+  edit: "editarla",
+  delete: "eliminarla",
+};
+
+/** Why connection `name` can't be closed now: `op` is still using it. */
+export const connectionInUseMessage = (name: string, op: Operation, action: ConnectionClosing) =>
+  `${name} tiene una operación en curso («${op.title}»). Espera a que termine o cancélala desde el panel de Operaciones antes de ${CLOSING_VERBS[action]}.`;
+
 export const busyTargetMessage = (target: string) => OPERATION_BUSY_TARGET.replace("{destino}", target);
 
 export const operationsOfKind = (ops: Operation[], kind: OperationKind) => ops.filter((op) => op.kind === kind);
@@ -191,7 +211,7 @@ export const KEEP_RUNNING = "Seguir";
 /** "¿Cancelar la sincronización QA → local? …": Seguir, or "Detener la sincronización". */
 export const cancelConfirmation = (op: Operation): ConfirmRequest => ({
   title: "Cancelar operación",
-  message: `¿Cancelar ${OPERATION_NAMES[op.kind]} ${operationRoute(op)}? ${CANCEL_EFFECTS[op.kind]}`,
+  message: `¿Cancelar ${OPERATION_NAMES[op.kind]} ${operationRoute(op)}? ${op.cancelEffect ?? CANCEL_EFFECTS[op.kind]}`,
   confirmLabel: `Detener ${OPERATION_NAMES[op.kind]}`,
   dismissLabel: KEEP_RUNNING,
 });

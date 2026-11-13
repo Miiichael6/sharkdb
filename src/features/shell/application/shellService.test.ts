@@ -36,7 +36,7 @@ function fakeGateway() {
   return { gateway, calls };
 }
 
-const firstBatch: CursorResult = { kind: "cursor", ns: "test.x", cursorId: CURSOR_ID, documents: docs(0, 50), exhausted: false, editable: true };
+const firstBatch: CursorResult = { kind: "cursor", ns: "test.x", cursorId: CURSOR_ID, documents: docs(0, 50), exhausted: false, editable: true, uneditable: null };
 
 describe("shellService", () => {
   it("delegates execute, cancel and close to the tab's shell", async () => {

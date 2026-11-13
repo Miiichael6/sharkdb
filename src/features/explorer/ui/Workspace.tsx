@@ -61,6 +61,8 @@ interface Props {
   connections: MongoConnection[];
   /** Opens a registered connection by id (or returns its session when it's already open). */
   onBorrowSession: (id: string) => Promise<BorrowedSession>;
+  /** Like `onBorrowSession`, but also holds an open connection apart so disconnecting it doesn't cut an operation. */
+  onHoldSession: (id: string, writes: boolean) => Promise<BorrowedSession>;
   /** Takes a database out of its connection's list (temporary or favorite). */
   onRemoveFromList: (sid: string, db: string) => Promise<void>;
   sidebarHidden: boolean;
@@ -116,7 +118,7 @@ export function Workspace(props: Props) {
     restoreDatabase: { open: useRestoreFlow({ ...flow, run: data.restore }), name: "restore" },
   };
   // The documents picked in the viewer (R97); the viewer reaches it through DocumentSyncContext.
-  const openDocumentSync = useDocumentSyncFlow({ ...flow, run: data.syncDocuments });
+  const openDocumentSync = useDocumentSyncFlow({ ...flow, holdSession: props.onHoldSession, run: data.syncDocuments });
   const syncDocuments = useCallback<SyncDocuments>(
     (target, docs) =>
       void openDocumentSync(target, docs).catch((e) => {

@@ -79,7 +79,34 @@ pub enum ScriptOutput {
         /// Son documentos enteros de la colección (sin proyección, no de un aggregate) y se pueden
         /// editar o eliminar desde el resultado.
         editable: bool,
+        /// Por qué no son documentos enteros de la colección (`None` si lo son). Con él el visor
+        /// explica por qué no ofrece editar, eliminar ni sincronizar por `_id`.
+        uneditable: Option<Uneditable>,
     },
+}
+
+/// Por qué los documentos de un cursor no son los de la colección tal cual.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Uneditable {
+    /// Salen de un `aggregate`: su `_id` puede no ser el de la colección.
+    Aggregate,
+    /// El `find` lleva proyección: el visor solo muestra parte del documento.
+    Projection,
+    /// Vista o timeseries: no admiten reemplazar ni borrar.
+    ReadOnlyCollection,
+}
+
+impl Uneditable {
+    /// Nombre que le da `Cursor._uneditable` en `cursor.js`.
+    pub fn from_prelude(name: &str) -> Option<Self> {
+        match name {
+            "aggregate" => Some(Self::Aggregate),
+            "projection" => Some(Self::Projection),
+            "readOnlyCollection" => Some(Self::ReadOnlyCollection),
+            _ => None,
+        }
+    }
 }
 
 /// Una salida con la sentencia que la produjo.

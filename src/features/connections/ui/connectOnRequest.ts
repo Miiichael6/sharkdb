@@ -19,3 +19,20 @@ export function connectOnRequest(initial: Session[], borrowSession: (id: string)
     release: () => Promise.all(releases.splice(0).map((release) => release().catch(() => {}))).then(() => {}),
   };
 }
+
+/**
+ * Keeps connections available for a whole operation: `hold` takes each one once (further calls for
+ * the same id do nothing) and `release` gives them all back, also when nothing was held.
+ */
+export function holdConnections(holdSession: (id: string) => Promise<BorrowedSession>) {
+  const holds = connectOnRequest([], holdSession);
+  const held = new Set<string>();
+  return {
+    hold: async (id: string) => {
+      if (held.has(id)) return;
+      await holds.connect(id);
+      held.add(id);
+    },
+    release: holds.release,
+  };
+}

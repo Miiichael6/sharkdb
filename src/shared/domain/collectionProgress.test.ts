@@ -11,6 +11,7 @@ import {
   databaseSummary,
   databaseSummaryLabel,
   inPhase,
+  isPartiallyApplied,
   opensByDefault,
   plannedCollections,
   settleCollections,
@@ -168,5 +169,29 @@ describe("settling a backup that didn't end well", () => {
       "logs.events:discarded",
     ]);
     expect(statuses(settleCollections(list, "cancelled", "sync"))[0]).toBe("shop.orders:applied");
+  });
+});
+
+describe("a document sync cancelled halfway", () => {
+  const halfway = apply(update("orders", "running", 2, 10), update("orders", "applied", 3, 10));
+
+  it("keeps the documents written as applied, with how far it got, once the operation is cancelled", () => {
+    const [orders, users] = settleCollections(halfway, "cancelled", "sync");
+    expect(orders).toMatchObject({ status: "applied", done: 3, total: 10 });
+    expect(isPartiallyApplied(orders)).toBe(true);
+    expect(collectionPercent(orders)).toBe(30);
+    expect(users.status).toBe("discarded");
+  });
+
+  it("says it in words: 3 de 10, applied in part", () => {
+    const [orders] = halfway;
+    expect(collectionStatusLabel("applied", "sync", true)).toBe("Aplicada en parte");
+    expect(collectionDescription(orders, "sync")).toBe("orders · Aplicada en parte · 3 de 10");
+  });
+
+  it("an applied collection that is whole stays whole", () => {
+    const [orders] = apply(update("orders", "applied", 10, 10));
+    expect(isPartiallyApplied(orders)).toBe(false);
+    expect(collectionPercent(orders)).toBe(100);
   });
 });

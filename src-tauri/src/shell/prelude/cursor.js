@@ -148,6 +148,7 @@
         this._id = this._source.open(this._options);
       }
       const documents = this._buffer.splice(0);
+      const uneditable = this._uneditable();
       return {
         kind: 'cursor',
         ns: this._ns,
@@ -159,19 +160,25 @@
         exhausted: this._done,
         missing: this._done ? 0 : Math.max(0, size - documents.length),
         fresh,
-        editable: this._editable(),
+        editable: uneditable === null,
+        uneditable,
         cursor: this,
       };
     }
 
-    // Solo los documentos enteros de la colección se pueden editar o eliminar desde el resultado:
+    // Solo los documentos enteros de la colección se pueden editar o eliminar desde el resultado
+    // (y sincronizar con otro entorno por su `_id`). Devuelve por qué no, o null si se puede:
     // con proyección, guardar reemplazaría el documento por los campos que se ven; los de un
-    // aggregate (`editable: false` en `source`) no son documentos de la colección. Una vista o una
-    // timeseries (`writable()` en `source`) no admiten reemplazar ni borrar el documento.
-    _editable() {
-      if (this._source.editable === false || hasFields(this._options.projection)) return false;
-      return !this._source.writable || this._source.writable();
+    // aggregate (`editable: false` en `source`) no son documentos de la colección y su `_id` puede
+    // ser otro; una vista o una timeseries (`writable()` en `source`) no admiten reemplazar ni
+    // borrar el documento y su `_id` puede salir del pipeline de la vista.
+    _uneditable() {
+      if (this._source.editable === false) return 'aggregate';
+      if (hasFields(this._options.projection)) return 'projection';
+      return !this._source.writable || this._source.writable() ? null : 'readOnlyCollection';
     }
+
+    _editable() { return this._uneditable() === null; }
 
     // prelude/mod.rs leyó el cursor hasta el final.
     _exhaust() {
@@ -245,6 +252,7 @@
       missing: 0,
       fresh: false,
       editable: true,
+      uneditable: null,
       cursor: entry.cursor,
     };
   }

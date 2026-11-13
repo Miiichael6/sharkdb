@@ -2,10 +2,18 @@
 import { backupSummary, restoreSummary, type BackupRequest, type RestoreRequest } from "../../features/backup/domain/backupSpec";
 import type { MongoConnection } from "../../features/connections/domain/connection";
 import { connectionEndpoint } from "../../features/connections/domain/endpoints";
-import { documentSyncSelection, documentSyncSummary, type DocumentSyncRequest } from "../../features/sync/domain/documentSync";
+import { DOCUMENT_SYNC_CANCEL_EFFECT, documentSyncSelection, documentSyncSummary, type DocumentSyncRequest } from "../../features/sync/domain/documentSync";
 import { syncSummary, type SyncRequest } from "../../features/sync/domain/syncPlan";
 import type { StartedOperation } from "../../shared/application/operationsService";
-import { busyTargetMessage, folderEndpoint, runningOn, type OperationEndpoint } from "../../shared/domain/operations";
+import {
+  busyTargetMessage,
+  connectionInUseMessage,
+  folderEndpoint,
+  runningOn,
+  runningWith,
+  type ConnectionClosing,
+  type OperationEndpoint,
+} from "../../shared/domain/operations";
 import { useServices } from "../services";
 import type { DataRequest } from "./dataRequest";
 import { useOperations } from "./useOperations";
@@ -31,6 +39,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       kind: "backup",
       title: "Backup",
       source: connection(request.sid),
+      readsFrom: request.sid,
       target: folderEndpoint(request.dir),
       databases: request.databases,
       request: { type: "backup", request } satisfies DataRequest,
@@ -48,6 +57,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       kind: "sync",
       title: "Sincronizar",
       source: connection(request.sourceSid),
+      readsFrom: request.sourceSid,
       target,
       writesTo: request.targetSid,
       databases: request.databases,
@@ -64,10 +74,12 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       kind: "sync",
       title: "Sincronizar documentos",
       source: connection(request.sourceSid),
+      readsFrom: request.sourceSid,
       target,
       writesTo: request.targetSid,
       databases: documentSyncSelection(request),
       request: { type: "documents", request } satisfies DataRequest,
+      cancelEffect: DOCUMENT_SYNC_CANCEL_EFFECT,
     } as const;
     return refreshAtEnd(
       start(
@@ -105,6 +117,11 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
      */
     busyReason(sid: string) {
       return operations.busyElsewhere() ?? (runningOn(operations.list(), sid) ? busyTargetMessage(connection(sid).name) : undefined);
+    },
+    /** Why connection `sid` can't be disconnected, edited or deleted now: a running operation uses it. */
+    inUse(sid: string, action: ConnectionClosing) {
+      const op = runningWith(operations.list(), sid);
+      return op && connectionInUseMessage(connection(sid).name, op, action);
     },
     /** Why nothing can start now: another window has an operation running (error 60). */
     busyElsewhere: () => operations.busyElsewhere(),

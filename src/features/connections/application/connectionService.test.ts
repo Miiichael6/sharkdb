@@ -83,6 +83,14 @@ describe("connectionService", () => {
     expect(gateway.closeDetached).toHaveBeenCalledWith(conn.id);
   });
 
+  it("borrows read-only a connection that isn't protected when asked (its open session is in safe mode)", async () => {
+    const { service, gateway } = setup();
+    const conn = newConnection();
+    const { session } = await service.borrow(conn, [conn], true);
+    expect(session.safeMode).toBe(true);
+    expect(gateway.openDetached).toHaveBeenCalledWith(conn.id, "mongodb://localhost:27017/", null, true);
+  });
+
   it("passes the tunnel settings when SSH is enabled", async () => {
     const { service, gateway } = setup();
     const conn = newConnection();

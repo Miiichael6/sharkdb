@@ -110,8 +110,20 @@ export function settleCollections(
   return list.map((entry) => (stays(entry) ? entry : { ...entry, status: "discarded" }));
 }
 
+/**
+ * Applied but short of its total: a document sync cancelled halfway keeps what it wrote. Any other
+ * applied collection is whole (the backend and `settleCollections` close its count).
+ */
+export const isPartiallyApplied = (entry: CollectionProgressEntry) =>
+  entry.status === "applied" && entry.total > 0 && entry.done < entry.total;
+
+/** "3 de 10": how far a partially applied collection got. */
+export const partialProgressLabel = (entry: CollectionProgressEntry) =>
+  `${entry.done.toLocaleString()} de ${entry.total.toLocaleString()}`;
+
 /** 0–100 of one collection; a copied one is whole even though the target doesn't have it yet. */
 export function collectionPercent(entry: CollectionProgressEntry): number {
+  if (isPartiallyApplied(entry)) return Math.round((entry.done / entry.total) * FULL);
   if (entry.status === "copied" || entry.status === "applied") return FULL;
   if (entry.total <= 0) return 0;
   return Math.round(Math.min(entry.done / entry.total, 1) * FULL);
@@ -175,8 +187,11 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
 /** A backup writes files, it doesn't apply anything to a target: what it finished is "Guardada". */
 const BACKUP_APPLIED = "Guardada";
 
-export const collectionStatusLabel = (status: CollectionStatus, kind: OperationKind) =>
-  status === "applied" && kind === "backup" ? BACKUP_APPLIED : STATUS_LABELS[status];
+/** Cancelled after writing some of its documents: those stay in the target, the rest weren't written. */
+const PARTIALLY_APPLIED = "Aplicada en parte";
+
+export const collectionStatusLabel = (status: CollectionStatus, kind: OperationKind, partial = false) =>
+  status === "applied" && kind === "backup" ? BACKUP_APPLIED : status === "applied" && partial ? PARTIALLY_APPLIED : STATUS_LABELS[status];
 
 /** "⚠ 3 duplicados": documents a restore skipped because their `_id` was already there. */
 export const duplicatesLabel = (count: number) => `⚠ ${count} ${count === 1 ? "duplicado" : "duplicados"}`;
@@ -186,9 +201,10 @@ export const duplicatesLabel = (count: number) => `⚠ ${count} ${count === 1 ? 
  * on the colour alone. "pedidos · En curso · 47 %", "pedidos · Error: <motivo>".
  */
 export function collectionDescription(entry: CollectionProgressEntry, kind: OperationKind, duplicates = 0): string {
-  const label = collectionStatusLabel(entry.status, kind);
+  const partial = isPartiallyApplied(entry);
+  const label = collectionStatusLabel(entry.status, kind, partial);
   const state = entry.status === "failed" && entry.error ? `${label}: ${entry.error}` : label;
-  const parts = [entry.collection, state, `${collectionPercent(entry)} %`];
+  const parts = [entry.collection, state, partial ? partialProgressLabel(entry) : `${collectionPercent(entry)} %`];
   if (duplicates > 0) parts.push(duplicatesLabel(duplicates));
   return parts.join(" · ");
 }

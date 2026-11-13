@@ -1,4 +1,5 @@
 // What running a shell script returns. BSON values travel as canonical Extended JSON.
+import type { Uneditable } from "../../../shared/domain/documentTarget";
 import type { Doc } from "../../explorer/domain/mongo";
 
 export type ScriptErrorKind = "script" | "timeout" | "cancelled" | "outOfMemory" | "conversion" | "readOnly";
@@ -19,6 +20,8 @@ export interface CursorResult {
   exhausted: boolean;
   /** Whole documents of the collection (no projection, not from an aggregate): they can be edited or deleted. */
   editable: boolean;
+  /** Why they aren't (null when they are); it also keeps them from being synced by `_id`. */
+  uneditable: Uneditable | null;
 }
 
 export type ScriptOutput =

@@ -10,7 +10,7 @@ use rquickjs::{Ctx, Function, Object, Value};
 use crate::shell::bridge::MongoBridge;
 use crate::shell::convert::js_to_bson;
 use crate::shell::errors::describe_thrown;
-use crate::shell::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptOutput};
+use crate::shell::outcome::{CursorId, ScriptError, ScriptErrorKind, ScriptOutput, Uneditable};
 
 /// Método del `Cursor` de `cursor.js` que lo marca como agotado.
 const EXHAUST: &str = "_exhaust";
@@ -23,6 +23,7 @@ struct DescribedCursor<'js> {
     exhausted: bool,
     missing: usize,
     editable: bool,
+    uneditable: Option<Uneditable>,
     cursor: Object<'js>,
 }
 
@@ -42,6 +43,7 @@ impl<'js> DescribedCursor<'js> {
                 .map(|doc| js_to_bson(ctx, doc))
                 .collect::<rquickjs::Result<_>>()?,
         };
+        let uneditable: Option<String> = described.get("uneditable")?;
         Ok(Self {
             ns: described.get("ns")?,
             id: described.get("id")?,
@@ -49,6 +51,7 @@ impl<'js> DescribedCursor<'js> {
             exhausted: described.get("exhausted")?,
             missing: described.get("missing")?,
             editable: described.get("editable")?,
+            uneditable: uneditable.as_deref().and_then(Uneditable::from_prelude),
             cursor: described.get("cursor")?,
         })
     }
@@ -85,5 +88,6 @@ pub fn cursor_result<'js>(
         documents: cursor.documents,
         exhausted: cursor.exhausted,
         editable: cursor.editable,
+        uneditable: cursor.uneditable,
     })
 }
