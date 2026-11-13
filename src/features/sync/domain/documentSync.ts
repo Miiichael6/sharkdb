@@ -5,9 +5,9 @@ import { CONFIRM_WORD } from "../../../shared/domain/confirmation";
 import type { DocumentTarget } from "../../../shared/domain/documentTarget";
 import type { CollectionResult } from "../../../shared/domain/jobs";
 import type { DatabaseSelection } from "../../../shared/domain/selection";
-import type { MongoConnection } from "../../connections/domain/connection";
+import { displayName, type MongoConnection } from "../../connections/domain/connection";
 import { connectionEndpoint, targetOptions } from "../../connections/domain/endpoints";
-import { canSyncDocumentsTo } from "../../connections/domain/environmentLevel";
+import { canSyncDocumentsTo, environmentLevelName } from "../../connections/domain/environmentLevel";
 import type { Session } from "../../connections/domain/session";
 import { TARGET_IS_SOURCE, TARGET_REQUIRED } from "./syncPlan";
 
@@ -26,10 +26,9 @@ export interface DocumentSyncRequest {
 const ID_FIELD = "_id";
 
 export const DOCUMENTS_REQUIRED = "Elige al menos un documento con _id";
-export const TARGET_NOT_LOWER = "Solo se sincronizan documentos hacia un entorno de menor nivel: prod → QA o local, QA → local";
+export const TARGET_NOT_LOWER = "Solo se sincronizan documentos hacia un entorno de menor nivel: prod → QA, development o local; QA → development o local; development → local";
 export const NO_COLLECTION = "La consulta no deja saber de qué colección vienen los documentos";
 export const NO_ID = "Algún documento elegido no tiene _id";
-export const NO_DOCUMENT_TARGET = "No hay ninguna conexión de menor nivel a la que sincronizar";
 
 /** The `_id` of each document, or null when one of them has none (a projection without it, an aggregate). */
 export function documentIds(docs: unknown[]): unknown[] | null {
@@ -61,6 +60,17 @@ export function validateDocumentSync(r: DocumentSyncRequest, connections: MongoC
   const target = connections.find((c) => c.id === r.targetSid);
   if (!source || !target || !canSyncDocumentsTo(source, target, connections)) throw TARGET_NOT_LOWER;
   return r;
+}
+
+/**
+ * Why documents of `source` have nowhere to go: its environment is the lowest, or no registered
+ * connection is below it. Names the tag, since it may not match the connection's name (e.g. "QA" tagged development).
+ */
+export function noDocumentTarget(source: MongoConnection): string {
+  const level = environmentLevelName(source.tag);
+  return source.tag === "local"
+    ? `${displayName(source)} tiene el entorno "local", el más bajo: no hay a dónde sincronizar. Si es de otro entorno, cámbialo al editar la conexión.`
+    : `No hay ninguna conexión registrada de menor nivel que ${displayName(source)} (${level}) en la que se pueda escribir.`;
 }
 
 /** Destinations offered for documents of `sourceSid`: only connections of a lower level that can be written to. */
@@ -115,6 +125,9 @@ export const documentSyncConfirmation = (
   confirmLabel: "Sincronizar",
   blocked,
 });
+
+/** The first window's button: it still asks for `confirmo` in the next one. */
+export const syncDocumentsLabel = (n: number) => (n === 1 ? "Sincronizar documento" : `Sincronizar ${n.toLocaleString()} documentos`);
 
 export const documentsLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "documento" : "documentos"}`;
 

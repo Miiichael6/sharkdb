@@ -1,11 +1,13 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { progressCount } from "../../shared/domain/jobs";
 import {
+  canRetry,
   durationLabel,
   isRunning,
   KIND_LABELS,
   operationDetail,
   operationRoute,
+  RETRIED_LABEL,
   STATUS_LABELS,
   type Operation,
 } from "../../shared/domain/operations";
@@ -18,13 +20,15 @@ import { useElapsed } from "./useElapsed";
 interface Props {
   operation: Operation;
   onCancel: (op: Operation) => void;
+  /** Launches a failed or cancelled operation again (R101). */
+  onRetry: (op: Operation) => void;
   /** Removes the row once the operation ended. */
   onDismiss: (op: Operation) => void;
   /** Shows its detail: where it goes and how each collection goes (R89). */
   onOpen: (op: Operation) => void;
 }
 
-/** A click on the row's own buttons (Cancelar, ×, the folder) does what they say, not open the detail. */
+/** A click on the row's own buttons (Cancelar, ⟳, ×, the folder) does what they say, not open the detail. */
 const fromInnerButton = (e: MouseEvent | KeyboardEvent) => (e.target as HTMLElement).closest("button") !== null;
 
 /** Dragging over the row to copy its text (an error, a path) ends in a click too: that one doesn't open. */
@@ -34,7 +38,7 @@ const selectingText = () => !(window.getSelection()?.isCollapsed ?? true);
 const OPEN_KEYS = ["Enter", " "];
 
 /** One operation of the panel: its route, its progress while it runs and its outcome once it ends. */
-export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Props) {
+export function OperationRow({ operation: op, onCancel, onRetry, onDismiss, onOpen }: Props) {
   const { backup } = useServices();
   const notify = useNotify();
   const openFolder = (path: string) => void backup.openFolder(path).catch(notify.fail);
@@ -61,10 +65,16 @@ export function OperationRow({ operation: op, onCancel, onDismiss, onOpen }: Pro
       <div className="ops-row-head">
         <span className={`ops-status ${op.status}`}>{STATUS_LABELS[op.status]}</span>
         <span className="ops-row-meta">
+          {op.retriedBy && <span className="ops-retried muted small">{RETRIED_LABEL}</span>}
           {running && op.progress && <span className="ops-tally">{progressCount(op.progress)}</span>}
           <span className="ops-elapsed muted small" title={running ? "Tiempo transcurrido" : "Duración"}>
             {durationLabel(elapsed)}
           </span>
+          {canRetry(op) && (
+            <button type="button" className="ghost small ops-retry" onClick={() => onRetry(op)} aria-label="Reintentar" title="Reintentar">
+              ⟳
+            </button>
+          )}
           {!running && (
             <button
               type="button"

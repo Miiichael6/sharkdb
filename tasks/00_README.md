@@ -96,7 +96,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 - [x] **D24** Detalle de operaciones: ¿cómo se abre? → **en una sub-ventana** al hacer clic (o Enter) en la fila del panel; se actualiza en vivo mientras la operación corre (2026-11-04) → afecta 41
 - [x] **D25** Sync de documentos: si el documento ya existe en el destino (mismo `_id`) → **se reemplaza entero (upsert por `_id`)**; si no existe la BD o colección en el destino, se crea (2026-11-11) → afecta 42
 - [x] **D26** Sync de documentos, aprobada por el usuario (2026-11-11) → afecta 42:
-  - **Solo hacia un entorno de menor nivel**, nunca el mismo nivel ni hacia arriba. Niveles por etiqueta: `production` (3) → `testing`/`staging` = QA (2) → `local`/`development` (1). Permitido: prod → QA, prod → local, QA → local. Prohibido: QA → prod, local → QA, QA → QA, local → local. Las protegidas siguen sin ser nunca destino.
+  - **Solo hacia un entorno de menor nivel**, nunca el mismo nivel ni hacia arriba. Niveles por etiqueta: `production` (4) → `testing`/`staging` = QA (3) → `development` (2) → `local` (1); el usuario separó development de local el 2026-11-12. Permitido: prod → QA/development/local, QA → development/local, development → local. Prohibido: hacia arriba y el mismo nivel (QA → QA, development → development, local → local). Las protegidas siguen sin ser nunca destino.
   - Entrada **solo desde el visor** (opción a): menú contextual de los documentos seleccionados, "Sincronizar con otro entorno…". Va a la **misma BD y colección** del destino.
   - El documento se lee **completo desde la BD por `_id`**, nunca lo que muestra el visor (que puede venir de un `find` con proyección o de un `aggregate` con `$project`).
   - La confirmación muestra **cada documento completo** junto con su conexión, BD y colección de origen y destino, y pide escribir **`confirmo`**.
@@ -151,7 +151,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | 40 | [Avance por colección en sync, restore y backup](done/40_avance_por_coleccion.md) | 25 Detalle de operaciones | 20, 22 | ✅ Terminada |
 | 41 | [Detalle de una operación: origen → destino y colecciones por BD](done/41_detalle_de_operacion.md) | 25 Detalle de operaciones | 40 | ✅ Terminada |
 | 42 | [Sincronizar documentos sueltos con otro entorno](done/42_sync_de_documentos.md) | 26 Sync de documentos | 21, 41 | ✅ Terminada (falta prueba manual en la app) |
-| 43 | [Reintentar operaciones fallidas desde el panel](pending/43_reintentar_operaciones.md) | 27 Reintentar operaciones | 20, 41 | ⬜ Pendiente |
+| 43 | [Reintentar operaciones fallidas desde el panel](in_progress/43_reintentar_operaciones.md) | 27 Reintentar operaciones | 20, 41 | 🔄 En progreso |
 
 \* 07 y 09 solo dependen de 01: pueden hacerse en cualquier momento después de 01 (09 es independiente del shell).
 \* 10 es **opcional**: no cuenta para "siguiente tarea disponible" ni bloquea el cierre del plan; se hace solo si el usuario la pide.
@@ -257,7 +257,7 @@ Todo componente, vista y servicio nuevo o modificado sigue **arquitectura hexago
 | R95 Al cancelar o fallar, lo no aplicado queda como descartado (el destino no cambió) | 40 |
 | R96 El estado de una colección no depende solo del color (tooltip / texto accesible) | 41 |
 | R97 Elegir documentos seleccionados en el visor para sincronizarlos; se leen completos de la BD por `_id` (nunca la proyección mostrada) | 42 |
-| R104 Solo hacia un entorno de menor nivel: prod → QA/local, QA → local; nunca el mismo nivel ni hacia arriba (D26) | 42 |
+| R104 Solo hacia un entorno de menor nivel: prod → QA/development/local, QA → development/local, development → local; nunca el mismo nivel ni hacia arriba (D26) | 42 |
 | R98 Copiarlos a la misma BD y colección de otra conexión según D25 | 42 |
 | R99 Confirmación con cada documento completo, conexión/BD/colección de origen y destino, y `confirmo`; nunca destino protegido ni en safe mode | 42 |
 | R100 El sync de documentos corre en el panel de Operaciones con avance y detalle | 42 |

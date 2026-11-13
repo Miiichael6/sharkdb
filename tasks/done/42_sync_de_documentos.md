@@ -9,7 +9,7 @@ Desde el visor, los documentos seleccionados se copian completos (leídos de la 
 ## Pasos
 
 ### Paso 1: Dominio y caso de uso (frontend)
-- [x] `src/features/connections/domain/environmentLevel.ts` (nuevo): `environmentLevel(tag)` (`production`=3, `testing`/`staging`=2, `local`/`development`=1) y `canSyncDocumentsTo(source, target)`: solo si el nivel del destino es **menor** y no es `neverModified` (R104, D26)
+- [x] `src/features/connections/domain/environmentLevel.ts` (nuevo): `environmentLevel(tag)` (`production`=4, `testing`/`staging`=3, `development`=2, `local`=1) y `canSyncDocumentsTo(source, target)`: solo si el nivel del destino es **menor** y no es `neverModified` (R104, D26)
 - [x] `src/features/sync/domain/documentSync.ts` (nuevo): `DocumentSyncRequest` (`sourceSid`, `targetSid`, `db`, `collection`, `ids`), `validateDocumentSync()` (dirección permitida, al menos un `_id`) y `documentSyncConfirmation()` con origen y destino (conexión · BD · colección) (R99)
 - [x] `src/features/sync/application/ports.ts` + `syncService.ts`: `loadFullDocuments(sid, db, collection, ids)` (lectura completa para la confirmación) y `syncDocuments(job, request)` (R97, R98)
 
@@ -36,7 +36,7 @@ Desde el visor, los documentos seleccionados se copian completos (leídos de la 
 
 ## Criterios de aceptación
 - [x] Los documentos seleccionados en el visor se sincronizan completos, aunque la consulta tuviera proyección o `$project`
-- [x] Solo se ofrecen (y el backend solo acepta) destinos de menor nivel: prod → QA/local, QA → local
+- [x] Solo se ofrecen (y el backend solo acepta) destinos de menor nivel: prod → QA/development/local, QA → development/local, development → local
 - [x] La confirmación muestra cada documento completo con conexión, BD y colección de origen y destino, y exige `confirmo`
 - [ ] La operación aparece en el panel de Operaciones con su avance y resultado (cableada como `kind: "sync"`; falta verlo en la app, ver Bitácora)
 
@@ -44,4 +44,4 @@ Desde el visor, los documentos seleccionados se copian completos (leídos de la 
 <!-- Resumida: 1 a 3 entradas de una línea. Solo decisiones no obvias, problemas y desviaciones. -->
 - 2026-11-12: El nivel se valida en front y back (`store::connection_tag` + `ensure_lower_level`); los _id que ya no existen se omiten y la confirmación los cuenta; cancelar deja los ya escritos (cada upsert es independiente).
 - 2026-11-12: Vitest falla en Git Bash ("reading 'config'") por la ruta `/c/` frente a `C:\`; se verificó desde PowerShell. El test vivo de Rust pasó contra el mongod local.
-- 2026-11-12: Prueba manual del flujo y del panel no hecha aquí (sin automatizar la ventana Tauri); la app arranca con `npm run tauri dev`. Pendiente probarla a mano.
+- 2026-11-12: En la prueba manual, development → local no se ofrecía (mismo nivel en D26); el usuario separó development (2) de local (1) y, sin destinos, ahora se avisa antes de abrir la ventana. Falta probar el sync completo y el panel.

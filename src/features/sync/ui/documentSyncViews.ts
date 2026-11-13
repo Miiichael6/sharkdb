@@ -4,7 +4,8 @@ import type { MongoConnection } from "../../connections/domain/connection";
 import type { Session } from "../../connections/domain/session";
 
 export const DOCUMENT_SYNC_VIEW = "document-sync";
-export const DOCUMENT_SYNC_WINDOW = { title: "Sincronizar documentos con otro entorno", width: 620, height: 300 };
+/** The first window, as tall as its content: no empty band under the documents, no scroll. */
+export const DOCUMENT_SYNC_WINDOW = { title: "Sincronizar documentos con otro entorno", width: 640, height: 420, fitContent: true };
 
 export const DOCUMENT_SYNC_CONFIRM_VIEW = "document-sync-confirm";
 export const DOCUMENT_SYNC_CONFIRM_WINDOW = { width: 760, height: 680, minHeight: 420, maximizable: true };

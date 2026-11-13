@@ -1,11 +1,14 @@
 import { useState, type KeyboardEvent } from "react";
 import { byDatabase, usesStaging, type CollectionPhase } from "../../shared/domain/collectionProgress";
 import {
+  canRetry,
   cancelConfirmation,
   durationLabel,
   isRunning,
   KIND_LABELS,
   operationDetail,
+  RETRIED_LABEL,
+  retryConfirmation,
   STATUS_LABELS,
   type Operation,
 } from "../../shared/domain/operations";
@@ -55,12 +58,16 @@ export function OperationDetail({ operation: op, onClose }: { operation: Operati
   const cancel = async () => {
     if (await confirmInWindow(cancelConfirmation(op))) await ask({ kind: "cancel" });
   };
+  const retry = async () => {
+    if (await confirmInWindow(retryConfirmation(op))) await ask({ kind: "retry" });
+  };
 
   return (
     <div className="ops-detail">
       <header className="ops-detail-head">
         <strong>{KIND_LABELS[op.kind]}</strong>
         <span className={`ops-status ${op.status}`}>{STATUS_LABELS[op.status]}</span>
+        {op.retriedBy && <span className="ops-retried muted small">{RETRIED_LABEL}</span>}
         <span className="ops-elapsed muted small" title={running ? "Tiempo transcurrido" : "Duración"}>
           {durationLabel(elapsed)}
         </span>
@@ -68,6 +75,11 @@ export function OperationDetail({ operation: op, onClose }: { operation: Operati
         {running && (
           <button type="button" className="small" onClick={() => void cancel()}>
             Cancelar
+          </button>
+        )}
+        {canRetry(op) && (
+          <button type="button" className="small" onClick={() => void retry()} aria-label="Reintentar">
+            ⟳ Reintentar
           </button>
         )}
       </header>

@@ -5,7 +5,7 @@ import { useOperations } from "./useOperations";
 
 /** The Operaciones tab of the right sidebar: the background operations of the main window. */
 export function OperationsPanel() {
-  const { operations, cancel, clearFinished, dismiss } = useOperations();
+  const { operations, cancel, retry, clearFinished, dismiss } = useOperations();
   const openDetail = useOperationDetail();
   const anyEnded = operations.some((op) => !isRunning(op));
 
@@ -23,6 +23,7 @@ export function OperationsPanel() {
             kind={kind}
             operations={operationsOfKind(operations, kind)}
             onCancel={(op) => void cancel(op)}
+            onRetry={(op) => void retry(op)}
             onDismiss={(op) => dismiss(op.id)}
             onOpen={openDetail}
           />

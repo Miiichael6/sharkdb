@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CollectionResult } from "../domain/jobs";
 import type { OperationSpec } from "../domain/operations";
 import type { JobListener, RunningJob } from "./jobRunner";
-import { createOperationsService } from "./operationsService";
+import { createOperationsService, RETRY_UNAVAILABLE, type StartedOperation } from "./operationsService";
 
 const RESULTS: CollectionResult[] = [{ collection: "shop.orders", documents: 3, duplicates: 0, indexes: 1 }];
 const SYNC: OperationSpec = {
@@ -122,5 +122,55 @@ describe("operationsService", () => {
     await started.settled;
     service.dismiss(started.id);
     expect(service.list().map((o) => o.id)).toEqual([running.id]);
+  });
+
+  describe("retry (R102)", () => {
+    const REQUEST = { type: "sync", request: { sourceSid: "qa", targetSid: "local" } };
+
+    /** A service with operation `op-1` failed, launched with `REQUEST`. */
+    async function withFailed() {
+      const service = newService();
+      const job = fakeJob();
+      const first = service.start({ ...SYNC, request: REQUEST }, job.launch, summarize);
+      job.state.reject(new Error("sin red"));
+      await first.settled;
+      return service;
+    }
+
+    it("launches the same request as a new operation and marks the failed one as retried", async () => {
+      const service = await withFailed();
+      const relaunched: unknown[] = [];
+      const again = fakeJob();
+      const started = await service.retry("op-1", async (request) => {
+        relaunched.push(request);
+        return service.start({ ...SYNC, request }, again.launch, summarize);
+      });
+      expect(relaunched).toEqual([REQUEST]);
+      expect(started?.id).toBe("op-2");
+      expect(service.list().map((o) => [o.id, o.status, o.retriedBy])).toEqual([
+        ["op-1", "failed", "op-2"],
+        ["op-2", "running", undefined],
+      ]);
+      await expect(service.retry("op-1", async () => null)).rejects.toBe(RETRY_UNAVAILABLE);
+    });
+
+    it("leaves it retryable when the relaunch doesn't start or is refused", async () => {
+      const service = await withFailed();
+      expect(await service.retry("op-1", async () => null)).toBeNull();
+      await expect(service.retry("op-1", () => Promise.reject("Safe mode activo"))).rejects.toBe("Safe mode activo");
+      expect(service.list()[0].retriedBy).toBeUndefined();
+    });
+
+    it("refuses a running operation, an unknown one, and a second retry while the first is checking", async () => {
+      const service = await withFailed();
+      service.start(BACKUP, fakeJob().launch, summarize);
+      await expect(service.retry("op-2", async () => null)).rejects.toBe(RETRY_UNAVAILABLE);
+      await expect(service.retry("nope", async () => null)).rejects.toBe(RETRY_UNAVAILABLE);
+      let finish = (_: StartedOperation | null) => {};
+      const first = service.retry("op-1", () => new Promise((resolve) => (finish = resolve)));
+      await expect(service.retry("op-1", async () => null)).rejects.toBe(RETRY_UNAVAILABLE);
+      finish(null);
+      await first;
+    });
   });
 });

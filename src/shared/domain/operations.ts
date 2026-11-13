@@ -41,6 +41,8 @@ export interface OperationSpec {
   writesTo?: string;
   /** What was chosen: the collections it goes through, waiting from the start. */
   databases: DatabaseSelection[];
+  /** What launched it, to launch it again as it was (R102); only the app knows its shape. */
+  request?: unknown;
 }
 
 export interface Operation extends OperationSpec {
@@ -56,6 +58,8 @@ export interface Operation extends OperationSpec {
   /** Epoch milliseconds. */
   startedAt: number;
   endedAt: number | null;
+  /** Id of the operation that retried this one: it stays in the history, retried once (R102). */
+  retriedBy?: string;
 }
 
 export type OperationEvent =
@@ -65,6 +69,7 @@ export type OperationEvent =
   | { type: "finished"; id: string; results: CollectionResult[]; summary: string; at: number }
   | { type: "failed"; id: string; error: string; at: number }
   | { type: "cancelled"; id: string; at: number }
+  | { type: "retried"; id: string; by: string }
   | { type: "cleared" }
   | { type: "dismissed"; id: string };
 
@@ -129,6 +134,8 @@ export function operationsReducer(ops: Operation[], event: OperationEvent): Oper
       return whileRunning(ops, event.id, (op) => ({ ...ended(op, "failed", event.at), error: event.error }));
     case "cancelled":
       return whileRunning(ops, event.id, (op) => ended(op, "cancelled", event.at));
+    case "retried":
+      return update(ops, event.id, (op) => (canRetry(op) ? { ...op, retriedBy: event.by } : op));
     case "cleared":
       return ops.filter((op) => op.status === "running");
     case "dismissed":
@@ -137,6 +144,12 @@ export function operationsReducer(ops: Operation[], event: OperationEvent): Oper
 }
 
 export const isRunning = (op: Operation) => op.status === "running";
+
+/** Whether `op` can be launched again: it failed or was cancelled (D27), and wasn't retried yet. */
+export const canRetry = (op: Operation) =>
+  (op.status === "failed" || op.status === "cancelled") && op.request !== undefined && !op.retriedBy;
+
+export const RETRIED_LABEL = "Reintentada";
 export const runningOperations = (ops: Operation[]) => ops.filter(isRunning);
 
 /** The running operation that writes to `targetSid`, if any: only one may write to a connection at a time. */
@@ -170,7 +183,7 @@ const CANCEL_EFFECTS: Record<OperationKind, string> = {
   restore: "El destino queda como estaba: no se reemplaza ninguna colección hasta que estén todas restauradas.",
 };
 
-const CANCEL_NAMES: Record<OperationKind, string> = { sync: "la sincronización", backup: "el backup", restore: "el restore" };
+const OPERATION_NAMES: Record<OperationKind, string> = { sync: "la sincronización", backup: "el backup", restore: "el restore" };
 
 /** Backs out of stopping or closing: "Cancelar" would read as "cancel the operation". */
 export const KEEP_RUNNING = "Seguir";
@@ -178,9 +191,19 @@ export const KEEP_RUNNING = "Seguir";
 /** "¿Cancelar la sincronización QA → local? …": Seguir, or "Detener la sincronización". */
 export const cancelConfirmation = (op: Operation): ConfirmRequest => ({
   title: "Cancelar operación",
-  message: `¿Cancelar ${CANCEL_NAMES[op.kind]} ${operationRoute(op)}? ${CANCEL_EFFECTS[op.kind]}`,
-  confirmLabel: `Detener ${CANCEL_NAMES[op.kind]}`,
+  message: `¿Cancelar ${OPERATION_NAMES[op.kind]} ${operationRoute(op)}? ${CANCEL_EFFECTS[op.kind]}`,
+  confirmLabel: `Detener ${OPERATION_NAMES[op.kind]}`,
   dismissLabel: KEEP_RUNNING,
+});
+
+/**
+ * "¿Reintentar la sincronización QA → local?": a short confirmation without the confirmation word,
+ * typed already when it was first launched (D27); the destination stayed as it was (D23).
+ */
+export const retryConfirmation = (op: Operation): ConfirmRequest => ({
+  title: "Reintentar operación",
+  message: `¿Reintentar ${OPERATION_NAMES[op.kind]} ${operationRoute(op)}? Se lanza de nuevo con el mismo origen, destino y colecciones.`,
+  confirmLabel: "Reintentar",
 });
 
 /** Asked when the app closes with `count` operations running. */

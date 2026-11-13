@@ -2,6 +2,7 @@
 import type { CollectionResult } from "../domain/jobs";
 import {
   busyTargetMessage,
+  canRetry,
   operationsReducer,
   runningOn,
   type Operation,
@@ -19,6 +20,14 @@ export interface StartedOperation {
   /** The operation once it ended, whatever the way. */
   settled: Promise<Operation>;
 }
+
+/**
+ * Launches again what an operation launched (its `request`), checking first that it still can be
+ * written where it goes (R103); null when it didn't start. Throws the reason it can't.
+ */
+export type Relaunch = (request: unknown) => Promise<StartedOperation | null>;
+
+export const RETRY_UNAVAILABLE = "Esta operación ya no se puede reintentar";
 
 /** The other SharkDB windows: each one is a process of its own, with operations this one doesn't see (error 60). */
 export interface OtherWindows {
@@ -41,6 +50,8 @@ export function createOperationsService(
   const listeners = new Set<() => void>();
   const jobs = new Map<string, RunningJob>();
   const cancelRequested = new Set<string>();
+  // Retries still checking their destination: a second click doesn't launch it twice.
+  const retrying = new Set<string>();
 
   const dispatch = (event: OperationEvent) => {
     operations = operationsReducer(operations, event);
@@ -97,6 +108,22 @@ export function createOperationsService(
       if (!job) return;
       cancelRequested.add(id);
       job.cancel();
+    },
+    /**
+     * Launches ended operation `id` again with its same request (R102): a new operation, while `id`
+     * stays in the history marked as retried. Throws `RETRY_UNAVAILABLE` when it can't be retried.
+     */
+    async retry(id: string, relaunch: Relaunch): Promise<StartedOperation | null> {
+      const op = operations.find((candidate) => candidate.id === id);
+      if (!op || !canRetry(op) || retrying.has(id)) throw RETRY_UNAVAILABLE;
+      retrying.add(id);
+      try {
+        const started = await relaunch(op.request);
+        if (started) dispatch({ type: "retried", id, by: started.id });
+        return started;
+      } finally {
+        retrying.delete(id);
+      }
     },
     /** Removes the ended operations from the list. */
     clearFinished: () => dispatch({ type: "cleared" }),
