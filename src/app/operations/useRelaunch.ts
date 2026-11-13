@@ -3,7 +3,7 @@ import type { MongoConnection } from "../../features/connections/domain/connecti
 import type { BorrowedSession } from "../../features/connections/domain/session";
 import { connectOnRequest } from "../../features/connections/ui/connectOnRequest";
 import { RETRY_UNAVAILABLE, type Relaunch, type StartedOperation } from "../../shared/application/operationsService";
-import { isDataRequest, retryBlockReason, usedConnections, writtenConnection } from "./dataRequest";
+import { isDataRequest, retryBlockReason, staleReason, usedConnections, writtenConnection } from "./dataRequest";
 import type { useDataOperations } from "./useDataOperations";
 import { useOperations } from "./useOperations";
 
@@ -16,8 +16,8 @@ interface Options {
 
 /**
  * Lets the operations panel retry an operation (R101–R103): its connections are connected again when
- * closed, and it isn't launched when its destination can't be written to now (another operation writes
- * there, it became protected or production, or safe mode is on). What it borrowed is given back at the end.
+ * closed, and it isn't launched when a connection changed since it was confirmed or its destination can't
+ * be written to now (another operation writes there, it became protected or production, or safe mode is on). What it borrowed is given back at the end.
  */
 export function useRelaunch({ connections, borrowSession, data }: Options) {
   const { setRelaunch } = useOperations();
@@ -29,11 +29,14 @@ export function useRelaunch({ connections, borrowSession, data }: Options) {
       const target = writtenConnection(request);
       const busy = target ? data.busyReason(target) : data.busyElsewhere();
       if (busy) throw busy;
+      // Never connects to a connection edited or removed since it was confirmed.
+      const stale = staleReason(request, connections);
+      if (stale) throw stale;
       const opened = connectOnRequest([], borrowSession);
       let started: StartedOperation | null = null;
       try {
         for (const id of usedConnections(request)) await opened.connect(id);
-        const blocked = retryBlockReason(request, connections, opened.sessions().find((s) => s.conn.id === target));
+        const blocked = retryBlockReason(request, connections, opened.sessions());
         if (blocked) throw blocked;
         started = data.relaunch(request);
       } finally {

@@ -15,7 +15,7 @@ import {
   type OperationEndpoint,
 } from "../../shared/domain/operations";
 import { useServices } from "../services";
-import type { DataRequest } from "./dataRequest";
+import { dataRequest, type DataRequest } from "./dataRequest";
 import { useOperations } from "./useOperations";
 
 /**
@@ -42,7 +42,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       readsFrom: request.sid,
       target: folderEndpoint(request.dir),
       databases: request.databases,
-      request: { type: "backup", request } satisfies DataRequest,
+      request: dataRequest({ type: "backup", request }, connections),
     } as const;
     return start(
       spec,
@@ -61,7 +61,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       target,
       writesTo: request.targetSid,
       databases: request.databases,
-      request: { type: "sync", request } satisfies DataRequest,
+      request: dataRequest({ type: "sync", request }, connections),
     } as const;
     return refreshAtEnd(
       start(spec, (listener) => sync.sync(request, listener), (results) => syncSummary(target.name, request.databases.length, results)),
@@ -78,7 +78,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       target,
       writesTo: request.targetSid,
       databases: documentSyncSelection(request),
-      request: { type: "documents", request } satisfies DataRequest,
+      request: dataRequest({ type: "documents", request }, connections),
       cancelEffect: DOCUMENT_SYNC_CANCEL_EFFECT,
     } as const;
     return refreshAtEnd(
@@ -99,7 +99,7 @@ export function useDataOperations(connections: MongoConnection[], onTargetChange
       target,
       writesTo: request.targetSid,
       databases: request.databases,
-      request: { type: "restore", request } satisfies DataRequest,
+      request: dataRequest({ type: "restore", request }, connections),
     } as const;
     return refreshAtEnd(
       start(
